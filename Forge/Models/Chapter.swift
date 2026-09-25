@@ -220,6 +220,18 @@ struct ChapterReading: Equatable, Sendable {
     let completionRate: Double
 
     var completionPercent: Int { Int((completionRate * 100).rounded()) }
+
+    /// How long a chapter has to have run before the way out is offered.
+    ///
+    /// Two weeks. Closing is still free and still resets nothing — see
+    /// `ChapterStore.close` — but a "Close this chapter" link under a chapter
+    /// opened this morning is an invitation to abandon a six-week promise on
+    /// its first bad day, which is exactly the moment the chapter exists to
+    /// carry somebody through.
+    static let daysBeforeClosing = 14
+
+    /// Whether "Close this chapter" is shown.
+    var canClose: Bool { daysElapsed >= Self.daysBeforeClosing }
 }
 
 extension Chapter {
