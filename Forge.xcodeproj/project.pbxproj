@@ -85,6 +85,7 @@
 		7A1C40E2B1F04C6EA9D39016 /* AuthCrypto.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1C40E2B1F04C6EA9D39015 /* AuthCrypto.swift */; };
 		7A1C40E2B1F04C6EA9D39018 /* WebAuthFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1C40E2B1F04C6EA9D39017 /* WebAuthFlow.swift */; };
 		7A1C40E2B1F04C6EA9D3901A /* AuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1C40E2B1F04C6EA9D39019 /* AuthService.swift */; };
+		A1F0RGE0ANONID0BUILD1 /* AnonymousIdentity.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1F0RGE0ANONID0FILE01 /* AnonymousIdentity.swift */; };
 		7A1C40E2B1F04C6EA9D3901C /* LocalPractice.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1C40E2B1F04C6EA9D3901B /* LocalPractice.swift */; };
 		7A1C40E2B1F04C6EA9D3901E /* SyncMerge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1C40E2B1F04C6EA9D3901D /* SyncMerge.swift */; };
 		7A1C40E2B1F04C6EA9D39020 /* SyncLedger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1C40E2B1F04C6EA9D3901F /* SyncLedger.swift */; };
@@ -102,7 +103,7 @@
 		7D7B518D7411B520DFC243DE /* ForgeButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = A59DBDAC9E8F5BBC0CBDD877 /* ForgeButton.swift */; };
 		7F1D709D78EF4F0AA703668B /* ProgressStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB83CC065A7443B2BD53A71B /* ProgressStore.swift */; };
 		83097D5F9CD04743BC86F96B /* ForgeDay.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7BFC24F8A614F81AD7643E8 /* ForgeDay.swift */; };
-		89339609911A4CA195EACB88 /* ClaudeForgeAI.swift in Sources */ = {isa = PBXBuildFile; fileRef = D914E431EC9A4F82B8527B64 /* ClaudeForgeAI.swift */; };
+		89339609911A4CA195EACB88 /* RemoteForgeAI.swift in Sources */ = {isa = PBXBuildFile; fileRef = D914E431EC9A4F82B8527B64 /* RemoteForgeAI.swift */; };
 		8A36C1B3997697530EFD01F0 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D56A78E589A56D9B62D51434 /* ContentView.swift */; };
 		8B7574B6935F4BA8873D4CFB /* FirstRunView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9500272A167449FB839A30D /* FirstRunView.swift */; };
 		923EFE258A984E98A8204024 /* Identity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0105BDA87C194258A2491E9B /* Identity.swift */; };
@@ -260,6 +261,7 @@
 		7A1C40E2B1F04C6EA9D39015 /* AuthCrypto.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthCrypto.swift; sourceTree = "<group>"; };
 		7A1C40E2B1F04C6EA9D39017 /* WebAuthFlow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebAuthFlow.swift; sourceTree = "<group>"; };
 		7A1C40E2B1F04C6EA9D39019 /* AuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthService.swift; sourceTree = "<group>"; };
+		A1F0RGE0ANONID0FILE01 /* AnonymousIdentity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnonymousIdentity.swift; sourceTree = "<group>"; };
 		7A1C40E2B1F04C6EA9D3901B /* LocalPractice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalPractice.swift; sourceTree = "<group>"; };
 		7A1C40E2B1F04C6EA9D3901D /* SyncMerge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncMerge.swift; sourceTree = "<group>"; };
 		7A1C40E2B1F04C6EA9D3901F /* SyncLedger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncLedger.swift; sourceTree = "<group>"; };
@@ -323,7 +325,7 @@
 		D1838572F638471EB76BD7FA /* LegacyDecodingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LegacyDecodingTests.swift; sourceTree = "<group>"; };
 		D21CCC1C893E4475965BC71B /* DayCommitment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DayCommitment.swift; sourceTree = "<group>"; };
 		D56A78E589A56D9B62D51434 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
-		D914E431EC9A4F82B8527B64 /* ClaudeForgeAI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeForgeAI.swift; sourceTree = "<group>"; };
+		D914E431EC9A4F82B8527B64 /* RemoteForgeAI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteForgeAI.swift; sourceTree = "<group>"; };
 		DB74DB309F7F437DB9EC3A46 /* ForgeDayTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForgeDayTests.swift; sourceTree = "<group>"; };
 		DD895C5CB47FC0999ED5CD27 /* BladeTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BladeTabView.swift; sourceTree = "<group>"; };
 		E25C23AD80B4EBB095803BBD /* Milestone.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Milestone.swift; sourceTree = "<group>"; };
@@ -552,6 +554,7 @@
 				7A1C40E2B1F04C6EA9D39017 /* WebAuthFlow.swift */,
 				7A1C40E2B1F04C6EA9D39F01 /* OAuthCallback.swift */,
 				7A1C40E2B1F04C6EA9D39019 /* AuthService.swift */,
+				A1F0RGE0ANONID0FILE01 /* AnonymousIdentity.swift */,
 			);
 			path = Auth;
 			sourceTree = "<group>";
@@ -658,7 +661,7 @@
 		EB4AE53CBA7282089BE8C7BB /* Engine */ = {
 			isa = PBXGroup;
 			children = (
-				D914E431EC9A4F82B8527B64 /* ClaudeForgeAI.swift */,
+				D914E431EC9A4F82B8527B64 /* RemoteForgeAI.swift */,
 				A1F0RGE0LOCAI00FILE01 /* LocalForgeAI.swift */,
 				A1F0RGE0CSTORE0FILE01 /* ChallengeStore.swift */,
 				9B1A7EDB49484798AFD15B87 /* IdentityStore.swift */,
@@ -835,7 +838,7 @@
 			files = (
 				9673A861037342C2B92336F1 /* AIDisclosureView.swift in Sources */,
 				55D8752497994DC29A091C05 /* AppearanceView.swift in Sources */,
-				89339609911A4CA195EACB88 /* ClaudeForgeAI.swift in Sources */,
+				89339609911A4CA195EACB88 /* RemoteForgeAI.swift in Sources */,
 				7A1C40E2B1F04C6EA9D39006 /* SupabaseConfig.swift in Sources */,
 				7A1C40E2B1F04C6EA9D39008 /* BackendError.swift in Sources */,
 				7A1C40E2B1F04C6EA9D3900A /* BackendJSON.swift in Sources */,
@@ -848,6 +851,7 @@
 				7A1C40E2B1F04C6EA9D39018 /* WebAuthFlow.swift in Sources */,
 				7A1C40E2B1F04C6EA9D39F02 /* OAuthCallback.swift in Sources */,
 				7A1C40E2B1F04C6EA9D3901A /* AuthService.swift in Sources */,
+				A1F0RGE0ANONID0BUILD1 /* AnonymousIdentity.swift in Sources */,
 				7A1C40E2B1F04C6EA9D3901C /* LocalPractice.swift in Sources */,
 				7A1C40E2B1F04C6EA9D3901E /* SyncMerge.swift in Sources */,
 				7A1C40E2B1F04C6EA9D39020 /* SyncLedger.swift in Sources */,

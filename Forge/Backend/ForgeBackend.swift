@@ -172,7 +172,9 @@ final class ForgeBackend {
 
     /// A token for the signed-in account, or nil.
     ///
-    /// The one door `ClaudeForgeAI` reaches the account through, and it is a
+    /// Dormant with the rest of this type: `RemoteForgeAI` now takes its token
+    /// from the invisible `AnonymousIdentity` instead (§2q). When this was
+    /// live, it was the one door the model reached the account through, and a
     /// door rather than a reference on purpose: the AI holds a closure onto
     /// this method and never an `AuthService`, so the model layer cannot read
     /// an email, a provider, a user id or a session — only the fact that this

@@ -175,10 +175,10 @@ struct AIDisclosureView: View {
 
     /// Where it goes — and in this build, the answer is nowhere.
     ///
-    /// This section used to name Forge's server and Anthropic's API
+    /// This section used to name Forge's server and the model provider's API
     /// unconditionally, two screens' worth of scrolling below a first sentence
     /// saying nothing is ever sent. Both cannot be true, and in 1.0 it is the
-    /// second: `ClaudeForgeAI.isModelEnabled` is false, there is no project in
+    /// second: `RemoteForgeAI.isModelEnabled` is false, there is no project in
     /// `Info.plist`, and no object in the process can form the request. A screen
     /// whose whole purpose is to be checkable cannot end on a description of
     /// traffic the binary is incapable of.
@@ -193,8 +193,8 @@ struct AIDisclosureView: View {
         Section(isConnected ? "Where it goes" : "Where it would go") {
             VStack(alignment: .leading, spacing: ForgeTheme.Space.tight) {
                 if isConnected {
-                    Text("Forge's own server, and then Anthropic's model API.")
-                    Text("The app holds no model key and never talks to a model directly. Requests are made by Forge's backend, which is the only place a key exists. Anthropic does not train on it.")
+                    Text("Forge's own server, and then OpenAI's API.")
+                    Text("The app holds no model key and never talks to a model directly. Requests are made by Forge's backend, which is the only place a key exists, only while you have Premium, and under an anonymous identifier with no name or email. OpenAI does not train on API data by default, and Forge asks it not to keep the response.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)

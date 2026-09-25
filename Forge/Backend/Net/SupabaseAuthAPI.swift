@@ -113,6 +113,25 @@ struct SupabaseAuthAPI: Sendable {
         )
     }
 
+    // MARK: - Anonymous
+
+    /// A new anonymous user: a random id with no email, phone, password or
+    /// provider behind it, and a session for it.
+    ///
+    /// This is what `supabase-js` and `supabase-swift` call `signInAnonymously`
+    /// — a `POST /auth/v1/signup` with no credentials in the body — and it only
+    /// works while **Anonymous sign-ins** is enabled for the project
+    /// (Authentication → Sign In / Providers). Nothing is asked of the person
+    /// and nothing is shown to them; see `AnonymousIdentity`.
+    func signInAnonymously() async throws -> SessionResponse {
+        try await client.send(
+            SessionResponse.self,
+            .post,
+            url: base.appendingPathComponent("signup"),
+            body: Data("{}".utf8)
+        )
+    }
+
     // MARK: - Keeping it alive
 
     func refresh(refreshToken: String) async throws -> SessionResponse {

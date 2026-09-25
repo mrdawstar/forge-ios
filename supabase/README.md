@@ -1,8 +1,24 @@
 # Forge — backend setup
 
-Forge works with none of this done. An unconfigured build makes no requests, the
-Account section is absent, and the app is exactly the local-only one it was.
-Everything here is what turns the cloud half on.
+Forge works with none of this done. A build with no Supabase project in
+`Forge/Info.plist` makes no request of any kind, and the app is the local-only
+one it has always been.
+
+**What the backend is for now:** the `forge-ai` Edge Function, which runs
+Forge's two model jobs — the weekly **Reading** and **Plan** — for Premium
+users, through the OpenAI API. There is **no visible account** (see
+`docs/FORGE_CONTEXT.md` §2n and §2q): the app signs in *anonymously and
+invisibly* so every request carries a Supabase JWT, and proves Premium with the
+signed StoreKit 2 transaction. The account and sync code further down is
+dormant and needs no setup.
+
+| Piece | Where |
+|---|---|
+| Edge Function | `functions/forge-ai/` — `index.ts` (wiring), `handler.ts` (request rules), `storekit.ts` (Apple JWS verification), `openai.ts` (provider), `prompts.ts` (models, rules, schemas) |
+| Tests | `functions/forge-ai/tests/` — Deno; no network, no real keys |
+| Quotas | migrations `0007_ai_usage.sql` (per user) and `0008_ai_transaction_quota.sql` (per purchase) |
+| Server secrets | `OPENAI_API_KEY` (required), `FORGE_ALLOW_SANDBOX` (optional) |
+| Models | Reading → `gpt-6-sol`, Plan → `gpt-6-luna` (fixed in `prompts.ts`) |
 
 ## 0. Where to run the CLI
 
@@ -20,29 +36,202 @@ migrations belong in the repository, and that folder is not in one.
 cd path/to/Forge && supabase migration list
 ```
 
-## 1. Apply the schema
+## 1. Deploying AI — the checklist
+
+Do these in order. Nothing here puts a secret in the repository, and nothing
+here changes the app: the shipped build keeps `RemoteForgeAI.isModelEnabled =
+false` until step 1.9.
+
+### 1.1 Log in and link the project
+
+```bash
+supabase login
+supabase link --project-ref eslaeueyeuaejdnqfasv   # the project verify.sh points at
+```
+
+`link` asks for the database password (Dashboard → Project Settings →
+Database). It writes `supabase/.temp/`, which is gitignored.
+
+### 1.2 Turn on anonymous sign-ins
+
+Dashboard → **Authentication → Sign In / Providers** → enable **Allow
+anonymous sign-ins**, then Save.
+
+Without it, the app's `POST /auth/v1/signup` with an empty body is refused,
+the app gets no JWT, and every AI request quietly falls back to the phone's
+own arithmetic. Nothing else about Auth needs changing: leave email, Apple and
+Google exactly as they are, and leave **Authentication → Rate Limits → anonymous
+sign-ins** at its default (30 per hour per IP) — an anonymous user on its own
+gets nothing from `forge-ai`, so the rate limit only has to stop the users table
+filling up.
+
+### 1.3 Apply the migrations
 
 ```bash
 supabase db push
+supabase migration list        # 0001 … 0008 applied on both sides
 ```
 
-> The app now speaks of **days** rather than mornings, but the schema does not.
+`0008` adds the per-purchase quota (`ai_usage_by_transaction`,
+`claim_ai_entitled_call`) and closes an old grant: 0007's functions were still
+executable by client roles through `PUBLIC`. Check it took:
+
+```sql
+select has_function_privilege('anon', 'public.claim_ai_call(uuid,integer)', 'execute');                      -- false
+select has_function_privilege('anon', 'public.claim_ai_entitled_call(uuid,integer,text,integer)', 'execute'); -- false
+select tablename, rowsecurity from pg_tables where schemaname = 'public';                                    -- all true
+```
+
+### 1.4 Create the OpenAI API key
+
+1. Go to **https://platform.openai.com** and sign in (a ChatGPT login works,
+   but this is a different product).
+2. **API billing is separate from ChatGPT Plus / Pro.** A ChatGPT subscription
+   includes no API usage at all. Open **Settings → Billing**
+   (https://platform.openai.com/settings/organization/billing), add a payment
+   method and buy prepaid credits. Until there is a positive balance, every
+   call fails (`429 insufficient_quota`), and `forge-ai` answers 502 — the app
+   falls back and nobody sees an error.
+3. Set a budget while you are there: **Settings → Limits** — a monthly usage
+   limit and an email alert. The per-purchase cap bounds each user; this bounds
+   the total.
+4. If your OpenAI project restricts which models it may use (the project's
+   **Limits** page), make sure `gpt-6-sol` and `gpt-6-luna` are both allowed.
+5. Create the key: **API keys** (https://platform.openai.com/api-keys) →
+   *Create new secret key*, in the project above. Permissions *All* works; if
+   you choose *Restricted*, it needs write access to the Responses API and
+   nothing else. Copy it once; OpenAI will not show it again.
+
+Never paste the key into Swift, `Info.plist`, an `.xcconfig`, a test, a commit,
+an issue or a PR. It exists in exactly one place: the Supabase secret below.
+
+### 1.5 Save it as a Supabase secret
+
+Read it without echoing it and without it entering your shell history:
+
+```bash
+read -rs OPENAI_API_KEY && supabase secrets set OPENAI_API_KEY="$OPENAI_API_KEY"; unset OPENAI_API_KEY
+supabase secrets list          # shows OPENAI_API_KEY with a digest, never the value
+```
+
+(Or Dashboard → **Edge Functions → Secrets** → add `OPENAI_API_KEY`.) To rotate
+it later: create a new key, run the same command, revoke the old key in OpenAI.
+
+### 1.6 Decide `FORGE_ALLOW_SANDBOX`
+
+`forge-ai` accepts only **Production** StoreKit transactions unless this is
+exactly `true`.
+
+| When | Set | Command |
+|---|---|---|
+| Testing purchases with a **Sandbox** tester or a **TestFlight** build (TestFlight purchases are Sandbox) | `true` | `supabase secrets set FORGE_ALLOW_SANDBOX=true` |
+| **Production**, once testing is done | absent (or `false`) | `supabase secrets unset FORGE_ALLOW_SANDBOX` |
+
+Two things to know:
+
+- **App Review buys in Sandbox too.** While a build that turns the model on is
+  in review, a reviewer's Premium purchase is a Sandbox transaction. With
+  Sandbox off, the reviewer gets the phone's own Reading and Plan (honestly
+  labelled, never an error). If you want them to see the model, set it to
+  `true` for the review window and unset it after release — accepting that,
+  meanwhile, any Sandbox/TestFlight purchase can reach the model (each still
+  capped at 10 a day per purchase).
+- **Xcode's local StoreKit testing never works here.** `Forge.storekit`
+  transactions are signed by Xcode, not Apple, and are refused with or without
+  this flag. Test AI with a Sandbox account on a device.
+
+### 1.7 Deploy the function
+
+```bash
+supabase functions deploy forge-ai
+```
+
+**Never add `--no-verify-jwt`.** JWT verification is what stops anybody who
+reads the app's binary from calling the function; it stays on (the default).
+
+### 1.8 Smoke test — costs nothing
+
+```bash
+URL=https://eslaeueyeuaejdnqfasv.supabase.co
+KEY=<the publishable key from verify.sh or Project Settings → API>
+
+# No JWT → 401, rejected by the platform before the function runs.
+curl -s -o /dev/null -w '%{http_code}\n' -X POST "$URL/functions/v1/forge-ai" -d '{}'
+
+# An anonymous user → a JWT. (Proves step 1.2.)
+TOKEN=$(curl -s -X POST "$URL/auth/v1/signup" -H "apikey: $KEY" \
+  -H 'Content-Type: application/json' -d '{}' | python3 -c 'import sys,json;print(json.load(sys.stdin)["access_token"])')
+
+# Anonymous, no purchase → 402. OpenAI is never called; no quota is spent.
+curl -s -w '\n%{http_code}\n' -X POST "$URL/functions/v1/forge-ai" \
+  -H "Authorization: Bearer $TOKEN" -H "apikey: $KEY" -H 'Content-Type: application/json' \
+  -d '{"task":"reading","brief":{}}'
+```
+
+A 200 needs a real Premium transaction from a device (Sandbox with step 1.6 on).
+`supabase functions logs forge-ai` shows only the task and a reason — never a
+brief, a JWS or a key.
+
+### 1.9 Turning it on in the app — a separate, deliberate PR
+
+The app side is written and wired (`AnonymousIdentity`, `ForgeStore
+.entitlementProof`, `RemoteForgeAI`), but the shipped build cannot reach any of
+it. Turning it on is its own change, because it changes what the app collects:
+
+1. Put the project in `Forge/Info.plist` (`ForgeSupabaseURL`,
+   `ForgeSupabaseAnonKey` — the publishable key only, never the service-role
+   key), and update `BackendRegressionTests.theAppShipsWithNoAccount`, which
+   exists to fail when that happens.
+2. `RemoteForgeAI.isModelEnabled = true`, and update `NoNetworkTests`, which
+   exists to fail when that happens.
+3. If the telemetry network allowlist has landed (`ForgeNetwork.allowedHosts`),
+   add the Supabase host to it and to its tests.
+4. Redo `docs/APP_STORE.md` §1 and the hosted privacy policy: the brief (activity
+   names, identity statements, weekly counts) goes to Forge's server and OpenAI,
+   under an anonymous user id, with a StoreKit transaction attached.
+
+## 2. Running the function's tests
+
+Deno only — no Supabase, no Apple, no OpenAI, no keys:
+
+```bash
+deno test --allow-env --no-lock supabase/functions/forge-ai/tests/
+deno check --no-lock supabase/functions/forge-ai/index.ts
+```
+
+The StoreKit tests generate a throwaway CA chain each run and inject trust in
+it; production is pinned to Apple Root CA G3 by fingerprint, and a test checks
+that the generated chain is refused by the production policy. The OpenAI tests
+mock `fetch`.
+
+## 3. The schema
+
+> The app speaks of **days** rather than mornings, but the schema does not.
 > The table is still `mornings` and the one ritual row is still `'morning'`,
 > because both are deployed with real data behind them and neither has ever been
 > shown to a user. `SupabaseDataAPI.Table.days` and `RitualRow.dayRitualID` pin
 > the old spellings deliberately — see the comments there before changing either.
 
-Or paste `migrations/0001_forge_schema.sql` into the SQL editor. It is
+`migrations/0001_forge_schema.sql` can also be pasted into the SQL editor. It is
 idempotent — every statement is `if not exists`, `or replace`, or a
 `drop … ; create …` pair — so re-running it is safe.
 
-Verify RLS afterwards. Every one of the seven tables must show it enabled:
+Verify RLS afterwards. Every table must show it enabled:
 
 ```sql
 select tablename, rowsecurity from pg_tables where schemaname = 'public';
 ```
 
-## 2. Providers
+---
+
+# Dormant: the visible account and sync
+
+Everything below describes the account that was removed from the app in §2n.
+The code is still in `Forge/Backend/` and still tested, but **nothing in the
+app reaches it and none of it needs configuring** for AI. It is kept for the
+day sync comes back. The anonymous identity above does not use any of it.
+
+## Providers (dormant)
 
 **Apple** — Authentication → Providers → Apple. Add the app's bundle id
 (`com.dawid.forge`) to *Authorized Client IDs*. Native Sign in with Apple sends
@@ -82,7 +271,7 @@ Authentication → URL Configuration. Forge uses the PKCE web flow through
 `ASWebAuthenticationSession`, so no Google SDK and no iOS OAuth client is
 involved.
 
-## 3. Point the app at the project
+## Point the app at the project (see 1.9 first)
 
 Fill in the two empty keys in `Forge/Info.plist`:
 
@@ -101,7 +290,7 @@ service-role key here or anywhere in the app.
 Leave either one empty and `SupabaseConfig.fromBundle()` returns nil, which
 makes the whole backend inert.
 
-## What syncs, and when
+## What syncs, and when (dormant)
 
 Signing in is free and creates the account. **Backup and sync require Premium** —
 that is what Premium is now, and nothing about the local app is gated.
@@ -117,7 +306,7 @@ watermark, so every local record counts as unsent and goes up in one pass. Every
 row upserts onto its own primary key, so running it again writes the same rows
 to the same places and changes nothing.
 
-## Conflict rules
+## Conflict rules (dormant)
 
 Three, applied everywhere (`SyncMerge`, and every one of them is a unit test):
 

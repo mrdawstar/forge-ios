@@ -413,9 +413,10 @@ and connecting a real model was one property in `ContentView` — `claude` — a
 no other line anywhere. That is the whole return on having built the protocol
 first.
 
-**`ClaudeForgeAI` (`Engine/`) never talks to a model.** It posts to
-`functions/v1/forge-ai`, a Supabase edge function that holds `ANTHROPIC_API_KEY`
-as a server secret. An API key in an iOS binary is an extracted API key; the app
+**`RemoteForgeAI` (`Engine/`) never talks to a model.** It posts to
+`functions/v1/forge-ai`, a Supabase edge function that holds the model key as a
+server secret — `OPENAI_API_KEY` since §2q (it was an Anthropic key here, and
+the type was called `ClaudeForgeAI`). An API key in an iOS binary is an extracted API key; the app
 therefore has none and cannot be made to leak one. Every method falls back to
 `LocalForgeAI` — offline, signed out, unpaid, unconfigured, or an answer that
 failed validation — and `isModelWritten` comes back false, which every screen
@@ -558,7 +559,7 @@ pins it. Measured after: the band runs 554→874 and finishes.
 
 #### The model was switched off (2026-08-31, after the pass above)
 
-`ClaudeForgeAI.isModelEnabled = false`. **1.0 sends nothing anywhere for any AI
+`RemoteForgeAI.isModelEnabled = false`. **1.0 sends nothing anywhere for any AI
 feature** — see §7 for the mechanism, the three call sites it closed, and the
 one-line route back. Plan is unaffected: its moves were never on that path.
 
@@ -1484,7 +1485,7 @@ this is the release that takes it up on it.
 3. **`ContentView` no longer builds a `ForgeBackend` at all.** The `@State`, the
    `LivePracticeBridge`, and the nine `syncNow` / `syncSoon` /
    `refreshCredentialState` / `premiumChanged` call sites are gone, and
-   `ClaudeForgeAI`'s token closure is `{ nil }`. The day's path never held a
+   `RemoteForgeAI`'s token closure is `{ nil }`. The day's path never held a
    reference to any of it, which is why this was a deletion rather than a
    refactor.
 4. **`com.apple.developer.applesignin` is off the entitlements**, and the proof
@@ -1500,7 +1501,7 @@ this is the release that takes it up on it.
 **`Backend/` still compiles and is still in the target.** Sixteen files of auth
 and sync, a merge engine with tombstones and last-write-wins, and the tests that
 hold it down. Deleting it would also mean deleting `Net/`, which `AIEndpoint`
-builds on, which `ClaudeForgeAI` owns, which carries `AIBrief`,
+builds on, which `RemoteForgeAI` owns, which carries `AIBrief`,
 `AIWirePlan.resolved(against:)` and `ReviewObservation.validate(_:against:)` —
 types that `PlanSheet`, `AIDisclosureView` and the weekly review all read. That
 is a day's refactor of working code, on a submission build, for a benefit a
@@ -1544,6 +1545,113 @@ notification primer declined, a second activity completed and the state moving
 from 1 of 3 to 2 of 3, all four tabs opened, Settings read to the bottom with no
 Account section on it, the Privacy Policy row opening the live page, and a cold
 relaunch that kept the day and did not replay the onboarding.
+
+### 2q. AI without an account (2026-09-25)
+
+Forge's model jobs need a server — the key cannot ship in the app — and the
+server needs to know *who* is calling, to cap spend. §2n took the account out
+and it is not coming back for this. So the caller is an identity nobody sees,
+and entitlement is proven by Apple's own signature rather than by anything
+Forge stores.
+
+**Status: the backend is built and tested; the app side is wired but switched
+off.** `RemoteForgeAI.isModelEnabled` is still `false` and there is still no
+project in `Info.plist`, so the shipped app makes no request and nothing in
+§7's network table changes. Turning it on is `supabase/README.md` §1, then a
+separate app PR (README §1.9).
+
+#### The identity: anonymous, invisible, required
+
+- **`AnonymousIdentity`** (`Backend/Auth/`) calls GoTrue's anonymous sign-up
+  (`POST /auth/v1/signup` with an empty body — what the SDKs call
+  `signInAnonymously`). It gets a real Supabase user: a random uuid with no
+  email, password, provider or name. Needs *Allow anonymous sign-ins* on in the
+  dashboard.
+- **Nothing visible.** No sign-in screen, no Settings row, no state any view
+  observes, no word anywhere in the UI. `AuthService` — the dormant visible
+  account — never sees it. The session is in the Keychain under its own
+  account, this device only; a new phone mints a new one.
+- **Minted lazily, and only for Premium.** `RemoteForgeAI.connect()` asks for
+  the proof of purchase *before* the token, so somebody without Premium never
+  has an identity created for them.
+- **The JWT is required.** `verify_jwt` stays on (never deploy with
+  `--no-verify-jwt`), and the function resolves the user with
+  `auth.getUser()`. An anonymous user alone gets nothing: 402.
+- Failure is always the fallback: offline, sign-ups off, refresh refused — the
+  token is nil and `LocalForgeAI` answers, labelled as the phone's.
+
+#### The entitlement: StoreKit 2 JWS, verified offline
+
+- The app sends `jwsRepresentation` of its best current Premium transaction
+  (`ForgeStore.entitlementProof`: lifetime first, else the longest unexpired
+  unrevoked subscription; only transactions StoreKit verified on-device) in
+  **`X-Forge-Transaction`**.
+- `supabase/functions/forge-ai/storekit.ts` verifies it with no network and no
+  App Store Connect key: the `x5c` chain (leaf → Apple WWDR intermediate →
+  root), the root pinned to **Apple Root CA G3** by SHA-256
+  (`63343abf…3e9179`), every signature in the chain, CA constraints, Apple's
+  intermediate and receipt-signing OIDs, validity at the transaction's
+  `signedDate`; then ES256 over the JWS; then the claims — bundle id
+  `com.dawid.forge` (from the Xcode project), product id one of
+  `com.dawid.forge.premium.annual` (auto-renewable, `expiresDate` must be in the
+  future) or `…premium.lifetime` (non-consumable), no `revocationDate`, and the
+  environment.
+- There is **no monthly product** — `Premium.swift` defines only annual and
+  lifetime. The renewable path is generic; a monthly id would be one line in
+  `PREMIUM_PRODUCTS`.
+- **Production vs Sandbox.** Only `Production` is accepted unless the server
+  secret `FORGE_ALLOW_SANDBOX` is exactly `true`. `Xcode` (local StoreKit
+  testing) is always refused — it is not Apple-signed. TestFlight and App
+  Review purchases are Sandbox; see README §1.6 for the trade-off.
+- Every failure — missing, malformed, forged, untrusted chain, wrong bundle,
+  wrong product, expired, revoked, disallowed environment — is **402**.
+- Trust is injectable for tests only: the tests generate a CA chain per run,
+  and one test checks the production policy refuses it. No Apple-signed
+  fixture was fabricated.
+
+#### Quotas: per user and per purchase
+
+- 0007's `claim_ai_call` (per Supabase user per UTC day) is kept.
+- **0008** adds `ai_usage_by_transaction`, keyed by the verified
+  **`originalTransactionId`** — read only from the Apple-signed payload, never
+  from the body or a header — so one purchase cannot power unlimited anonymous
+  identities.
+- `claim_ai_entitled_call` applies both atomically (row-locked upserts, fails
+  closed): **10 calls a day per purchase**, 10 per user. A weekly reading and a
+  handful of plans is far under it. No purchase: 0 calls.
+- 0008 also revokes 0007's functions from `PUBLIC`: they had been executable by
+  client roles, so a caller could spend somebody else's per-user allowance
+  (never raise it).
+
+#### The model: OpenAI, two jobs, fixed per task
+
+- **OpenAI Responses API** (`POST /v1/responses`), strict JSON-schema output,
+  `store: false`, a timeout, no tools, no conversation. Not a chat feature.
+- **Reading → `gpt-6-sol`** (quality is the product: a claim about somebody's
+  own week). **Plan → `gpt-6-luna`** (structured interpretation, re-checked on
+  the phone). Separate constants in `prompts.ts`; the client cannot choose.
+- The provider sits behind `ModelProvider` (`openai.ts`); nothing about
+  OpenAI's response format reaches the handler. Outcomes map to the statuses
+  the app already falls back on: refusal 422, empty/malformed/upstream 502.
+- The **challenge** job is retired server-side (400) and client-side (always
+  the catalogue), matching §2j.3.
+- The Reading rules now forbid medical advice, diagnosis, reading any activity
+  as a symptom, and recommending treatment, medication or a professional.
+  `ReviewObservation.validate` is unchanged.
+
+#### The key
+
+**`OPENAI_API_KEY` exists only as a Supabase server secret.** Not in Swift,
+`Info.plist`, config, tests, logs, Git or PRs; the function logs only a task
+and a reason. **No AI key is bundled in the app** — the app has never held one.
+
+#### Also
+
+- `ClaudeForgeAI` is now **`RemoteForgeAI`**, and every Anthropic reference in
+  production code, the function and the setup docs is gone. (0007's comments
+  still say Anthropic; it is an applied migration and is left as written.)
+- `AIDisclosureView`'s connected wording names OpenAI and the anonymous
+  identifier. It is only shown once the model is on.
 
 ## 3. The core loop (as built)
 
@@ -1660,7 +1768,7 @@ would suggest first:
 
 ## 7. Planning, and where a model would plug in
 
-**1.0 makes no model request of any kind.** `ClaudeForgeAI.isModelEnabled` is
+**1.0 makes no model request of any kind.** `RemoteForgeAI.isModelEnabled` is
 `false`, which forces `endpoint` to nil in every construction of the type. There
 is then no object in the process able to form the request: `AIEndpoint` is the
 only thing that builds one, and every method opens with `guard let endpoint` and
@@ -1673,7 +1781,7 @@ Three call sites were live; all three are local, and one no longer exists:
 | Call | Was reached from | Answers now |
 |---|---|---|
 | `plan` | Plan's free-text field | `LocalForgeAI` — work hours, frequencies, a whole-week shift, moving one activity |
-| `challenge` | The challenge generator — **deleted, see §2j.3** | nothing calls it; the method and its matcher are kept as the seam |
+| `challenge` | The challenge generator — **deleted, see §2j.3** | always the catalogue; the backend no longer serves it (§2q) |
 | `reading` | **the weekly review, automatically on `.task`** | `ReviewObservation`, the rules |
 
 That third one was the only outbound request in the app not behind a button, and
@@ -1703,10 +1811,13 @@ because every one of them already branches on it. The wire types
 (`AIWireBrief`, `AIWirePlan.resolved(against:)`) and the validator
 (`ReviewObservation.validate(_:against:)`) were not deleted.
 
-Before flipping it: deploy the edge function, apply migration `0007_ai_usage.sql`,
-and **restore `APP_STORE.md` §1** — the privacy nutrition labels currently answer
-"not collected" on the strength of the constant, and `NoNetworkTests` is the
-tripwire that makes the two impossible to change separately.
+Before flipping it: everything in `supabase/README.md` §1 — anonymous sign-ins
+on, migrations through `0008`, `OPENAI_API_KEY` set, `forge-ai` deployed — then
+the project in `Info.plist`, and **restore `APP_STORE.md` §1**: the privacy
+nutrition labels currently answer "not collected" on the strength of the
+constant, and `NoNetworkTests` is the tripwire that makes the two impossible to
+change separately. What a request carries once it is on — an invisible
+anonymous JWT and the StoreKit transaction — is §2q.
 
 ### The architecture that has to survive a model arriving
 
@@ -1907,7 +2018,7 @@ for the third.
 - **~~The test target does not compile~~ — cleared.** 549 tests, 40 suites, all
   passing (§14).
 - **~~The edge function is not deployed~~ — settled by switching the model off.**
-  `ClaudeForgeAI.isModelEnabled` is `false`, so 1.0 makes no model request at
+  `RemoteForgeAI.isModelEnabled` is `false`, so 1.0 makes no model request at
   all and there is nothing to deploy for. See §7 for the switch and for the
   audit of everything else on the network. The Supabase project stays configured
   in `Info.plist` because **sync still uses it** — that is a separate, signed-in,
