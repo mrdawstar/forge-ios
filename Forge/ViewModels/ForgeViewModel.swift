@@ -94,7 +94,20 @@ final class ForgeViewModel {
     /// seven is still out when the app is reopened at nine.
     var isOut: Bool {
         get { progress.isTodayEarned }
-        set { newValue ? progress.markEarned() : progress.clearEarned() }
+        set {
+            guard newValue else { progress.clearEarned(); return }
+            guard !progress.isTodayEarned else { return }
+            // Read before the day is marked: both are about what was true the
+            // moment before the blade came out.
+            let isFirstPull = !hasCompletedFirstRun
+            let wasReturning = isReturning
+            progress.markEarned()
+            ForgeTelemetry.send(.dayEarned)
+            if isFirstPull { ForgeTelemetry.send(.firstPullCompleted) }
+            // A day earned by somebody the re-entry screen was for. Derived from
+            // the same gap `ReEntry` reads, so nothing is kept to know it.
+            if wasReturning { ForgeTelemetry.send(.reentryRecovered) }
+        }
     }
 
     /// Live 0…1 pull, mirrored from the physics engine every frame.
@@ -111,7 +124,13 @@ final class ForgeViewModel {
     /// Held in memory only. Quitting halfway starts it again, which is the right
     /// trade for a ninety-second sequence — resuming into the middle of it would
     /// drop somebody on a screen with no idea how they got there.
-    var firstRunStage: FirstRunStage = .promise
+    var firstRunStage: FirstRunStage = .promise {
+        didSet {
+            guard firstRunStage != oldValue, !hasCompletedFirstRun,
+                  let beat = ForgeTelemetry.Beat(firstRunStage) else { return }
+            ForgeTelemetry.send(.onboardingBeatView(beat))
+        }
+    }
 
     /// Whether the first run has ever been finished. The only part persisted.
     private(set) var hasCompletedFirstRun: Bool = false
@@ -668,18 +687,22 @@ final class ForgeViewModel {
     /// goes through `settle` instead, which is `@MainActor` precisely so that
     /// it can.
     private func tick(_ ritual: Ritual) {
+        let isNew = !isDone(ritual.id)
         withAnimation(.forgeRow) {
             progress.complete(ritual.id, method: .basic)
         }
+        if isNew { ForgeTelemetry.send(.activityCompleted(.basic)) }
     }
 
     /// The promise was kept. Banked as honor however the activity is marked:
     /// saying so is not a measurement, and the history should not claim it was.
     func keepPromise(_ id: String) {
+        let isNew = !isDone(id)
         withAnimation(.forgeRow) {
             progress.complete(id, method: .honor)
         }
         honorRitualID = nil
+        if isNew { ForgeTelemetry.send(.activityCompleted(.honor)) }
     }
 
     func cancelHonor() { honorRitualID = nil }
@@ -912,9 +935,11 @@ final class ForgeViewModel {
     /// The first pull is done and the sequence is over. Grace lapses here, so
     /// tomorrow the list has to be finished like any other day.
     func finishFirstRun() {
+        let wasRunning = !hasCompletedFirstRun
         hasCompletedFirstRun = true
         firstRunStage = .finished
         ForgeShared.defaults.set(true, forKey: Key.firstRun)
+        if wasRunning { ForgeTelemetry.send(.onboardingCompleted) }
     }
 
     #if DEBUG
@@ -1686,6 +1711,7 @@ final class ForgeViewModel {
                 case .create(let draft):
                     guard !draft.cleaned.label.isEmpty else { continue }
                     createCustomRitual(draft)
+                    ForgeTelemetry.send(.activityAdded(.plan))
                     applied += 1
 
                 case .adopt(let id, _, _, let weekdays, let minute):
@@ -1695,6 +1721,7 @@ final class ForgeViewModel {
                     // activity by hand.
                     guard ritual(id) != nil, !activeRitualIDs.contains(id) else { continue }
                     addRitual(id)
+                    ForgeTelemetry.send(.activityAdded(.plan))
                     // After `addRitual`, which pins an unscheduled activity to
                     // today — the plan's own days are the deliberate answer and
                     // must win over that default.

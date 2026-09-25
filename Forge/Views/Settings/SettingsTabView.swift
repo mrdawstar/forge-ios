@@ -63,6 +63,8 @@ struct SettingsTabView: View {
 
                 planningSection
 
+                privacySection
+
                 legalSection
 
                 #if DEBUG
@@ -82,7 +84,7 @@ struct SettingsTabView: View {
                     // It said "Forge 2.1" against a marketing version of 1.0 for
                     // long enough that nobody noticed, which is what a
                     // hand-written version string always eventually does.
-                    Text("\(Self.versionLine) · Everything stays on your phone.")
+                    Text("\(Self.versionLine) · Your practice stays on your phone.")
                 }
             }
             .navigationTitle("Settings")
@@ -312,6 +314,21 @@ struct SettingsTabView: View {
                     ? "Plan opens from the week, under the More button. It works out its moves on this phone; when you type a request in your own words it is sent by Forge's own server, never by this app, and only at the moment you ask."
                     : "Plan opens from the week, under the More button. It reads your own week, your history and the six parts of your Shape, and works every move out on this phone. Nothing is sent anywhere."
             )
+        }
+    }
+
+    /// The one thing Forge sends about itself, and the switch for it.
+    ///
+    /// On by default and said plainly underneath. What the sentence promises is
+    /// held by `ForgeTelemetry.Event`, which has no case that could carry
+    /// anything somebody wrote or did by name — see `FORGE_CONTEXT.md` §2p.
+    private var privacySection: some View {
+        Section {
+            Toggle("Share anonymous usage", isOn: $vm.shareUsage)
+        } header: {
+            Text("Privacy")
+        } footer: {
+            Text("Sends anonymous counts of which features are used, with basic device details, but never your activities, your words or your health data.")
         }
     }
 

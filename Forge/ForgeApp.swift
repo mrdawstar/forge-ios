@@ -12,6 +12,9 @@ struct ForgeApp: App {
         // opens the App Group suite, and on the launch after an update that
         // suite is empty until this has run.
         ForgeShared.migrateIfNeeded()
+        // Anonymous usage, if the switch in Settings is on. Inert in tests and
+        // when it is off — see `ForgeTelemetry`.
+        ForgeTelemetry.start()
         ForgeNotifications.shared.register()
         // A Live Activity outlives the process that started it.
         ForgePresence.shared.adoptRunningActivity()

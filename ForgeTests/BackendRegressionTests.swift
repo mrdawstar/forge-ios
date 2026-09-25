@@ -403,8 +403,9 @@ struct BackendRegressionTests {
     ///
     /// 1.0 ships with no sign-in: `AccountSection` is deleted, nothing in the
     /// running app constructs a `ForgeBackend`, the Sign in with Apple
-    /// entitlement is gone, and `PrivacyInfo.xcprivacy` declares an empty
-    /// `NSPrivacyCollectedDataTypes`. All four of those are true because of one
+    /// entitlement is gone, and `PrivacyInfo.xcprivacy` declares nothing linked
+    /// to anybody (its only rows are §2p's anonymous usage, which needs no
+    /// account). All four of those are true because of one
     /// mechanical fact — there is no Supabase project in `Info.plist` — and this
     /// is the assertion that keeps that fact from being undone by somebody
     /// pasting a URL back in to try something.
@@ -419,6 +420,37 @@ struct BackendRegressionTests {
         #expect(Bundle.main.object(forInfoDictionaryKey: "ForgeSupabaseURL") == nil)
         #expect(Bundle.main.object(forInfoDictionaryKey: "ForgeSupabaseAnonKey") == nil)
         #expect(SupabaseConfig.fromBundle() == nil)
+    }
+
+    /// **The second lock on the same door, and it is a list of one.**
+    ///
+    /// Anonymous usage (§2p) put exactly one third-party host into the app:
+    /// TelemetryDeck's ingest. That is deliberate and it is the whole of it. A
+    /// Supabase project — this one, or any — is not on the list, so even a
+    /// project pasted back into `Info.plist` could not open a connection from
+    /// `URLSessionTransport`: it is refused before a socket exists. Turning sync
+    /// back on therefore means changing this test, `NoNetworkTests`, the
+    /// privacy manifest and the labels in one commit.
+    @Test("The only host the app may reach is TelemetryDeck's; the backend's is refused")
+    func onlyTelemetryIsAllowed() async {
+        #expect(ForgeNetwork.allowedHosts == [ForgeTelemetry.host])
+        #expect(ForgeNetwork.allowedHosts.count == 1)
+
+        let project = SupabaseConfig(
+            url: URL(string: "https://abcdefgh.supabase.co")!,
+            anonKey: "sb_publishable_test"
+        )
+        #expect(!ForgeNetwork.permits(project.url))
+
+        let marker = UUID().uuidString
+        let client = HTTPClient(
+            config: project,
+            transport: URLSessionTransport(session: NetworkTripwire.session())
+        )
+        await #expect(throws: BackendError.notConfigured) {
+            try await client.send(.get, url: project.url.appendingPathComponent(marker))
+        }
+        #expect(NetworkTripwire.requests(containing: marker).isEmpty)
     }
 
     /// The severance itself, checked rather than assumed.

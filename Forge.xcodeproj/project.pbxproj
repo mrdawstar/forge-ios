@@ -119,6 +119,8 @@
 		A1F0RGE0ATEST00BUILD1 /* AnalyticsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1F0RGE0ATEST00FILE01 /* AnalyticsTests.swift */; };
 		A1F0RGE0CSHEET0BUILD1 /* DailyChallengeSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1F0RGE0CSHEET0FILE01 /* DailyChallengeSheet.swift */; };
 		A1F0RGE0CSTORE0BUILD1 /* ChallengeStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1F0RGE0CSTORE0FILE01 /* ChallengeStore.swift */; };
+		A1F0RGE0TELEM00BUILD1 /* ForgeTelemetry.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1F0RGE0TELEM00FILE01 /* ForgeTelemetry.swift */; };
+		A1F0RGE0TDECK00BUILD1 /* TelemetryDeck in Frameworks */ = {isa = PBXBuildFile; productRef = A1F0RGE0TDECK00PROD01 /* TelemetryDeck */; };
 		A1F0RGE0CTESTS0BUILD1 /* ChallengeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1F0RGE0CTESTS0FILE01 /* ChallengeTests.swift */; };
 		A1F0RGE0DCHAL00BUILD1 /* DailyChallenge.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1F0RGE0DCHAL00FILE01 /* DailyChallenge.swift */; };
 		A1F0RGE0LOCAI00BUILD1 /* LocalForgeAI.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1F0RGE0LOCAI00FILE01 /* LocalForgeAI.swift */; };
@@ -296,6 +298,7 @@
 		A1F0RGE0ATEST00FILE01 /* AnalyticsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalyticsTests.swift; sourceTree = "<group>"; };
 		A1F0RGE0CSHEET0FILE01 /* DailyChallengeSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyChallengeSheet.swift; sourceTree = "<group>"; };
 		A1F0RGE0CSTORE0FILE01 /* ChallengeStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChallengeStore.swift; sourceTree = "<group>"; };
+		A1F0RGE0TELEM00FILE01 /* ForgeTelemetry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForgeTelemetry.swift; sourceTree = "<group>"; };
 		A1F0RGE0CTESTS0FILE01 /* ChallengeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChallengeTests.swift; sourceTree = "<group>"; };
 		A1F0RGE0DCHAL00FILE01 /* DailyChallenge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyChallenge.swift; sourceTree = "<group>"; };
 		A1F0RGE0LOCAI00FILE01 /* LocalForgeAI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalForgeAI.swift; sourceTree = "<group>"; };
@@ -341,6 +344,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A1F0RGE0TDECK00BUILD1 /* TelemetryDeck in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -661,6 +665,7 @@
 				D914E431EC9A4F82B8527B64 /* ClaudeForgeAI.swift */,
 				A1F0RGE0LOCAI00FILE01 /* LocalForgeAI.swift */,
 				A1F0RGE0CSTORE0FILE01 /* ChallengeStore.swift */,
+				A1F0RGE0TELEM00FILE01 /* ForgeTelemetry.swift */,
 				9B1A7EDB49484798AFD15B87 /* IdentityStore.swift */,
 				A1F0RGE0MSTORE0FILE01 /* MilestoneStore.swift */,
 				7A1C40E2B1F04C6EA9D34925 /* ReviewStore.swift */,
@@ -726,6 +731,9 @@
 				7A1C40E2B1F04C6EA9D34038 /* PBXTargetDependency */,
 			);
 			name = Forge;
+			packageProductDependencies = (
+				A1F0RGE0TDECK00PROD01 /* TelemetryDeck */,
+			);
 			productName = Forge;
 			productReference = A97C29AD63741CF438998CE6 /* Forge.app */;
 			productType = "com.apple.product-type.application";
@@ -879,6 +887,7 @@
 				A1F0RGE0PTOOL00BUILD1 /* ForgeControlBar.swift in Sources */,
 				A1F0RGE0LOCAI00BUILD1 /* LocalForgeAI.swift in Sources */,
 				A1F0RGE0CSTORE0BUILD1 /* ChallengeStore.swift in Sources */,
+				A1F0RGE0TELEM00BUILD1 /* ForgeTelemetry.swift in Sources */,
 				A1F0RGE0AIPLAN0BUILD1 /* SchedulePlan.swift in Sources */,
 				A1F0RGE0DCHAL00BUILD1 /* DailyChallenge.swift in Sources */,
 				47BD9A3FAD0144CA99CE29DB /* IdentityStore.swift in Sources */,
@@ -1276,6 +1285,14 @@
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		A1F0RGE0TDECK00PROD01 /* TelemetryDeck */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = F45BC4113066F89800E3CA8F /* XCRemoteSwiftPackageReference "SwiftSDK" */;
+			productName = TelemetryDeck;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 5299AC4324DC18342A8CCD96 /* Project object */;
 }
