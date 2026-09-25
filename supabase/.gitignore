@@ -1,0 +1,5 @@
+# Written by `supabase link`. Holds the pooler connection string and the
+# versions of the remote services — machine state about one developer's link,
+# not part of the project.
+.temp/
+.branches/

@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Forge tracks nobody. There is no analytics SDK, no advertising
+	     identifier, no third-party framework of any kind, and nothing here is
+	     ever joined to data from another company. -->
+	<key>NSPrivacyTracking</key>
+	<false/>
+	<key>NSPrivacyTrackingDomains</key>
+	<array/>
+
+	<!-- **Nothing leaves the phone, so nothing is collected.**
+
+	     This array held four rows — an email address, a user id, the practice
+	     itself and a device diagnostic row — and every one of them was written
+	     only for an account that had signed in. 1.0 has no account: there is no
+	     sign-in control anywhere in the app, `Forge/Info.plist` carries no
+	     Supabase project, and nothing in the running app constructs an auth or a
+	     sync service. An empty array is therefore the checkable answer rather
+	     than the flattering one, and it must stay empty for exactly as long as
+	     that is true. The nutrition labels in App Store Connect say the same
+	     thing, and a manifest disagreeing with them is the one mismatch Apple
+	     checks automatically. -->
+	<key>NSPrivacyCollectedDataTypes</key>
+	<array/>
+
+	<!-- The only required-reason API in either target. Everything Forge keeps
+	     is `UserDefaults` plus `Codable`, in an App Group shared with its own
+	     widgets — which is exactly what CA92.1 covers: information stored by
+	     this app, read back by this app. -->
+	<key>NSPrivacyAccessedAPITypes</key>
+	<array>
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryUserDefaults</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>CA92.1</string>
+			</array>
+		</dict>
+	</array>
+</dict>
+</plist>

@@ -1,0 +1,1281 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		04A7814E4EEC70DE7D6C41B1 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 8D562B3E40B6C9EC53F38F07 /* Assets.xcassets */; };
+		074794CBAAF35B78B920E9D2 /* DayShapeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 148AF4972472AC82CE2EC48B /* DayShapeTests.swift */; };
+		0842BB99F38DDC694230F84B /* ForgeViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A5BA2C60CB7BACB7AE29083 /* ForgeViewModel.swift */; };
+		0955961CBA7E443EB579BB85 /* TomorrowSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51763BF354814A7AB2761447 /* TomorrowSheet.swift */; };
+		0DDD33A2EF884EFB96BB0C2A /* Premium.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91E128D20D3D4228A273A5BB /* Premium.swift */; };
+		175B5270AE845971AE8EF89C /* SwordSceneLayers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B842FA2AAFA5BD18B836511 /* SwordSceneLayers.swift */; };
+		1971B3C4770241629406251F /* ModelTrustTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70E97592BCB54B5B83ECB271 /* ModelTrustTests.swift */; };
+		257D232BF29D49C784F822A6 /* DayCommitment.swift in Sources */ = {isa = PBXBuildFile; fileRef = D21CCC1C893E4475965BC71B /* DayCommitment.swift */; };
+		2B27CDCBBC114CDB9B4CC596 /* AccessibilityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 235790119C32461B935CD3B3 /* AccessibilityTests.swift */; };
+		2E0EB10EEE524121BC29C502 /* PlanTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C28B629F497461ABD85E58D /* PlanTests.swift */; };
+		372E81DF0A62B2E93C655BC0 /* ForgeAudio.swift in Sources */ = {isa = PBXBuildFile; fileRef = 45801F85CA3FD4F1511D5109 /* ForgeAudio.swift */; };
+		3849F20EAD8B34302C944734 /* MilestoneRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93A37543A79A6C35526C33D1 /* MilestoneRow.swift */; };
+		38E094D487AFE28916DF241A /* Milestone.swift in Sources */ = {isa = PBXBuildFile; fileRef = E25C23AD80B4EBB095803BBD /* Milestone.swift */; };
+		3BDCDED822684143ACB28070 /* CommitmentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EAB3EDDE8F0D4485BAFCCFF2 /* CommitmentTests.swift */; };
+		3C08328E3DB8CC32CB48F327 /* HonorPromptView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13FA0439D4FCDF5028B1B393 /* HonorPromptView.swift */; };
+		3EBC1AA0A0CAC32BECAA8541 /* IconShape.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40021818456C97A314A36F4 /* IconShape.swift */; };
+		3F7931854DE22E0DC4D3599A /* HeatmapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12F415756CDB0BFF4D78FAA2 /* HeatmapView.swift */; };
+		47BD9A3FAD0144CA99CE29DB /* IdentityStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B1A7EDB49484798AFD15B87 /* IdentityStore.swift */; };
+		4B64AF8C5F8BC54FDAA07A83 /* ProgressRing.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF28DB7D8BBFB0267BD8DD93 /* ProgressRing.swift */; };
+		52AFB9073630C262B95C9B5D /* ActivityScheduleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 45BE0DCBA120362B1D3A93B5 /* ActivityScheduleTests.swift */; };
+		55D8752497994DC29A091C05 /* AppearanceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 910C47D5C8564EDBB26A3DB3 /* AppearanceView.swift */; };
+		5DAD6F4812074DCFA658B1F5 /* IdentityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59EF45E0D8AB40B5B44848A1 /* IdentityTests.swift */; };
+		6195D4D0791BB3A1EFA88D52 /* DayPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00BA7B6749FDE84FBBA4D985 /* DayPicker.swift */; };
+		6752DE589BF648EA9546F203 /* ForgeNotifications.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB4818ABF41547389C9459CB /* ForgeNotifications.swift */; };
+		6785EB3C8D9249F7B27EE98C /* DaySummary.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9D1FE286C7143B99A03519A /* DaySummary.swift */; };
+		698F98615533010F6492EB62 /* SettingsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDFF537A86C000066FC96C7D /* SettingsViewModel.swift */; };
+		6E27A08086CF97146E867D4A /* SwordCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95EC677DE076E276F5F7FA6A /* SwordCardView.swift */; };
+		788D6F2FD808D8B518C864B1 /* FreeStateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D1769A0419EA993545CB9D8 /* FreeStateView.swift */; };
+		7A1C40E2B1F04C6EA9D33001 /* NotificationPlanTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1C40E2B1F04C6EA9D33002 /* NotificationPlanTests.swift */; };
+		7A1C40E2B1F04C6EA9D33201 /* RitualMetadataTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1C40E2B1F04C6EA9D33202 /* RitualMetadataTests.swift */; };
+		7A1C40E2B1F04C6EA9D34100 /* ForgeShared.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1C40E2B1F04C6EA9D34001 /* ForgeShared.swift */; };
+		7A1C40E2B1F04C6EA9D34101 /* ForgeSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1C40E2B1F04C6EA9D34002 /* ForgeSnapshot.swift */; };
+		7A1C40E2B1F04C6EA9D34102 /* ForgePalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1C40E2B1F04C6EA9D34003 /* ForgePalette.swift */; };
+		7A1C40E2B1F04C6EA9D34103 /* ForgeActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1C40E2B1F04C6EA9D34004 /* ForgeActivityAttributes.swift */; };
+		7A1C40E2B1F04C6EA9D34104 /* ForgeLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1C40E2B1F04C6EA9D34005 /* ForgeLink.swift */; };
+		7A1C40E2B1F04C6EA9D34105 /* ForgePresence.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1C40E2B1F04C6EA9D34006 /* ForgePresence.swift */; };
+		7A1C40E2B1F04C6EA9D34120 /* ForgeShared.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1C40E2B1F04C6EA9D34001 /* ForgeShared.swift */; };
+		7A1C40E2B1F04C6EA9D34121 /* ForgeSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1C40E2B1F04C6EA9D34002 /* ForgeSnapshot.swift */; };
+		7A1C40E2B1F04C6EA9D34122 /* ForgePalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1C40E2B1F04C6EA9D34003 /* ForgePalette.swift */; };
+		7A1C40E2B1F04C6EA9D34123 /* ForgeActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1C40E2B1F04C6EA9D34004 /* ForgeActivityAttributes.swift */; };
+		7A1C40E2B1F04C6EA9D34124 /* ForgeLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1C40E2B1F04C6EA9D34005 /* ForgeLink.swift */; };
+		7A1C40E2B1F04C6EA9D34125 /* ForgeWidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1C40E2B1F04C6EA9D34011 /* ForgeWidgetBundle.swift */; };
+		7A1C40E2B1F04C6EA9D34126 /* LockScreenWidgets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1C40E2B1F04C6EA9D34012 /* LockScreenWidgets.swift */; };
+		7A1C40E2B1F04C6EA9D34127 /* HomeWidgets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1C40E2B1F04C6EA9D34013 /* HomeWidgets.swift */; };
+		7A1C40E2B1F04C6EA9D34128 /* DayLiveActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1C40E2B1F04C6EA9D34014 /* DayLiveActivity.swift */; };
+		7A1C40E2B1F04C6EA9D34129 /* ForgeDay.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7BFC24F8A614F81AD7643E8 /* ForgeDay.swift */; };
+		7A1C40E2B1F04C6EA9D34160 /* ForgeWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 7A1C40E2B1F04C6EA9D34017 /* ForgeWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		7A1C40E2B1F04C6EA9D34301 /* SharedStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1C40E2B1F04C6EA9D34302 /* SharedStateTests.swift */; };
+		7A1C40E2B1F04C6EA9D34402 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 7A1C40E2B1F04C6EA9D34401 /* PrivacyInfo.xcprivacy */; };
+		7A1C40E2B1F04C6EA9D34404 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 7A1C40E2B1F04C6EA9D34403 /* PrivacyInfo.xcprivacy */; };
+		7A1C40E2B1F04C6EA9D34501 /* RestDayTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1C40E2B1F04C6EA9D34502 /* RestDayTests.swift */; };
+		7A1C40E2B1F04C6EA9D34602 /* BackendRegressionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1C40E2B1F04C6EA9D34601 /* BackendRegressionTests.swift */; };
+		7A1C40E2B1F04C6EA9D34708 /* Quote.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1C40E2B1F04C6EA9D34706 /* Quote.swift */; };
+		7A1C40E2B1F04C6EA9D34710 /* DailyLine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1C40E2B1F04C6EA9D3470E /* DailyLine.swift */; };
+		7A1C40E2B1F04C6EA9D34901 /* BecomingTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1C40E2B1F04C6EA9D34902 /* BecomingTabView.swift */; };
+		7A1C40E2B1F04C6EA9D34910 /* Ladder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1C40E2B1F04C6EA9D34911 /* Ladder.swift */; };
+		7A1C40E2B1F04C6EA9D34912 /* Chapter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1C40E2B1F04C6EA9D34913 /* Chapter.swift */; };
+		7A1C40E2B1F04C6EA9D34914 /* ChapterStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1C40E2B1F04C6EA9D34915 /* ChapterStore.swift */; };
+		7A1C40E2B1F04C6EA9D34916 /* ChapterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1C40E2B1F04C6EA9D34917 /* ChapterTests.swift */; };
+		7A1C40E2B1F04C6EA9D34920 /* WeeklyReview.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1C40E2B1F04C6EA9D34921 /* WeeklyReview.swift */; };
+		7A1C40E2B1F04C6EA9D34922 /* ReEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1C40E2B1F04C6EA9D34923 /* ReEntry.swift */; };
+		7A1C40E2B1F04C6EA9D34924 /* ReviewStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1C40E2B1F04C6EA9D34925 /* ReviewStore.swift */; };
+		7A1C40E2B1F04C6EA9D34926 /* WeeklyReviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1C40E2B1F04C6EA9D34927 /* WeeklyReviewView.swift */; };
+		7A1C40E2B1F04C6EA9D34928 /* ChapterCloseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1C40E2B1F04C6EA9D34929 /* ChapterCloseView.swift */; };
+		7A1C40E2B1F04C6EA9D3492A /* ReturnView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1C40E2B1F04C6EA9D3492B /* ReturnView.swift */; };
+		7A1C40E2B1F04C6EA9D3492C /* PracticeArtifact.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1C40E2B1F04C6EA9D3492D /* PracticeArtifact.swift */; };
+		7A1C40E2B1F04C6EA9D34940 /* ReviewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1C40E2B1F04C6EA9D34941 /* ReviewTests.swift */; };
+		7A1C40E2B1F04C6EA9D39006 /* SupabaseConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1C40E2B1F04C6EA9D39005 /* SupabaseConfig.swift */; };
+		7A1C40E2B1F04C6EA9D39008 /* BackendError.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1C40E2B1F04C6EA9D39007 /* BackendError.swift */; };
+		7A1C40E2B1F04C6EA9D3900A /* BackendJSON.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1C40E2B1F04C6EA9D39009 /* BackendJSON.swift */; };
+		7A1C40E2B1F04C6EA9D3900C /* HTTPClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1C40E2B1F04C6EA9D3900B /* HTTPClient.swift */; };
+		7A1C40E2B1F04C6EA9D3900E /* SupabaseAuthAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1C40E2B1F04C6EA9D3900D /* SupabaseAuthAPI.swift */; };
+		7A1C40E2B1F04C6EA9D39010 /* SupabaseDataAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1C40E2B1F04C6EA9D3900F /* SupabaseDataAPI.swift */; };
+		7A1C40E2B1F04C6EA9D39012 /* Keychain.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1C40E2B1F04C6EA9D39011 /* Keychain.swift */; };
+		7A1C40E2B1F04C6EA9D39014 /* AuthSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1C40E2B1F04C6EA9D39013 /* AuthSession.swift */; };
+		7A1C40E2B1F04C6EA9D39016 /* AuthCrypto.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1C40E2B1F04C6EA9D39015 /* AuthCrypto.swift */; };
+		7A1C40E2B1F04C6EA9D39018 /* WebAuthFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1C40E2B1F04C6EA9D39017 /* WebAuthFlow.swift */; };
+		7A1C40E2B1F04C6EA9D3901A /* AuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1C40E2B1F04C6EA9D39019 /* AuthService.swift */; };
+		7A1C40E2B1F04C6EA9D3901C /* LocalPractice.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1C40E2B1F04C6EA9D3901B /* LocalPractice.swift */; };
+		7A1C40E2B1F04C6EA9D3901E /* SyncMerge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1C40E2B1F04C6EA9D3901D /* SyncMerge.swift */; };
+		7A1C40E2B1F04C6EA9D39020 /* SyncLedger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1C40E2B1F04C6EA9D3901F /* SyncLedger.swift */; };
+		7A1C40E2B1F04C6EA9D39022 /* SyncRows.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1C40E2B1F04C6EA9D39021 /* SyncRows.swift */; };
+		7A1C40E2B1F04C6EA9D39024 /* SyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1C40E2B1F04C6EA9D39023 /* SyncService.swift */; };
+		7A1C40E2B1F04C6EA9D39026 /* LivePracticeBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1C40E2B1F04C6EA9D39025 /* LivePracticeBridge.swift */; };
+		7A1C40E2B1F04C6EA9D39028 /* UserService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1C40E2B1F04C6EA9D39027 /* UserService.swift */; };
+		7A1C40E2B1F04C6EA9D3902A /* PremiumService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1C40E2B1F04C6EA9D39029 /* PremiumService.swift */; };
+		7A1C40E2B1F04C6EA9D3902C /* ForgeBackend.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1C40E2B1F04C6EA9D3902B /* ForgeBackend.swift */; };
+		7A1C40E2B1F04C6EA9D39030 /* SyncMergeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1C40E2B1F04C6EA9D3902F /* SyncMergeTests.swift */; };
+		7A1C40E2B1F04C6EA9D39032 /* BackendTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1C40E2B1F04C6EA9D39031 /* BackendTests.swift */; };
+		7A1C40E2B1F04C6EA9D39F02 /* OAuthCallback.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1C40E2B1F04C6EA9D39F01 /* OAuthCallback.swift */; };
+		7C5806CACD96E32C25A7D337 /* SwordSceneView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF88C561A12642C4C4867BDE /* SwordSceneView.swift */; };
+		7C5AAE5B6D4A75099ADBA0A2 /* ProgressSegments.swift in Sources */ = {isa = PBXBuildFile; fileRef = E54CBEEAD2C24AA53D6A51A8 /* ProgressSegments.swift */; };
+		7D7B518D7411B520DFC243DE /* ForgeButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = A59DBDAC9E8F5BBC0CBDD877 /* ForgeButton.swift */; };
+		7F1D709D78EF4F0AA703668B /* ProgressStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB83CC065A7443B2BD53A71B /* ProgressStore.swift */; };
+		83097D5F9CD04743BC86F96B /* ForgeDay.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7BFC24F8A614F81AD7643E8 /* ForgeDay.swift */; };
+		89339609911A4CA195EACB88 /* ClaudeForgeAI.swift in Sources */ = {isa = PBXBuildFile; fileRef = D914E431EC9A4F82B8527B64 /* ClaudeForgeAI.swift */; };
+		8A36C1B3997697530EFD01F0 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D56A78E589A56D9B62D51434 /* ContentView.swift */; };
+		8B7574B6935F4BA8873D4CFB /* FirstRunView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9500272A167449FB839A30D /* FirstRunView.swift */; };
+		923EFE258A984E98A8204024 /* Identity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0105BDA87C194258A2491E9B /* Identity.swift */; };
+		94EEBCDCB855AC1D9DCC547B /* Ritual.swift in Sources */ = {isa = PBXBuildFile; fileRef = D14F7A73A106D3115D3A21D3 /* Ritual.swift */; };
+		9673A861037342C2B92336F1 /* AIDisclosureView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 562B9F6D6251435D9FEEEB3D /* AIDisclosureView.swift */; };
+		994C641FB819CABEB0120A20 /* ForgeTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C02700EFEE3458073D6CAA7 /* ForgeTabView.swift */; };
+		9D5C5ACEB78D4BD59E976634 /* ForgeDayTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB74DB309F7F437DB9EC3A46 /* ForgeDayTests.swift */; };
+		A05C9B585BC54C62B861C920 /* FirstRunTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4255F352A422478B9F48781B /* FirstRunTests.swift */; };
+		A1B2C3D4E5F60718293A4B5C /* NotificationPrimerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B5D /* NotificationPrimerView.swift */; };
+		A1F0RGE0AIPLAN0BUILD1 /* SchedulePlan.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1F0RGE0AIPLAN0FILE01 /* SchedulePlan.swift */; };
+		A1F0RGE0AISHET0BUILD1 /* PlanSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1F0RGE0AISHET0FILE01 /* PlanSheet.swift */; };
+		A1F0RGE0ANALYT0BUILD1 /* Analytics.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1F0RGE0ANALYT0FILE01 /* Analytics.swift */; };
+		A1F0RGE0ASHEET0BUILD1 /* AnalyticsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1F0RGE0ASHEET0FILE01 /* AnalyticsSheet.swift */; };
+		A1F0RGE0ATEST00BUILD1 /* AnalyticsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1F0RGE0ATEST00FILE01 /* AnalyticsTests.swift */; };
+		A1F0RGE0CSHEET0BUILD1 /* DailyChallengeSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1F0RGE0CSHEET0FILE01 /* DailyChallengeSheet.swift */; };
+		A1F0RGE0CSTORE0BUILD1 /* ChallengeStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1F0RGE0CSTORE0FILE01 /* ChallengeStore.swift */; };
+		A1F0RGE0CTESTS0BUILD1 /* ChallengeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1F0RGE0CTESTS0FILE01 /* ChallengeTests.swift */; };
+		A1F0RGE0DCHAL00BUILD1 /* DailyChallenge.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1F0RGE0DCHAL00FILE01 /* DailyChallenge.swift */; };
+		A1F0RGE0LOCAI00BUILD1 /* LocalForgeAI.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1F0RGE0LOCAI00FILE01 /* LocalForgeAI.swift */; };
+		A1F0RGE0MCELEB0BUILD1 /* MilestoneCelebration.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1F0RGE0MCELEB0FILE01 /* MilestoneCelebration.swift */; };
+		A1F0RGE0MCOMP00BUILD1 /* MilestoneComposer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1F0RGE0MCOMP00FILE01 /* MilestoneComposer.swift */; };
+		A1F0RGE0MSTORE0BUILD1 /* MilestoneStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1F0RGE0MSTORE0FILE01 /* MilestoneStore.swift */; };
+		A1F0RGE0MTEST00BUILD1 /* CustomMilestoneTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1F0RGE0MTEST00FILE01 /* CustomMilestoneTests.swift */; };
+		A1F0RGE0ORDER0BUILD01 /* ActivityOrderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1F0RGE0ORDER0FILE0001 /* ActivityOrderTests.swift */; };
+		A1F0RGE0PTOOL00BUILD1 /* ForgeControlBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1F0RGE0PTOOL00FILE01 /* ForgeControlBar.swift */; };
+		A1F0RGE0WEEKP00BUILD1 /* WeekPlannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1F0RGE0WEEKP00FILE01 /* WeekPlannerView.swift */; };
+		A2C49A64F5B40A1A8FD7871A /* SettingsTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1E8CE243089154CFAC519E68 /* SettingsTabView.swift */; };
+		A3899DA2969FF78AF11D5C98 /* TimePickerSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD1EF5283BFDBF713E6DA8C6 /* TimePickerSheet.swift */; };
+		A4D155209402435E84BE91BE /* StreakTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97EDC52A32414F5BBFEC1C39 /* StreakTests.swift */; };
+		A5A17B4CAC1D8EAF7D336A65 /* SwordEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A827086D4B770BB3704603E7 /* SwordEngine.swift */; };
+		A668E156EEF144778572615D /* IdentityActivities.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90D59CC264C84ACBB8699288 /* IdentityActivities.swift */; };
+		A86EB4C2C21AB95077BB309A /* DayShape.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8C743E1AFD8E29409AC5762 /* DayShape.swift */; };
+		A97FE6611F21E35E80441DE3 /* ForgeTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AE28444BB71A0FCDD4D9A70 /* ForgeTheme.swift */; };
+		B39F491DF96B468185CFD665 /* DayPlanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9FE7703A18104E12B04EADAF /* DayPlanner.swift */; };
+		B48BF1FB62464F0F847EB683 /* ForgeStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC3BF16C8E974E00B971ABEC /* ForgeStore.swift */; };
+		BE5FDFCF8CD54E71B9DC393D /* DayRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC72B8808F954DD4BE01FBD4 /* DayRecord.swift */; };
+		C060E2F1B86DAE689558F90F /* SwordUnlockOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 860013BA22C8F3842D13E210 /* SwordUnlockOverlay.swift */; };
+		C232C14C96DC7FB7DDB79671 /* ForgeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0267D67B5530DD9F353F2E18 /* ForgeApp.swift */; };
+		C58CA1400E4AC60B4D6589EA /* ForgeHaptics.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82FE4FC762A4234251CE0F9E /* ForgeHaptics.swift */; };
+		CDB63D8B8DE6481693D83ABE /* RitualRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5282E732B991E09A67DE85B2 /* RitualRowView.swift */; };
+		DED6C4F307824CDDBE687BFE /* LegacyDecodingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1838572F638471EB76BD7FA /* LegacyDecodingTests.swift */; };
+		E2FA3245F3E7D12BB51150E7 /* GlassTabBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = F059ECB81ADA3CF5618CE923 /* GlassTabBar.swift */; };
+		E32D40B37CFCA497724FE923 /* BladeTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD895C5CB47FC0999ED5CD27 /* BladeTabView.swift */; };
+		E98FD5C655438AF6684B356A /* BladeViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9CBC5087A3E0D4ACB640BED6 /* BladeViewModel.swift */; };
+		F26E103303DE4F089C7682E8 /* TrendsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D63371925D444A1AECE70B2 /* TrendsView.swift */; };
+		F29FC0FE10FEBFACB2117E28 /* EditRitualsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99F8E31B1A8C4BC4514E2A43 /* EditRitualsSheet.swift */; };
+		F7F5CFFC54492286A180AB70 /* AddActivitySheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 775FDDAEFB68E6BAD58FCAB0 /* AddActivitySheet.swift */; };
+		F85F5F09B8FE46318034AAEC /* DaySummaryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF5389B684FA44A2BBF1C13B /* DaySummaryView.swift */; };
+		FD5FBE81081401381DEA5962 /* Sword.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DB6C1FC2DFB96705078572B /* Sword.swift */; };
+		FEACAE87CC025EEED9D84B7F /* SectionHeader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 398A573950F2623100BA3853 /* SectionHeader.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		6762E73A3F5241C6A4FD1A1E /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 5299AC4324DC18342A8CCD96 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = CA154F9F0F4C81C19472E465;
+			remoteInfo = Forge;
+		};
+		7A1C40E2B1F04C6EA9D34039 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 5299AC4324DC18342A8CCD96 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 7A1C40E2B1F04C6EA9D34030;
+			remoteInfo = ForgeWidgets;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		7A1C40E2B1F04C6EA9D34037 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				7A1C40E2B1F04C6EA9D34160 /* ForgeWidgets.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		00BA7B6749FDE84FBBA4D985 /* DayPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DayPicker.swift; sourceTree = "<group>"; };
+		0105BDA87C194258A2491E9B /* Identity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Identity.swift; sourceTree = "<group>"; };
+		0267D67B5530DD9F353F2E18 /* ForgeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForgeApp.swift; sourceTree = "<group>"; };
+		12F415756CDB0BFF4D78FAA2 /* HeatmapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeatmapView.swift; sourceTree = "<group>"; };
+		13FA0439D4FCDF5028B1B393 /* HonorPromptView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HonorPromptView.swift; sourceTree = "<group>"; };
+		148AF4972472AC82CE2EC48B /* DayShapeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DayShapeTests.swift; sourceTree = "<group>"; };
+		1E8CE243089154CFAC519E68 /* SettingsTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsTabView.swift; sourceTree = "<group>"; };
+		235790119C32461B935CD3B3 /* AccessibilityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccessibilityTests.swift; sourceTree = "<group>"; };
+		2C9B0EB153EA4314ABEF902E /* ForgeTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ForgeTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		2D63371925D444A1AECE70B2 /* TrendsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrendsView.swift; sourceTree = "<group>"; };
+		398A573950F2623100BA3853 /* SectionHeader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SectionHeader.swift; sourceTree = "<group>"; };
+		4255F352A422478B9F48781B /* FirstRunTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirstRunTests.swift; sourceTree = "<group>"; };
+		45801F85CA3FD4F1511D5109 /* ForgeAudio.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForgeAudio.swift; sourceTree = "<group>"; };
+		45BE0DCBA120362B1D3A93B5 /* ActivityScheduleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivityScheduleTests.swift; sourceTree = "<group>"; };
+		4C02700EFEE3458073D6CAA7 /* ForgeTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForgeTabView.swift; sourceTree = "<group>"; };
+		4C28B629F497461ABD85E58D /* PlanTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanTests.swift; sourceTree = "<group>"; };
+		51763BF354814A7AB2761447 /* TomorrowSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TomorrowSheet.swift; sourceTree = "<group>"; };
+		5282E732B991E09A67DE85B2 /* RitualRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RitualRowView.swift; sourceTree = "<group>"; };
+		562B9F6D6251435D9FEEEB3D /* AIDisclosureView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIDisclosureView.swift; sourceTree = "<group>"; };
+		59EF45E0D8AB40B5B44848A1 /* IdentityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdentityTests.swift; sourceTree = "<group>"; };
+		5A5BA2C60CB7BACB7AE29083 /* ForgeViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForgeViewModel.swift; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.xcfilelist; };
+		5DB6C1FC2DFB96705078572B /* Sword.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sword.swift; sourceTree = "<group>"; };
+		6D1769A0419EA993545CB9D8 /* FreeStateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FreeStateView.swift; sourceTree = "<group>"; };
+		70E97592BCB54B5B83ECB271 /* ModelTrustTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelTrustTests.swift; sourceTree = "<group>"; };
+		775FDDAEFB68E6BAD58FCAB0 /* AddActivitySheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddActivitySheet.swift; sourceTree = "<group>"; };
+		793440C5C9CF44CCA143BE61 /* Forge.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = Forge.storekit; sourceTree = "<group>"; };
+		7A1C40E2B1F04C6EA9D33002 /* NotificationPlanTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationPlanTests.swift; sourceTree = "<group>"; };
+		7A1C40E2B1F04C6EA9D33202 /* RitualMetadataTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RitualMetadataTests.swift; sourceTree = "<group>"; };
+		7A1C40E2B1F04C6EA9D34001 /* ForgeShared.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForgeShared.swift; sourceTree = "<group>"; };
+		7A1C40E2B1F04C6EA9D34002 /* ForgeSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForgeSnapshot.swift; sourceTree = "<group>"; };
+		7A1C40E2B1F04C6EA9D34003 /* ForgePalette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForgePalette.swift; sourceTree = "<group>"; };
+		7A1C40E2B1F04C6EA9D34004 /* ForgeActivityAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForgeActivityAttributes.swift; sourceTree = "<group>"; };
+		7A1C40E2B1F04C6EA9D34005 /* ForgeLink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForgeLink.swift; sourceTree = "<group>"; };
+		7A1C40E2B1F04C6EA9D34006 /* ForgePresence.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForgePresence.swift; sourceTree = "<group>"; };
+		7A1C40E2B1F04C6EA9D34007 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		7A1C40E2B1F04C6EA9D34011 /* ForgeWidgetBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForgeWidgetBundle.swift; sourceTree = "<group>"; };
+		7A1C40E2B1F04C6EA9D34012 /* LockScreenWidgets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LockScreenWidgets.swift; sourceTree = "<group>"; };
+		7A1C40E2B1F04C6EA9D34013 /* HomeWidgets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeWidgets.swift; sourceTree = "<group>"; };
+		7A1C40E2B1F04C6EA9D34014 /* DayLiveActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DayLiveActivity.swift; sourceTree = "<group>"; };
+		7A1C40E2B1F04C6EA9D34015 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		7A1C40E2B1F04C6EA9D34016 /* ForgeWidgets.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ForgeWidgets.entitlements; sourceTree = "<group>"; };
+		7A1C40E2B1F04C6EA9D34017 /* ForgeWidgets.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ForgeWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		7A1C40E2B1F04C6EA9D34302 /* SharedStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedStateTests.swift; sourceTree = "<group>"; };
+		7A1C40E2B1F04C6EA9D34401 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		7A1C40E2B1F04C6EA9D34403 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		7A1C40E2B1F04C6EA9D34502 /* RestDayTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RestDayTests.swift; sourceTree = "<group>"; };
+		7A1C40E2B1F04C6EA9D34601 /* BackendRegressionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackendRegressionTests.swift; sourceTree = "<group>"; };
+		7A1C40E2B1F04C6EA9D34706 /* Quote.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Quote.swift; sourceTree = "<group>"; };
+		7A1C40E2B1F04C6EA9D3470E /* DailyLine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyLine.swift; sourceTree = "<group>"; };
+		7A1C40E2B1F04C6EA9D34902 /* BecomingTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BecomingTabView.swift; sourceTree = "<group>"; };
+		7A1C40E2B1F04C6EA9D34911 /* Ladder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Ladder.swift; sourceTree = "<group>"; };
+		7A1C40E2B1F04C6EA9D34913 /* Chapter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Chapter.swift; sourceTree = "<group>"; };
+		7A1C40E2B1F04C6EA9D34915 /* ChapterStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChapterStore.swift; sourceTree = "<group>"; };
+		7A1C40E2B1F04C6EA9D34917 /* ChapterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChapterTests.swift; sourceTree = "<group>"; };
+		7A1C40E2B1F04C6EA9D34921 /* WeeklyReview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeeklyReview.swift; sourceTree = "<group>"; };
+		7A1C40E2B1F04C6EA9D34923 /* ReEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReEntry.swift; sourceTree = "<group>"; };
+		7A1C40E2B1F04C6EA9D34925 /* ReviewStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReviewStore.swift; sourceTree = "<group>"; };
+		7A1C40E2B1F04C6EA9D34927 /* WeeklyReviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeeklyReviewView.swift; sourceTree = "<group>"; };
+		7A1C40E2B1F04C6EA9D34929 /* ChapterCloseView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChapterCloseView.swift; sourceTree = "<group>"; };
+		7A1C40E2B1F04C6EA9D3492B /* ReturnView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReturnView.swift; sourceTree = "<group>"; };
+		7A1C40E2B1F04C6EA9D3492D /* PracticeArtifact.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PracticeArtifact.swift; sourceTree = "<group>"; };
+		7A1C40E2B1F04C6EA9D34941 /* ReviewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReviewTests.swift; sourceTree = "<group>"; };
+		7A1C40E2B1F04C6EA9D39005 /* SupabaseConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseConfig.swift; sourceTree = "<group>"; };
+		7A1C40E2B1F04C6EA9D39007 /* BackendError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackendError.swift; sourceTree = "<group>"; };
+		7A1C40E2B1F04C6EA9D39009 /* BackendJSON.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackendJSON.swift; sourceTree = "<group>"; };
+		7A1C40E2B1F04C6EA9D3900B /* HTTPClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTTPClient.swift; sourceTree = "<group>"; };
+		7A1C40E2B1F04C6EA9D3900D /* SupabaseAuthAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseAuthAPI.swift; sourceTree = "<group>"; };
+		7A1C40E2B1F04C6EA9D3900F /* SupabaseDataAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseDataAPI.swift; sourceTree = "<group>"; };
+		7A1C40E2B1F04C6EA9D39011 /* Keychain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Keychain.swift; sourceTree = "<group>"; };
+		7A1C40E2B1F04C6EA9D39013 /* AuthSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthSession.swift; sourceTree = "<group>"; };
+		7A1C40E2B1F04C6EA9D39015 /* AuthCrypto.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthCrypto.swift; sourceTree = "<group>"; };
+		7A1C40E2B1F04C6EA9D39017 /* WebAuthFlow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebAuthFlow.swift; sourceTree = "<group>"; };
+		7A1C40E2B1F04C6EA9D39019 /* AuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthService.swift; sourceTree = "<group>"; };
+		7A1C40E2B1F04C6EA9D3901B /* LocalPractice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalPractice.swift; sourceTree = "<group>"; };
+		7A1C40E2B1F04C6EA9D3901D /* SyncMerge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncMerge.swift; sourceTree = "<group>"; };
+		7A1C40E2B1F04C6EA9D3901F /* SyncLedger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncLedger.swift; sourceTree = "<group>"; };
+		7A1C40E2B1F04C6EA9D39021 /* SyncRows.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncRows.swift; sourceTree = "<group>"; };
+		7A1C40E2B1F04C6EA9D39023 /* SyncService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncService.swift; sourceTree = "<group>"; };
+		7A1C40E2B1F04C6EA9D39025 /* LivePracticeBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LivePracticeBridge.swift; sourceTree = "<group>"; };
+		7A1C40E2B1F04C6EA9D39027 /* UserService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserService.swift; sourceTree = "<group>"; };
+		7A1C40E2B1F04C6EA9D39029 /* PremiumService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PremiumService.swift; sourceTree = "<group>"; };
+		7A1C40E2B1F04C6EA9D3902B /* ForgeBackend.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForgeBackend.swift; sourceTree = "<group>"; };
+		7A1C40E2B1F04C6EA9D3902F /* SyncMergeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncMergeTests.swift; sourceTree = "<group>"; };
+		7A1C40E2B1F04C6EA9D39031 /* BackendTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackendTests.swift; sourceTree = "<group>"; };
+		7A1C40E2B1F04C6EA9D39F01 /* OAuthCallback.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OAuthCallback.swift; sourceTree = "<group>"; };
+		82FE4FC762A4234251CE0F9E /* ForgeHaptics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForgeHaptics.swift; sourceTree = "<group>"; };
+		860013BA22C8F3842D13E210 /* SwordUnlockOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwordUnlockOverlay.swift; sourceTree = "<group>"; };
+		8A2E68BE8FA5432291C22816 /* Forge.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Forge.entitlements; sourceTree = "<group>"; };
+		8B842FA2AAFA5BD18B836511 /* SwordSceneLayers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwordSceneLayers.swift; sourceTree = "<group>"; };
+		8D562B3E40B6C9EC53F38F07 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		90D59CC264C84ACBB8699288 /* IdentityActivities.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdentityActivities.swift; sourceTree = "<group>"; };
+		910C47D5C8564EDBB26A3DB3 /* AppearanceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppearanceView.swift; sourceTree = "<group>"; };
+		91E128D20D3D4228A273A5BB /* Premium.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Premium.swift; sourceTree = "<group>"; };
+		93A37543A79A6C35526C33D1 /* MilestoneRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MilestoneRow.swift; sourceTree = "<group>"; };
+		95EC677DE076E276F5F7FA6A /* SwordCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwordCardView.swift; sourceTree = "<group>"; };
+		97EDC52A32414F5BBFEC1C39 /* StreakTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreakTests.swift; sourceTree = "<group>"; };
+		99F8E31B1A8C4BC4514E2A43 /* EditRitualsSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditRitualsSheet.swift; sourceTree = "<group>"; };
+		9AE28444BB71A0FCDD4D9A70 /* ForgeTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForgeTheme.swift; sourceTree = "<group>"; };
+		9B1A7EDB49484798AFD15B87 /* IdentityStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdentityStore.swift; sourceTree = "<group>"; };
+		9CBC5087A3E0D4ACB640BED6 /* BladeViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BladeViewModel.swift; sourceTree = "<group>"; };
+		9FE7703A18104E12B04EADAF /* DayPlanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DayPlanner.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A4B5D /* NotificationPrimerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationPrimerView.swift; sourceTree = "<group>"; };
+		A1F0RGE0AIPLAN0FILE01 /* SchedulePlan.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SchedulePlan.swift; sourceTree = "<group>"; };
+		A1F0RGE0AISHET0FILE01 /* PlanSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanSheet.swift; sourceTree = "<group>"; };
+		A1F0RGE0ANALYT0FILE01 /* Analytics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Analytics.swift; sourceTree = "<group>"; };
+		A1F0RGE0ASHEET0FILE01 /* AnalyticsSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalyticsSheet.swift; sourceTree = "<group>"; };
+		A1F0RGE0ATEST00FILE01 /* AnalyticsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalyticsTests.swift; sourceTree = "<group>"; };
+		A1F0RGE0CSHEET0FILE01 /* DailyChallengeSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyChallengeSheet.swift; sourceTree = "<group>"; };
+		A1F0RGE0CSTORE0FILE01 /* ChallengeStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChallengeStore.swift; sourceTree = "<group>"; };
+		A1F0RGE0CTESTS0FILE01 /* ChallengeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChallengeTests.swift; sourceTree = "<group>"; };
+		A1F0RGE0DCHAL00FILE01 /* DailyChallenge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyChallenge.swift; sourceTree = "<group>"; };
+		A1F0RGE0LOCAI00FILE01 /* LocalForgeAI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalForgeAI.swift; sourceTree = "<group>"; };
+		A1F0RGE0MCELEB0FILE01 /* MilestoneCelebration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MilestoneCelebration.swift; sourceTree = "<group>"; };
+		A1F0RGE0MCOMP00FILE01 /* MilestoneComposer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MilestoneComposer.swift; sourceTree = "<group>"; };
+		A1F0RGE0MSTORE0FILE01 /* MilestoneStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MilestoneStore.swift; sourceTree = "<group>"; };
+		A1F0RGE0MTEST00FILE01 /* CustomMilestoneTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomMilestoneTests.swift; sourceTree = "<group>"; };
+		A1F0RGE0ORDER0FILE0001 /* ActivityOrderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivityOrderTests.swift; sourceTree = "<group>"; };
+		A1F0RGE0PTOOL00FILE01 /* ForgeControlBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForgeControlBar.swift; sourceTree = "<group>"; };
+		A1F0RGE0WEEKP00FILE01 /* WeekPlannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeekPlannerView.swift; sourceTree = "<group>"; };
+		A59DBDAC9E8F5BBC0CBDD877 /* ForgeButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForgeButton.swift; sourceTree = "<group>"; };
+		A827086D4B770BB3704603E7 /* SwordEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwordEngine.swift; sourceTree = "<group>"; };
+		A9500272A167449FB839A30D /* FirstRunView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirstRunView.swift; sourceTree = "<group>"; };
+		A97C29AD63741CF438998CE6 /* Forge.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Forge.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		AC72B8808F954DD4BE01FBD4 /* DayRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DayRecord.swift; sourceTree = "<group>"; };
+		AF28DB7D8BBFB0267BD8DD93 /* ProgressRing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressRing.swift; sourceTree = "<group>"; };
+		B9D1FE286C7143B99A03519A /* DaySummary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DaySummary.swift; sourceTree = "<group>"; };
+		BD1EF5283BFDBF713E6DA8C6 /* TimePickerSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimePickerSheet.swift; sourceTree = "<group>"; };
+		BF88C561A12642C4C4867BDE /* SwordSceneView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwordSceneView.swift; sourceTree = "<group>"; };
+		C7BFC24F8A614F81AD7643E8 /* ForgeDay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForgeDay.swift; sourceTree = "<group>"; };
+		CC3BF16C8E974E00B971ABEC /* ForgeStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForgeStore.swift; sourceTree = "<group>"; };
+		CDFF537A86C000066FC96C7D /* SettingsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsViewModel.swift; sourceTree = "<group>"; };
+		CF5389B684FA44A2BBF1C13B /* DaySummaryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DaySummaryView.swift; sourceTree = "<group>"; };
+		D14F7A73A106D3115D3A21D3 /* Ritual.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Ritual.swift; sourceTree = "<group>"; };
+		D1838572F638471EB76BD7FA /* LegacyDecodingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LegacyDecodingTests.swift; sourceTree = "<group>"; };
+		D21CCC1C893E4475965BC71B /* DayCommitment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DayCommitment.swift; sourceTree = "<group>"; };
+		D56A78E589A56D9B62D51434 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		D914E431EC9A4F82B8527B64 /* ClaudeForgeAI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeForgeAI.swift; sourceTree = "<group>"; };
+		DB74DB309F7F437DB9EC3A46 /* ForgeDayTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForgeDayTests.swift; sourceTree = "<group>"; };
+		DD895C5CB47FC0999ED5CD27 /* BladeTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BladeTabView.swift; sourceTree = "<group>"; };
+		E25C23AD80B4EBB095803BBD /* Milestone.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Milestone.swift; sourceTree = "<group>"; };
+		E54CBEEAD2C24AA53D6A51A8 /* ProgressSegments.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressSegments.swift; sourceTree = "<group>"; };
+		E8C743E1AFD8E29409AC5762 /* DayShape.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DayShape.swift; sourceTree = "<group>"; };
+		EAB3EDDE8F0D4485BAFCCFF2 /* CommitmentTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommitmentTests.swift; sourceTree = "<group>"; };
+		EB4818ABF41547389C9459CB /* ForgeNotifications.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForgeNotifications.swift; sourceTree = "<group>"; };
+		EB83CC065A7443B2BD53A71B /* ProgressStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressStore.swift; sourceTree = "<group>"; };
+		F059ECB81ADA3CF5618CE923 /* GlassTabBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassTabBar.swift; sourceTree = "<group>"; };
+		F40021818456C97A314A36F4 /* IconShape.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IconShape.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		29B2D46AA747A59804D46E1F /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		7A1C40E2B1F04C6EA9D34032 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		1DA47B9114913D459E5D0FB7 /* Overlays */ = {
+			isa = PBXGroup;
+			children = (
+				A1F0RGE0AISHET0FILE01 /* PlanSheet.swift */,
+				A1F0RGE0CSHEET0FILE01 /* DailyChallengeSheet.swift */,
+				CF5389B684FA44A2BBF1C13B /* DaySummaryView.swift */,
+				775FDDAEFB68E6BAD58FCAB0 /* AddActivitySheet.swift */,
+				A9500272A167449FB839A30D /* FirstRunView.swift */,
+				99F8E31B1A8C4BC4514E2A43 /* EditRitualsSheet.swift */,
+				860013BA22C8F3842D13E210 /* SwordUnlockOverlay.swift */,
+				BD1EF5283BFDBF713E6DA8C6 /* TimePickerSheet.swift */,
+				13FA0439D4FCDF5028B1B393 /* HonorPromptView.swift */,
+				A1B2C3D4E5F60718293A4B5D /* NotificationPrimerView.swift */,
+			);
+			path = Overlays;
+			sourceTree = "<group>";
+		};
+		3134CB39031B0B847F51B5DF /* Forge */ = {
+			isa = PBXGroup;
+			children = (
+				A1F0RGE0WEEKP00FILE01 /* WeekPlannerView.swift */,
+				A1F0RGE0PTOOL00FILE01 /* ForgeControlBar.swift */,
+				793440C5C9CF44CCA143BE61 /* Forge.storekit */,
+				51763BF354814A7AB2761447 /* TomorrowSheet.swift */,
+				8B842FA2AAFA5BD18B836511 /* SwordSceneLayers.swift */,
+				4C02700EFEE3458073D6CAA7 /* ForgeTabView.swift */,
+				6D1769A0419EA993545CB9D8 /* FreeStateView.swift */,
+				E54CBEEAD2C24AA53D6A51A8 /* ProgressSegments.swift */,
+				5282E732B991E09A67DE85B2 /* RitualRowView.swift */,
+				BF88C561A12642C4C4867BDE /* SwordSceneView.swift */,
+			);
+			path = Forge;
+			sourceTree = "<group>";
+		};
+		3810F13740DC820205178A5A /* Blade */ = {
+			isa = PBXGroup;
+			children = (
+				2D63371925D444A1AECE70B2 /* TrendsView.swift */,
+				A1F0RGE0MCELEB0FILE01 /* MilestoneCelebration.swift */,
+				A1F0RGE0MCOMP00FILE01 /* MilestoneComposer.swift */,
+				A1F0RGE0ASHEET0FILE01 /* AnalyticsSheet.swift */,
+				93A37543A79A6C35526C33D1 /* MilestoneRow.swift */,
+				DD895C5CB47FC0999ED5CD27 /* BladeTabView.swift */,
+				12F415756CDB0BFF4D78FAA2 /* HeatmapView.swift */,
+				95EC677DE076E276F5F7FA6A /* SwordCardView.swift */,
+			);
+			path = Blade;
+			sourceTree = "<group>";
+		};
+		4A04FC3BA6574F7898641826 /* ForgeTests */ = {
+			isa = PBXGroup;
+			children = (
+				235790119C32461B935CD3B3 /* AccessibilityTests.swift */,
+				70E97592BCB54B5B83ECB271 /* ModelTrustTests.swift */,
+				A1F0RGE0CTESTS0FILE01 /* ChallengeTests.swift */,
+				7A1C40E2B1F04C6EA9D34601 /* BackendRegressionTests.swift */,
+				7A1C40E2B1F04C6EA9D3902F /* SyncMergeTests.swift */,
+				7A1C40E2B1F04C6EA9D39031 /* BackendTests.swift */,
+				EAB3EDDE8F0D4485BAFCCFF2 /* CommitmentTests.swift */,
+				DB74DB309F7F437DB9EC3A46 /* ForgeDayTests.swift */,
+				97EDC52A32414F5BBFEC1C39 /* StreakTests.swift */,
+				7A1C40E2B1F04C6EA9D34917 /* ChapterTests.swift */,
+				7A1C40E2B1F04C6EA9D34941 /* ReviewTests.swift */,
+				D1838572F638471EB76BD7FA /* LegacyDecodingTests.swift */,
+				7A1C40E2B1F04C6EA9D34502 /* RestDayTests.swift */,
+				7A1C40E2B1F04C6EA9D34302 /* SharedStateTests.swift */,
+				7A1C40E2B1F04C6EA9D33202 /* RitualMetadataTests.swift */,
+				148AF4972472AC82CE2EC48B /* DayShapeTests.swift */,
+				59EF45E0D8AB40B5B44848A1 /* IdentityTests.swift */,
+				4255F352A422478B9F48781B /* FirstRunTests.swift */,
+				4C28B629F497461ABD85E58D /* PlanTests.swift */,
+				45BE0DCBA120362B1D3A93B5 /* ActivityScheduleTests.swift */,
+				A1F0RGE0ORDER0FILE0001 /* ActivityOrderTests.swift */,
+				A1F0RGE0MTEST00FILE01 /* CustomMilestoneTests.swift */,
+				A1F0RGE0ATEST00FILE01 /* AnalyticsTests.swift */,
+				7A1C40E2B1F04C6EA9D33002 /* NotificationPlanTests.swift */,
+			);
+			path = ForgeTests;
+			sourceTree = "<group>";
+		};
+		508B330CCDE923938D8FFB64 /* Components */ = {
+			isa = PBXGroup;
+			children = (
+				00BA7B6749FDE84FBBA4D985 /* DayPicker.swift */,
+				A59DBDAC9E8F5BBC0CBDD877 /* ForgeButton.swift */,
+				F059ECB81ADA3CF5618CE923 /* GlassTabBar.swift */,
+				7A1C40E2B1F04C6EA9D3470E /* DailyLine.swift */,
+				F40021818456C97A314A36F4 /* IconShape.swift */,
+				AF28DB7D8BBFB0267BD8DD93 /* ProgressRing.swift */,
+				398A573950F2623100BA3853 /* SectionHeader.swift */,
+			);
+			path = Components;
+			sourceTree = "<group>";
+		};
+		5928955287B8089ED2177128 = {
+			isa = PBXGroup;
+			children = (
+				89617CAA2983C50CECCAE510 /* Forge */,
+				7A1C40E2B1F04C6EA9D34021 /* ForgeWidgets */,
+				4A04FC3BA6574F7898641826 /* ForgeTests */,
+				BF7A2D27A78D590BDEF15AF2 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		78EF4B0EA3FDA2A792BCF074 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				508B330CCDE923938D8FFB64 /* Components */,
+				3134CB39031B0B847F51B5DF /* Forge */,
+				3810F13740DC820205178A5A /* Blade */,
+				CD16AA545D874AE5C8D34695 /* Settings */,
+				1DA47B9114913D459E5D0FB7 /* Overlays */,
+				7A1C40E2B1F04C6EA9D34800 /* Becoming */,
+				7A1C40E2B1F04C6EA9D34930 /* Review */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		7A1C40E2B1F04C6EA9D34020 /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+				7A1C40E2B1F04C6EA9D34001 /* ForgeShared.swift */,
+				7A1C40E2B1F04C6EA9D34002 /* ForgeSnapshot.swift */,
+				7A1C40E2B1F04C6EA9D34003 /* ForgePalette.swift */,
+				7A1C40E2B1F04C6EA9D34004 /* ForgeActivityAttributes.swift */,
+				7A1C40E2B1F04C6EA9D34005 /* ForgeLink.swift */,
+			);
+			path = Shared;
+			sourceTree = "<group>";
+		};
+		7A1C40E2B1F04C6EA9D34021 /* ForgeWidgets */ = {
+			isa = PBXGroup;
+			children = (
+				7A1C40E2B1F04C6EA9D34011 /* ForgeWidgetBundle.swift */,
+				7A1C40E2B1F04C6EA9D34012 /* LockScreenWidgets.swift */,
+				7A1C40E2B1F04C6EA9D34013 /* HomeWidgets.swift */,
+				7A1C40E2B1F04C6EA9D34014 /* DayLiveActivity.swift */,
+				7A1C40E2B1F04C6EA9D34015 /* Info.plist */,
+				7A1C40E2B1F04C6EA9D34016 /* ForgeWidgets.entitlements */,
+				7A1C40E2B1F04C6EA9D34403 /* PrivacyInfo.xcprivacy */,
+			);
+			path = ForgeWidgets;
+			sourceTree = "<group>";
+		};
+		7A1C40E2B1F04C6EA9D34800 /* Becoming */ = {
+			isa = PBXGroup;
+			children = (
+				7A1C40E2B1F04C6EA9D34902 /* BecomingTabView.swift */,
+			);
+			path = Becoming;
+			sourceTree = "<group>";
+		};
+		7A1C40E2B1F04C6EA9D34930 /* Review */ = {
+			isa = PBXGroup;
+			children = (
+				7A1C40E2B1F04C6EA9D34927 /* WeeklyReviewView.swift */,
+				7A1C40E2B1F04C6EA9D34929 /* ChapterCloseView.swift */,
+				7A1C40E2B1F04C6EA9D3492B /* ReturnView.swift */,
+				7A1C40E2B1F04C6EA9D3492D /* PracticeArtifact.swift */,
+			);
+			path = Review;
+			sourceTree = "<group>";
+		};
+		7A1C40E2B1F04C6EA9D39001 /* Backend */ = {
+			isa = PBXGroup;
+			children = (
+				7A1C40E2B1F04C6EA9D39002 /* Net */,
+				7A1C40E2B1F04C6EA9D39003 /* Auth */,
+				7A1C40E2B1F04C6EA9D39004 /* Sync */,
+				7A1C40E2B1F04C6EA9D39005 /* SupabaseConfig.swift */,
+				7A1C40E2B1F04C6EA9D39027 /* UserService.swift */,
+				7A1C40E2B1F04C6EA9D39029 /* PremiumService.swift */,
+				7A1C40E2B1F04C6EA9D3902B /* ForgeBackend.swift */,
+			);
+			path = Backend;
+			sourceTree = "<group>";
+		};
+		7A1C40E2B1F04C6EA9D39002 /* Net */ = {
+			isa = PBXGroup;
+			children = (
+				7A1C40E2B1F04C6EA9D39007 /* BackendError.swift */,
+				7A1C40E2B1F04C6EA9D39009 /* BackendJSON.swift */,
+				7A1C40E2B1F04C6EA9D3900B /* HTTPClient.swift */,
+				7A1C40E2B1F04C6EA9D3900D /* SupabaseAuthAPI.swift */,
+				7A1C40E2B1F04C6EA9D3900F /* SupabaseDataAPI.swift */,
+			);
+			path = Net;
+			sourceTree = "<group>";
+		};
+		7A1C40E2B1F04C6EA9D39003 /* Auth */ = {
+			isa = PBXGroup;
+			children = (
+				7A1C40E2B1F04C6EA9D39011 /* Keychain.swift */,
+				7A1C40E2B1F04C6EA9D39013 /* AuthSession.swift */,
+				7A1C40E2B1F04C6EA9D39015 /* AuthCrypto.swift */,
+				7A1C40E2B1F04C6EA9D39017 /* WebAuthFlow.swift */,
+				7A1C40E2B1F04C6EA9D39F01 /* OAuthCallback.swift */,
+				7A1C40E2B1F04C6EA9D39019 /* AuthService.swift */,
+			);
+			path = Auth;
+			sourceTree = "<group>";
+		};
+		7A1C40E2B1F04C6EA9D39004 /* Sync */ = {
+			isa = PBXGroup;
+			children = (
+				7A1C40E2B1F04C6EA9D3901B /* LocalPractice.swift */,
+				7A1C40E2B1F04C6EA9D3901D /* SyncMerge.swift */,
+				7A1C40E2B1F04C6EA9D3901F /* SyncLedger.swift */,
+				7A1C40E2B1F04C6EA9D39021 /* SyncRows.swift */,
+				7A1C40E2B1F04C6EA9D39023 /* SyncService.swift */,
+				7A1C40E2B1F04C6EA9D39025 /* LivePracticeBridge.swift */,
+			);
+			path = Sync;
+			sourceTree = "<group>";
+		};
+		89617CAA2983C50CECCAE510 /* Forge */ = {
+			isa = PBXGroup;
+			children = (
+				7A1C40E2B1F04C6EA9D39001 /* Backend */,
+				D56A78E589A56D9B62D51434 /* ContentView.swift */,
+				0267D67B5530DD9F353F2E18 /* ForgeApp.swift */,
+				8A2E68BE8FA5432291C22816 /* Forge.entitlements */,
+				7A1C40E2B1F04C6EA9D34007 /* Info.plist */,
+				7A1C40E2B1F04C6EA9D34401 /* PrivacyInfo.xcprivacy */,
+				7A1C40E2B1F04C6EA9D34020 /* Shared */,
+				8D562B3E40B6C9EC53F38F07 /* Assets.xcassets */,
+				EB4AE53CBA7282089BE8C7BB /* Engine */,
+				CA608C0B22E7B6F9B389BDDD /* Models */,
+				E3EEF78AC67933824D83D3B4 /* ViewModels */,
+				78EF4B0EA3FDA2A792BCF074 /* Views */,
+				9D584A9C6A59EC0894084597 /* Theme */,
+			);
+			path = Forge;
+			sourceTree = "<group>";
+		};
+		9D584A9C6A59EC0894084597 /* Theme */ = {
+			isa = PBXGroup;
+			children = (
+				9AE28444BB71A0FCDD4D9A70 /* ForgeTheme.swift */,
+			);
+			path = Theme;
+			sourceTree = "<group>";
+		};
+		BF7A2D27A78D590BDEF15AF2 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				A97C29AD63741CF438998CE6 /* Forge.app */,
+				2C9B0EB153EA4314ABEF902E /* ForgeTests.xctest */,
+				7A1C40E2B1F04C6EA9D34017 /* ForgeWidgets.appex */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		CA608C0B22E7B6F9B389BDDD /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				A1F0RGE0AIPLAN0FILE01 /* SchedulePlan.swift */,
+				A1F0RGE0DCHAL00FILE01 /* DailyChallenge.swift */,
+				91E128D20D3D4228A273A5BB /* Premium.swift */,
+				D21CCC1C893E4475965BC71B /* DayCommitment.swift */,
+				B9D1FE286C7143B99A03519A /* DaySummary.swift */,
+				E25C23AD80B4EBB095803BBD /* Milestone.swift */,
+				9FE7703A18104E12B04EADAF /* DayPlanner.swift */,
+				7A1C40E2B1F04C6EA9D34923 /* ReEntry.swift */,
+				7A1C40E2B1F04C6EA9D34921 /* WeeklyReview.swift */,
+				7A1C40E2B1F04C6EA9D34913 /* Chapter.swift */,
+				7A1C40E2B1F04C6EA9D34911 /* Ladder.swift */,
+				E8C743E1AFD8E29409AC5762 /* DayShape.swift */,
+				A1F0RGE0ANALYT0FILE01 /* Analytics.swift */,
+				C7BFC24F8A614F81AD7643E8 /* ForgeDay.swift */,
+				AC72B8808F954DD4BE01FBD4 /* DayRecord.swift */,
+				EB83CC065A7443B2BD53A71B /* ProgressStore.swift */,
+				D14F7A73A106D3115D3A21D3 /* Ritual.swift */,
+				0105BDA87C194258A2491E9B /* Identity.swift */,
+				90D59CC264C84ACBB8699288 /* IdentityActivities.swift */,
+				7A1C40E2B1F04C6EA9D34706 /* Quote.swift */,
+				5DB6C1FC2DFB96705078572B /* Sword.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		CD16AA545D874AE5C8D34695 /* Settings */ = {
+			isa = PBXGroup;
+			children = (
+				562B9F6D6251435D9FEEEB3D /* AIDisclosureView.swift */,
+				910C47D5C8564EDBB26A3DB3 /* AppearanceView.swift */,
+				1E8CE243089154CFAC519E68 /* SettingsTabView.swift */,
+			);
+			path = Settings;
+			sourceTree = "<group>";
+		};
+		E3EEF78AC67933824D83D3B4 /* ViewModels */ = {
+			isa = PBXGroup;
+			children = (
+				9CBC5087A3E0D4ACB640BED6 /* BladeViewModel.swift */,
+				5A5BA2C60CB7BACB7AE29083 /* ForgeViewModel.swift */,
+				CDFF537A86C000066FC96C7D /* SettingsViewModel.swift */,
+			);
+			path = ViewModels;
+			sourceTree = "<group>";
+		};
+		EB4AE53CBA7282089BE8C7BB /* Engine */ = {
+			isa = PBXGroup;
+			children = (
+				D914E431EC9A4F82B8527B64 /* ClaudeForgeAI.swift */,
+				A1F0RGE0LOCAI00FILE01 /* LocalForgeAI.swift */,
+				A1F0RGE0CSTORE0FILE01 /* ChallengeStore.swift */,
+				9B1A7EDB49484798AFD15B87 /* IdentityStore.swift */,
+				A1F0RGE0MSTORE0FILE01 /* MilestoneStore.swift */,
+				7A1C40E2B1F04C6EA9D34925 /* ReviewStore.swift */,
+				7A1C40E2B1F04C6EA9D34915 /* ChapterStore.swift */,
+				CC3BF16C8E974E00B971ABEC /* ForgeStore.swift */,
+				A827086D4B770BB3704603E7 /* SwordEngine.swift */,
+				EB4818ABF41547389C9459CB /* ForgeNotifications.swift */,
+				45801F85CA3FD4F1511D5109 /* ForgeAudio.swift */,
+				82FE4FC762A4234251CE0F9E /* ForgeHaptics.swift */,
+				7A1C40E2B1F04C6EA9D34006 /* ForgePresence.swift */,
+			);
+			path = Engine;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		650F70D71164443E80FAD7DB /* ForgeTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 7281BFD692524EE1B168E026 /* Build configuration list for PBXNativeTarget "ForgeTests" */;
+			buildPhases = (
+				DC91E42D61C74C968C7D0BCB /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				F828E6A9B7914034ACC59801 /* PBXTargetDependency */,
+			);
+			name = ForgeTests;
+			productName = ForgeTests;
+			productReference = 2C9B0EB153EA4314ABEF902E /* ForgeTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		7A1C40E2B1F04C6EA9D34030 /* ForgeWidgets */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 7A1C40E2B1F04C6EA9D34034 /* Build configuration list for PBXNativeTarget "ForgeWidgets" */;
+			buildPhases = (
+				7A1C40E2B1F04C6EA9D34031 /* Sources */,
+				7A1C40E2B1F04C6EA9D34032 /* Frameworks */,
+				7A1C40E2B1F04C6EA9D34033 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = ForgeWidgets;
+			productName = ForgeWidgets;
+			productReference = 7A1C40E2B1F04C6EA9D34017 /* ForgeWidgets.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		CA154F9F0F4C81C19472E465 /* Forge */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 92CF0BDA3A7742D5453609D3 /* Build configuration list for PBXNativeTarget "Forge" */;
+			buildPhases = (
+				E7209FB05162B7572F88D05E /* Sources */,
+				29B2D46AA747A59804D46E1F /* Frameworks */,
+				66F8606E9F0A136E2228EBCB /* Resources */,
+				7A1C40E2B1F04C6EA9D34037 /* Embed Foundation Extensions */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				7A1C40E2B1F04C6EA9D34038 /* PBXTargetDependency */,
+			);
+			name = Forge;
+			productName = Forge;
+			productReference = A97C29AD63741CF438998CE6 /* Forge.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		5299AC4324DC18342A8CCD96 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+			};
+			buildConfigurationList = 2430554D374B194A930F1CFA /* Build configuration list for PBXProject "Forge" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 5928955287B8089ED2177128;
+			packageReferences = (
+				F45BC4113066F89800E3CA8F /* XCRemoteSwiftPackageReference "SwiftSDK" */,
+			);
+			productRefGroup = BF7A2D27A78D590BDEF15AF2 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				CA154F9F0F4C81C19472E465 /* Forge */,
+				650F70D71164443E80FAD7DB /* ForgeTests */,
+				7A1C40E2B1F04C6EA9D34030 /* ForgeWidgets */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		66F8606E9F0A136E2228EBCB /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				04A7814E4EEC70DE7D6C41B1 /* Assets.xcassets in Resources */,
+				7A1C40E2B1F04C6EA9D34402 /* PrivacyInfo.xcprivacy in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		7A1C40E2B1F04C6EA9D34033 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7A1C40E2B1F04C6EA9D34404 /* PrivacyInfo.xcprivacy in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		7A1C40E2B1F04C6EA9D34031 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7A1C40E2B1F04C6EA9D34120 /* ForgeShared.swift in Sources */,
+				7A1C40E2B1F04C6EA9D34121 /* ForgeSnapshot.swift in Sources */,
+				7A1C40E2B1F04C6EA9D34122 /* ForgePalette.swift in Sources */,
+				7A1C40E2B1F04C6EA9D34123 /* ForgeActivityAttributes.swift in Sources */,
+				7A1C40E2B1F04C6EA9D34124 /* ForgeLink.swift in Sources */,
+				7A1C40E2B1F04C6EA9D34125 /* ForgeWidgetBundle.swift in Sources */,
+				7A1C40E2B1F04C6EA9D34126 /* LockScreenWidgets.swift in Sources */,
+				7A1C40E2B1F04C6EA9D34127 /* HomeWidgets.swift in Sources */,
+				7A1C40E2B1F04C6EA9D34128 /* DayLiveActivity.swift in Sources */,
+				7A1C40E2B1F04C6EA9D34129 /* ForgeDay.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		DC91E42D61C74C968C7D0BCB /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				2B27CDCBBC114CDB9B4CC596 /* AccessibilityTests.swift in Sources */,
+				1971B3C4770241629406251F /* ModelTrustTests.swift in Sources */,
+				7A1C40E2B1F04C6EA9D34602 /* BackendRegressionTests.swift in Sources */,
+				7A1C40E2B1F04C6EA9D39030 /* SyncMergeTests.swift in Sources */,
+				7A1C40E2B1F04C6EA9D39032 /* BackendTests.swift in Sources */,
+				9D5C5ACEB78D4BD59E976634 /* ForgeDayTests.swift in Sources */,
+				A4D155209402435E84BE91BE /* StreakTests.swift in Sources */,
+				7A1C40E2B1F04C6EA9D34916 /* ChapterTests.swift in Sources */,
+				7A1C40E2B1F04C6EA9D34940 /* ReviewTests.swift in Sources */,
+				A1F0RGE0CTESTS0BUILD1 /* ChallengeTests.swift in Sources */,
+				3BDCDED822684143ACB28070 /* CommitmentTests.swift in Sources */,
+				DED6C4F307824CDDBE687BFE /* LegacyDecodingTests.swift in Sources */,
+				7A1C40E2B1F04C6EA9D34501 /* RestDayTests.swift in Sources */,
+				7A1C40E2B1F04C6EA9D34301 /* SharedStateTests.swift in Sources */,
+				7A1C40E2B1F04C6EA9D33201 /* RitualMetadataTests.swift in Sources */,
+				074794CBAAF35B78B920E9D2 /* DayShapeTests.swift in Sources */,
+				5DAD6F4812074DCFA658B1F5 /* IdentityTests.swift in Sources */,
+				A05C9B585BC54C62B861C920 /* FirstRunTests.swift in Sources */,
+				2E0EB10EEE524121BC29C502 /* PlanTests.swift in Sources */,
+				52AFB9073630C262B95C9B5D /* ActivityScheduleTests.swift in Sources */,
+				A1F0RGE0ORDER0BUILD01 /* ActivityOrderTests.swift in Sources */,
+				A1F0RGE0MTEST00BUILD1 /* CustomMilestoneTests.swift in Sources */,
+				A1F0RGE0ATEST00BUILD1 /* AnalyticsTests.swift in Sources */,
+				7A1C40E2B1F04C6EA9D33001 /* NotificationPlanTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E7209FB05162B7572F88D05E /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				9673A861037342C2B92336F1 /* AIDisclosureView.swift in Sources */,
+				55D8752497994DC29A091C05 /* AppearanceView.swift in Sources */,
+				89339609911A4CA195EACB88 /* ClaudeForgeAI.swift in Sources */,
+				7A1C40E2B1F04C6EA9D39006 /* SupabaseConfig.swift in Sources */,
+				7A1C40E2B1F04C6EA9D39008 /* BackendError.swift in Sources */,
+				7A1C40E2B1F04C6EA9D3900A /* BackendJSON.swift in Sources */,
+				7A1C40E2B1F04C6EA9D3900C /* HTTPClient.swift in Sources */,
+				7A1C40E2B1F04C6EA9D3900E /* SupabaseAuthAPI.swift in Sources */,
+				7A1C40E2B1F04C6EA9D39010 /* SupabaseDataAPI.swift in Sources */,
+				7A1C40E2B1F04C6EA9D39012 /* Keychain.swift in Sources */,
+				7A1C40E2B1F04C6EA9D39014 /* AuthSession.swift in Sources */,
+				7A1C40E2B1F04C6EA9D39016 /* AuthCrypto.swift in Sources */,
+				7A1C40E2B1F04C6EA9D39018 /* WebAuthFlow.swift in Sources */,
+				7A1C40E2B1F04C6EA9D39F02 /* OAuthCallback.swift in Sources */,
+				7A1C40E2B1F04C6EA9D3901A /* AuthService.swift in Sources */,
+				7A1C40E2B1F04C6EA9D3901C /* LocalPractice.swift in Sources */,
+				7A1C40E2B1F04C6EA9D3901E /* SyncMerge.swift in Sources */,
+				7A1C40E2B1F04C6EA9D39020 /* SyncLedger.swift in Sources */,
+				7A1C40E2B1F04C6EA9D39022 /* SyncRows.swift in Sources */,
+				7A1C40E2B1F04C6EA9D39024 /* SyncService.swift in Sources */,
+				7A1C40E2B1F04C6EA9D39026 /* LivePracticeBridge.swift in Sources */,
+				7A1C40E2B1F04C6EA9D39028 /* UserService.swift in Sources */,
+				7A1C40E2B1F04C6EA9D3902A /* PremiumService.swift in Sources */,
+				7A1C40E2B1F04C6EA9D3902C /* ForgeBackend.swift in Sources */,
+				175B5270AE845971AE8EF89C /* SwordSceneLayers.swift in Sources */,
+				C58CA1400E4AC60B4D6589EA /* ForgeHaptics.swift in Sources */,
+				7A1C40E2B1F04C6EA9D34100 /* ForgeShared.swift in Sources */,
+				7A1C40E2B1F04C6EA9D34101 /* ForgeSnapshot.swift in Sources */,
+				7A1C40E2B1F04C6EA9D34102 /* ForgePalette.swift in Sources */,
+				7A1C40E2B1F04C6EA9D34103 /* ForgeActivityAttributes.swift in Sources */,
+				7A1C40E2B1F04C6EA9D34104 /* ForgeLink.swift in Sources */,
+				7A1C40E2B1F04C6EA9D34105 /* ForgePresence.swift in Sources */,
+				372E81DF0A62B2E93C655BC0 /* ForgeAudio.swift in Sources */,
+				A5A17B4CAC1D8EAF7D336A65 /* SwordEngine.swift in Sources */,
+				6752DE589BF648EA9546F203 /* ForgeNotifications.swift in Sources */,
+				8A36C1B3997697530EFD01F0 /* ContentView.swift in Sources */,
+				F26E103303DE4F089C7682E8 /* TrendsView.swift in Sources */,
+				A1F0RGE0MCELEB0BUILD1 /* MilestoneCelebration.swift in Sources */,
+				A1F0RGE0MCOMP00BUILD1 /* MilestoneComposer.swift in Sources */,
+				A1F0RGE0ASHEET0BUILD1 /* AnalyticsSheet.swift in Sources */,
+				A1F0RGE0AISHET0BUILD1 /* PlanSheet.swift in Sources */,
+				A1F0RGE0CSHEET0BUILD1 /* DailyChallengeSheet.swift in Sources */,
+				A1F0RGE0WEEKP00BUILD1 /* WeekPlannerView.swift in Sources */,
+				A1F0RGE0PTOOL00BUILD1 /* ForgeControlBar.swift in Sources */,
+				A1F0RGE0LOCAI00BUILD1 /* LocalForgeAI.swift in Sources */,
+				A1F0RGE0CSTORE0BUILD1 /* ChallengeStore.swift in Sources */,
+				A1F0RGE0AIPLAN0BUILD1 /* SchedulePlan.swift in Sources */,
+				A1F0RGE0DCHAL00BUILD1 /* DailyChallenge.swift in Sources */,
+				47BD9A3FAD0144CA99CE29DB /* IdentityStore.swift in Sources */,
+				A1F0RGE0MSTORE0BUILD1 /* MilestoneStore.swift in Sources */,
+				7A1C40E2B1F04C6EA9D34924 /* ReviewStore.swift in Sources */,
+				7A1C40E2B1F04C6EA9D34914 /* ChapterStore.swift in Sources */,
+				B48BF1FB62464F0F847EB683 /* ForgeStore.swift in Sources */,
+				0DDD33A2EF884EFB96BB0C2A /* Premium.swift in Sources */,
+				0955961CBA7E443EB579BB85 /* TomorrowSheet.swift in Sources */,
+				F85F5F09B8FE46318034AAEC /* DaySummaryView.swift in Sources */,
+				257D232BF29D49C784F822A6 /* DayCommitment.swift in Sources */,
+				6785EB3C8D9249F7B27EE98C /* DaySummary.swift in Sources */,
+				C232C14C96DC7FB7DDB79671 /* ForgeApp.swift in Sources */,
+				38E094D487AFE28916DF241A /* Milestone.swift in Sources */,
+				B39F491DF96B468185CFD665 /* DayPlanner.swift in Sources */,
+				7A1C40E2B1F04C6EA9D34922 /* ReEntry.swift in Sources */,
+				7A1C40E2B1F04C6EA9D34920 /* WeeklyReview.swift in Sources */,
+				7A1C40E2B1F04C6EA9D34912 /* Chapter.swift in Sources */,
+				7A1C40E2B1F04C6EA9D34910 /* Ladder.swift in Sources */,
+				A86EB4C2C21AB95077BB309A /* DayShape.swift in Sources */,
+				A1F0RGE0ANALYT0BUILD1 /* Analytics.swift in Sources */,
+				83097D5F9CD04743BC86F96B /* ForgeDay.swift in Sources */,
+				BE5FDFCF8CD54E71B9DC393D /* DayRecord.swift in Sources */,
+				7F1D709D78EF4F0AA703668B /* ProgressStore.swift in Sources */,
+				94EEBCDCB855AC1D9DCC547B /* Ritual.swift in Sources */,
+				923EFE258A984E98A8204024 /* Identity.swift in Sources */,
+				A668E156EEF144778572615D /* IdentityActivities.swift in Sources */,
+				7A1C40E2B1F04C6EA9D34708 /* Quote.swift in Sources */,
+				FD5FBE81081401381DEA5962 /* Sword.swift in Sources */,
+				A97FE6611F21E35E80441DE3 /* ForgeTheme.swift in Sources */,
+				E98FD5C655438AF6684B356A /* BladeViewModel.swift in Sources */,
+				0842BB99F38DDC694230F84B /* ForgeViewModel.swift in Sources */,
+				698F98615533010F6492EB62 /* SettingsViewModel.swift in Sources */,
+				3849F20EAD8B34302C944734 /* MilestoneRow.swift in Sources */,
+				E32D40B37CFCA497724FE923 /* BladeTabView.swift in Sources */,
+				3F7931854DE22E0DC4D3599A /* HeatmapView.swift in Sources */,
+				6E27A08086CF97146E867D4A /* SwordCardView.swift in Sources */,
+				6195D4D0791BB3A1EFA88D52 /* DayPicker.swift in Sources */,
+				7D7B518D7411B520DFC243DE /* ForgeButton.swift in Sources */,
+				E2FA3245F3E7D12BB51150E7 /* GlassTabBar.swift in Sources */,
+				7A1C40E2B1F04C6EA9D34710 /* DailyLine.swift in Sources */,
+				3EBC1AA0A0CAC32BECAA8541 /* IconShape.swift in Sources */,
+				4B64AF8C5F8BC54FDAA07A83 /* ProgressRing.swift in Sources */,
+				FEACAE87CC025EEED9D84B7F /* SectionHeader.swift in Sources */,
+				994C641FB819CABEB0120A20 /* ForgeTabView.swift in Sources */,
+				788D6F2FD808D8B518C864B1 /* FreeStateView.swift in Sources */,
+				7C5AAE5B6D4A75099ADBA0A2 /* ProgressSegments.swift in Sources */,
+				CDB63D8B8DE6481693D83ABE /* RitualRowView.swift in Sources */,
+				7C5806CACD96E32C25A7D337 /* SwordSceneView.swift in Sources */,
+				F7F5CFFC54492286A180AB70 /* AddActivitySheet.swift in Sources */,
+				8B7574B6935F4BA8873D4CFB /* FirstRunView.swift in Sources */,
+				F29FC0FE10FEBFACB2117E28 /* EditRitualsSheet.swift in Sources */,
+				C060E2F1B86DAE689558F90F /* SwordUnlockOverlay.swift in Sources */,
+				A3899DA2969FF78AF11D5C98 /* TimePickerSheet.swift in Sources */,
+				7A1C40E2B1F04C6EA9D34901 /* BecomingTabView.swift in Sources */,
+				7A1C40E2B1F04C6EA9D3492C /* PracticeArtifact.swift in Sources */,
+				7A1C40E2B1F04C6EA9D3492A /* ReturnView.swift in Sources */,
+				7A1C40E2B1F04C6EA9D34928 /* ChapterCloseView.swift in Sources */,
+				7A1C40E2B1F04C6EA9D34926 /* WeeklyReviewView.swift in Sources */,
+				3C08328E3DB8CC32CB48F327 /* HonorPromptView.swift in Sources */,
+				A1B2C3D4E5F60718293A4B5C /* NotificationPrimerView.swift in Sources */,
+				A2C49A64F5B40A1A8FD7871A /* SettingsTabView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		7A1C40E2B1F04C6EA9D34038 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 7A1C40E2B1F04C6EA9D34030 /* ForgeWidgets */;
+			targetProxy = 7A1C40E2B1F04C6EA9D34039 /* PBXContainerItemProxy */;
+		};
+		F828E6A9B7914034ACC59801 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = CA154F9F0F4C81C19472E465 /* Forge */;
+			targetProxy = 6762E73A3F5241C6A4FD1A1E /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		3B736776608C4BB5BC6D1558 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 2;
+				DEVELOPMENT_TEAM = 5JCLWNH6LG;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.dawid.forgeTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Forge.app/Forge";
+			};
+			name = Release;
+		};
+		4DC7B479A29173674AFD7BAC /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Forge/Forge.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 2;
+				DEVELOPMENT_TEAM = 5JCLWNH6LG;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Forge/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.dawid.forge;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		683105B965893FCC643C4ECF /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Forge/Forge.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 2;
+				DEVELOPMENT_TEAM = 5JCLWNH6LG;
+				ENABLE_PREVIEWS = YES;
+				ENABLE_TESTABILITY = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Forge/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.dawid.forge;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		71307F56FE0F050CBFE8BD6D /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		7A1C40E2B1F04C6EA9D34035 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = ForgeWidgets/ForgeWidgets.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 2;
+				DEVELOPMENT_TEAM = 5JCLWNH6LG;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = ForgeWidgets/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				MTL_FAST_MATH = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = com.dawid.forge.ForgeWidgets;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		7A1C40E2B1F04C6EA9D34036 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = ForgeWidgets/ForgeWidgets.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 2;
+				DEVELOPMENT_TEAM = 5JCLWNH6LG;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = ForgeWidgets/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				MTL_FAST_MATH = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = com.dawid.forge.ForgeWidgets;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		CF2CFB6982AC48D18608CD45 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 2;
+				DEVELOPMENT_TEAM = 5JCLWNH6LG;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.dawid.forgeTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Forge.app/Forge";
+			};
+			name = Debug;
+		};
+		D4147F9DEB4AD84BF3A14790 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited)";
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		2430554D374B194A930F1CFA /* Build configuration list for PBXProject "Forge" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				71307F56FE0F050CBFE8BD6D /* Debug */,
+				D4147F9DEB4AD84BF3A14790 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		7281BFD692524EE1B168E026 /* Build configuration list for PBXNativeTarget "ForgeTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				CF2CFB6982AC48D18608CD45 /* Debug */,
+				3B736776608C4BB5BC6D1558 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		7A1C40E2B1F04C6EA9D34034 /* Build configuration list for PBXNativeTarget "ForgeWidgets" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				7A1C40E2B1F04C6EA9D34035 /* Debug */,
+				7A1C40E2B1F04C6EA9D34036 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		92CF0BDA3A7742D5453609D3 /* Build configuration list for PBXNativeTarget "Forge" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				683105B965893FCC643C4ECF /* Debug */,
+				4DC7B479A29173674AFD7BAC /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		F45BC4113066F89800E3CA8F /* XCRemoteSwiftPackageReference "SwiftSDK" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/TelemetryDeck/SwiftSDK";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.14.2;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+	};
+	rootObject = 5299AC4324DC18342A8CCD96 /* Project object */;
+}
