@@ -117,6 +117,22 @@ final class ProgressStore {
 
     var today: DayRecord { byDay[currentDay] ?? DayRecord(day: currentDay) }
 
+    /// The oldest day the history holds anything for.
+    ///
+    /// Forge writes today's record the first time it opens — the day's planned
+    /// list goes down before anything is done (`ForgeViewModel.publishPlanned`)
+    /// — so on any install this is the day the app was first opened, read out
+    /// of the record rather than kept beside it. Nil only before that first
+    /// write.
+    var firstRecordedDay: ForgeDay? { byDay.keys.min() }
+
+    /// Days between the first record and today. Zero on the first day, and
+    /// zero before there is a record at all. What telemetry reports as
+    /// `days_since_install` — see `ForgeTelemetry`.
+    var daysSinceFirstRecord: Int {
+        firstRecordedDay.map { max(0, currentDay.days(since: $0)) } ?? 0
+    }
+
     /// The instant this day began — the window anything measuring the day
     /// has to be read over. Four in the morning, not midnight.
     var currentDayStart: Date {

@@ -560,12 +560,16 @@ enum RitualCategory: String, Codable, CaseIterable, Sendable {
     var meaning: String {
         switch self {
         case .all: ""
-        case .physical: "What your body can do, and what you put in it."
+        // One short line each. The onboarding stacks all six under the
+        // hexagon, and at two lines a row the sixth was clipped on a standard
+        // iPhone — the sentence that cost somebody the last choice on the
+        // screen. Every one fits on one line at the default text size.
+        case .physical: "Your body, and what fuels it."
         case .intellect: "What you read, learn and make."
-        case .discipline: "The things you do whether or not you feel like it."
-        case .mental: "Steadiness. Attention, stillness, how you meet a bad day."
+        case .discipline: "Keeping your word to yourself."
+        case .mental: "Staying steady on a bad day."
         case .relationship: "The people you show up for."
-        case .ambition: "The work that is actually yours."
+        case .ambition: "The work that is truly yours."
         }
     }
 

@@ -1,9 +1,10 @@
 # Forge — App Store submission
 
 > Everything App Store Connect asks for, written down so it is decided once
-> rather than improvised in the form. Last updated **2026-09-15** — the
-> submission after the Guideline 2.1 reply, and the one where **the account was
-> removed outright**. §1 and §6 are the two sections that changed.
+> rather than improvised in the form. Last updated **2026-09-25** — anonymous
+> usage (TelemetryDeck) added; §1 changed. Before that, **2026-09-15**: the
+> submission after the Guideline 2.1 reply, where the account was removed
+> outright (§1 and §6).
 >
 > Items marked **BLOCKER** cannot be filled in from this repository and must be
 > done before a build is submitted for review. Everything else is ready to paste.
@@ -18,8 +19,10 @@ anything Forge has no code path for is answered "not collected" and the answer
 is checkable against a named file.
 
 ### Data used to track you
-**None.** There is no analytics SDK, no advertising identifier, no attribution
-framework, and no third-party network call other than the two below. `grep` for
+**None.** There is no advertising identifier, no attribution framework, and
+nothing is combined with data from another company. The one third-party SDK is
+TelemetryDeck (anonymous usage, below), which is not a tracking domain and
+receives no identifier it could join to anything. `grep` for
 `AppTrackingTransparency`, `ASIdentifierManager`, `FirebaseAnalytics`,
 `AppsFlyer`, `Amplitude`, `Mixpanel` returns nothing.
 
@@ -45,11 +48,13 @@ that comes straight back the day sync does:
 | Purchases | signed in | `premium_status` row |
 | Other Diagnostics — device model, iOS version, app version | signed in | `UserService.registerDevice` |
 
-`PrivacyInfo.xcprivacy` declares an **empty** `NSPrivacyCollectedDataTypes`, and
+`PrivacyInfo.xcprivacy` declares **nothing linked to the user** — its only two
+rows are the anonymous-usage ones below — and
 `BackendRegressionTests.theAppShipsWithNoAccount` fails the test run if the
 project ever comes back into `Info.plist`. The nutrition labels in App Store
-Connect must say **no data collected** and match it — a manifest disagreeing
-with the labels is the one mismatch App Store Connect checks automatically.
+Connect must say **Data Not Linked to You: Product Interaction, Other
+Diagnostic Data** and nothing else, and match it — a manifest disagreeing with
+the labels is the one mismatch App Store Connect checks automatically.
 
 > ⚠️ **The day sync is switched back on, this whole section comes back with it**,
 > along with the manifest, the labels, the App Review notes and a privacy policy
@@ -58,9 +63,39 @@ with the labels is the one mismatch App Store Connect checks automatically.
 
 ### Data not linked to you
 
-**None.**
+**Two rows** — *added with anonymous usage (`FORGE_CONTEXT.md` §2p).*
 
-The one candidate was the AI brief, and **1.0 does not send it.**
+| Data type | Purpose | Linked | Tracking | What it is |
+|---|---|---|---|---|
+| **Usage Data → Product Interaction** | Analytics | No | No | The events in `ForgeTelemetry.Event`: first-run beat viewed, how many of the six were chosen, an activity completed (and whether by tick or by honor), a day earned, a pull let go, a challenge accepted/completed, an activity added (and from which screen), a notification opened (and which kind), a weekly review done, the re-entry screen shown / a day earned after it, a chapter closed. Each carries `days_since_install`, derived from the oldest day in the record. |
+| **Diagnostics → Other Diagnostic Data** | Analytics | No | No | What the TelemetryDeck SDK attaches to every signal: device model, OS and app version, screen size, language, locale, region and time zone, appearance and accessibility settings, and its own anonymous session counts (sessions, days used, first-session date). Checked against the SDK source (2.14.2, `Signal.swift`). |
+
+In App Store Connect: *Usage Data → Product Interaction* and *Diagnostics →
+Other Diagnostic Data*, each **Analytics** only, **not linked to the user**,
+**not used for tracking**. `PrivacyInfo.xcprivacy` declares the same two rows.
+
+What makes "not linked" true: there is no account, no sign-in and no user id;
+TelemetryDeck receives only an anonymised identifier — hashed on the
+phone, and hashed again with a salt on TelemetryDeck's side — that cannot be
+reversed to a person or a device. What makes it *anonymous usage* rather
+than user content: no event carries an activity name, an identity statement, a
+chapter name, a review's words, a time somebody chose, or anything from
+HealthKit — `ForgeTelemetry.Event` has no case that could hold one, and
+`TelemetryTests.payloadsAreClosed` fails if a parameter key outside the closed
+set ever appears.
+
+**Settings → Privacy → "Share anonymous usage"** turns all of it off. On by
+default. When off, and always under test, `ForgeTelemetry.send` returns before
+anything is built and the SDK's own `analyticsDisabled` is set; its automatic
+session signal is disabled in any case.
+
+The paywall events (`paywall_view`, `paywall_dismissed`, `trial_started`,
+`purchase_completed`, `restore_tapped`) are defined but have no call site in
+this build; when they do, they add nothing new to the labels — a purchase
+event's `plan` is "annual" or "lifetime", never a price, receipt or Apple ID,
+and Purchases stays **not collected**.
+
+The other candidate was the AI brief, and **1.0 does not send it.**
 `RemoteForgeAI.isModelEnabled` is `false`, which forces the endpoint to nil, so
 there is no object in the process capable of forming that request — not for a
 plan, not for a challenge, and not for the weekly reading. There is now a second
@@ -75,10 +110,11 @@ network.
 
 ### Data not collected
 
-**Everything.** Health & Fitness, Location, Contacts, Photos, Browsing History,
-Search History, Crash Data, Performance Data, Sensitive Info, Financial Info,
-Physical Address, Phone Number, Name, Email Address, User ID, Purchases,
-Diagnostics, User Content, Customer Support, Advertising Data.
+**Everything else.** Health & Fitness, Location, Contacts, Photos, Browsing
+History, Search History, Crash Data, Performance Data, Sensitive Info, Financial
+Info, Physical Address, Phone Number, Name, Email Address, User ID, Device ID,
+Purchases, User Content, Customer Support, Advertising Data, and every Usage
+Data and Diagnostics row other than the two above.
 
 **Health data specifically.** Forge reads steps, distance and workouts from
 HealthKit to tick off activities it can measure. It is **read-only**
@@ -99,12 +135,13 @@ is no field on that struct that could hold one. HealthKit data therefore is not
 
 ### What the app does over the network, in full
 
-Re-audited 2026-09-15, after the account was removed. Every path, and what
-starts it:
+Re-audited 2026-09-25, when anonymous usage was added (§2p). Every path, and
+what starts it:
 
 | Path | Starts when | Sends |
 |---|---|---|
 | StoreKit product load | Launch, and on any transaction | Apple's own; no user data |
+| TelemetryDeck (`nom.telemetrydeck.com`) | One of the events in `ForgeTelemetry.Event`, only while **Share anonymous usage** is on | Event name, its closed parameters, `days_since_install`, the SDK's device, locale and session fields, and an anonymised, double-hashed install id |
 
 **That is the whole table.** There is nothing else. Sign-in, token refresh,
 sync, device registration and the entitlement row all required a Supabase
@@ -113,13 +150,20 @@ answers nil, so no `HTTPClient` can be constructed, so no request can be formed.
 The StoreKit call is Apple's own, carries no Forge data, sells nothing, and
 fails silently to `.unavailable` with no UI attached.
 
-**Not present anywhere in the app:** analytics, attribution, advertising or
+**One host, held by tests.** `ForgeNetwork.allowedHosts` is exactly
+`nom.telemetrydeck.com`; `URLSessionTransport` refuses any other host before a
+socket is opened, and `NoNetworkTests` / `BackendRegressionTests` fail the run if
+the list grows or if a request to any other host gets through. TelemetryDeck's
+SDK arrives as a Swift package and is the one third-party code in the app; as a
+static library it will not appear in `otool -L` — re-check that on the next
+Release build and correct this line if it does.
+
+**Not present anywhere in the app:** attribution, advertising or
 crash-reporting SDKs; remote push (the Live Activity is
 `Activity.request(pushType: nil)`); remotely loaded images or assets; any
-third-party host at all; any third-party framework at all. `grep` for
+third-party host other than TelemetryDeck's. `grep` for
 `AppTrackingTransparency`, `ASIdentifierManager`, `FirebaseAnalytics`,
-`AppsFlyer`, `Amplitude`, `Mixpanel`, `AsyncImage` returns nothing, and
-`otool -L` on the Release binary returns only Apple frameworks.
+`AppsFlyer`, `Amplitude`, `Mixpanel`, `AsyncImage` returns nothing.
 
 ---
 
@@ -312,10 +356,12 @@ registration and no password anywhere in the app. Launch it and the full app is
 immediately available — there are no demo credentials to supply because there is
 nothing to sign in to.
 
-Forge works entirely offline. The only network call in the binary is Apple's own
-StoreKit product lookup at launch; it carries no user data, nothing is sold in
-this version, and no screen depends on it. Everything a user creates is stored
-locally on the device.
+Forge works entirely offline. Besides Apple's own StoreKit product lookup at
+launch, the only network traffic is anonymous usage statistics sent to
+TelemetryDeck (which screens and actions are used — never anything the user
+writes), which can be turned off in Settings → Privacy → Share anonymous usage.
+No screen depends on the network. Everything a user creates is stored locally
+on the device.
 
 To review it in about a minute:
 1. Launch. A short first run asks which parts of yourself you want to build and
@@ -428,8 +474,12 @@ subscriptions.
 - [ ] **Hosted privacy policy updated** to match the accountless build — see §2.
       It still describes sign-in, a server and an entitlement row. **Do this
       before submitting**
-- [ ] **App Privacy in App Store Connect set to "No data collected"** on every
-      category, matching the now-empty `PrivacyInfo.xcprivacy` (§1)
+- [ ] **App Privacy in App Store Connect set to "Data Not Linked to You":
+      Usage Data → Product Interaction and Diagnostics → Other Diagnostic
+      Data**, Analytics only, not used for tracking — matching
+      `PrivacyInfo.xcprivacy` (§1, changed 2026-09-25 for anonymous usage)
+- [ ] **Hosted privacy policy gains the anonymous-usage paragraph** (the
+      TelemetryDeck PR carries it ready to paste)
 - [ ] **App Review Information: leave the demo account fields empty** and tick
       "Sign-in not required" 
 - [x] **Both HealthKit purpose strings in `Forge/Info.plist`** (2026-09-04) —

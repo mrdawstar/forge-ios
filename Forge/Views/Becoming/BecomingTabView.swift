@@ -486,6 +486,7 @@ struct BecomingTabView: View {
                             SuggestionRow(ritual: ritual) {
                                 ForgeHaptics.shared.ritualVerified()
                                 forge.addRitual(ritual.id)
+                                ForgeTelemetry.send(.activityAdded(.becoming))
                                 // Closes on its own. The offer was answered, and
                                 // a list that stays open with one row now
                                 // greyed out is a list asking whether you would

@@ -138,3 +138,68 @@ struct FirstRunTests {
         #expect(vm.activeRituals.contains { $0.identityID == named.id })
     }
 }
+
+// MARK: - 1.0.1 hygiene
+
+/// The words and proportions 1.0.1 changed on the first run and on the first
+/// morning of the home screen.
+@Suite("1.0.1: first-run and first-day copy")
+struct FirstDayCopyTests {
+
+    @Test("The choose-three title is fixed, whatever was built")
+    func chooseTitleIsFixed() {
+        #expect(FirstRunCopy.chooseTitle == "Pick three for today.")
+    }
+
+    /// A count of where somebody is, not a refusal to go on.
+    @Test(
+        "The choose-three button counts",
+        arguments: [
+            (0, "Choose 3 \u{00B7} 0 selected"),
+            (1, "Choose 3 \u{00B7} 1 selected"),
+            (2, "Choose 3 \u{00B7} 2 selected"),
+            (3, "Continue"),
+        ]
+    )
+    func chooseButtonCounts(selected: Int, title: String) {
+        #expect(FirstRunCopy.chooseButton(selected: selected) == title)
+    }
+
+    @Test("A chosen dimension fills the hexagon to about half, not the edge")
+    func hexagonReach() {
+        #expect(FocusHexagon.reach(isChosen: true) == 0.55)
+        #expect(FocusHexagon.reach(isChosen: false) < FocusHexagon.reach(isChosen: true))
+        #expect(FocusHexagon.reach(isChosen: false) > 0)
+    }
+
+    /// Two lines a row clipped the sixth row on a standard iPhone. Thirty-two
+    /// characters is one line of `.caption` beside the glyph and the mark.
+    @Test("Every dimension says what it is for in one short line")
+    func dimensionMeaningsAreShort() {
+        for dimension in RitualCategory.dimensions {
+            #expect(!dimension.meaning.isEmpty)
+            #expect(dimension.meaning.count <= 32, Comment(rawValue: dimension.meaning))
+        }
+    }
+
+    @Test("Before anything is kept the badge says DAY ONE, not 0 DAYS")
+    func dayOne() {
+        let badge = HomeCopy.daysBadge(daysKept: 0)
+        #expect(badge.count == nil)
+        #expect(badge.word == "DAY ONE")
+        #expect(badge.accessibility == "Day one")
+    }
+
+    @Test("After the first day the badge counts")
+    func daysCount() {
+        #expect(HomeCopy.daysBadge(daysKept: 1) == HomeCopy.DaysBadge(count: "1", word: "DAY", accessibility: "1 day kept"))
+        #expect(HomeCopy.daysBadge(daysKept: 12) == HomeCopy.DaysBadge(count: "12", word: "DAYS", accessibility: "12 days kept"))
+    }
+
+    @Test("The loose panel says what is left, in one line")
+    func leftLine() {
+        #expect(HomeCopy.leftLine([]) == nil)
+        #expect(HomeCopy.leftLine(["Deep work"]) == "1 left \u{00B7} Deep work")
+        #expect(HomeCopy.leftLine(["Deep work", "Wake up"]) == "2 left \u{00B7} Deep work, Wake up")
+    }
+}

@@ -534,7 +534,12 @@ struct DayCountTests {
 /// `RemoteForgeAI.isModelEnabled` **and** the privacy nutrition labels in
 /// `APP_STORE.md` §1, which currently answer "not collected" for the AI brief
 /// on the strength of exactly this.
-@Suite("Nothing leaves the phone")
+///
+/// **One host is allowed, and only one** (since 2p, `FORGE_CONTEXT.md`):
+/// TelemetryDeck's ingest host, for anonymous usage. The last three tests here
+/// hold that to exactly one host, prove a request to any other host is refused
+/// before a socket exists, and prove the telemetry itself is silent under test.
+@Suite("Nothing leaves the phone but anonymous usage")
 struct NoNetworkTests {
 
     /// A project that is configured in every way that matters, so the test is
@@ -639,6 +644,203 @@ struct NoNetworkTests {
 
         #expect(await asked.tokens == 0)
         #expect(await asked.entitlements == 0)
+    }
+
+    // MARK: - The one host
+
+    /// Changing this list is changing the privacy labels. See `ForgeNetwork`.
+    @Test("TelemetryDeck's ingest host is the only one Forge may reach")
+    func onlyTelemetryDeck() {
+        #expect(ForgeNetwork.allowedHosts == ["nom.telemetrydeck.com"])
+        #expect(ForgeTelemetry.host == "nom.telemetrydeck.com")
+        #expect(ForgeNetwork.permits(URL(string: "https://nom.telemetrydeck.com/v2/")))
+
+        for other in [
+            "https://example.supabase.co/rest/v1/days",
+            "https://api.anthropic.com/v1/messages",
+            "https://forgebetter.app/privacy",
+            // Not https.
+            "http://nom.telemetrydeck.com/v2/",
+            // A suffix match would let these through.
+            "https://nom.telemetrydeck.com.example.net/v2/",
+            "https://evil-nom.telemetrydeck.com/",
+            "https://telemetrydeck.com/",
+        ] {
+            #expect(!ForgeNetwork.permits(URL(string: other)), Comment(rawValue: other))
+        }
+        #expect(!ForgeNetwork.permits(nil))
+    }
+
+    /// The transport is the one place Forge's own code opens a connection.
+    /// Anything off the list is refused before the session is touched — the
+    /// tripwire standing where the network would be sees nothing — and the one
+    /// host on the list gets through to it.
+    @Test("A request to any other host is refused before it reaches the network")
+    func otherHostsNeverLeave() async throws {
+        let marker = UUID().uuidString
+        let transport = URLSessionTransport(session: NetworkTripwire.session())
+
+        for other in [
+            "https://example.supabase.co/rest/v1/\(marker)",
+            "https://api.anthropic.com/\(marker)",
+            "http://nom.telemetrydeck.com/\(marker)",
+        ] {
+            let request = URLRequest(url: URL(string: other)!)
+            await #expect(throws: BackendError.notConfigured) {
+                _ = try await transport.send(request)
+            }
+        }
+        #expect(NetworkTripwire.requests(containing: marker).isEmpty)
+
+        let allowed = URLRequest(url: URL(string: "https://nom.telemetrydeck.com/\(marker)")!)
+        let (_, response) = try await transport.send(allowed)
+        #expect(response.statusCode == 200)
+        #expect(NetworkTripwire.requests(containing: marker).map(\.host) == ["nom.telemetrydeck.com"])
+    }
+
+    /// The whole of the telemetry is behind this. A test run that could send a
+    /// signal would be a test run reaching the network.
+    @Test("Telemetry is silent under test")
+    func telemetryIsInertUnderTest() {
+        #expect(ForgeTelemetry.isRunningTests)
+        #expect(!ForgeTelemetry.isActive)
+        // And sending is a no-op rather than a crash or a queue.
+        ForgeTelemetry.send(.dayEarned)
+    }
+}
+
+/// A `URLProtocol` standing where the network would be. It answers every
+/// request with an empty 200 and writes down what it was asked for, so a test
+/// can prove what did — and did not — try to leave.
+final class NetworkTripwire: URLProtocol {
+    private static let lock = NSLock()
+    nonisolated(unsafe) private static var seen: [URL] = []
+
+    static func session() -> URLSession {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [NetworkTripwire.self]
+        return URLSession(configuration: configuration)
+    }
+
+    static func requests(containing marker: String) -> [URL] {
+        lock.lock(); defer { lock.unlock() }
+        return seen.filter { $0.absoluteString.contains(marker) }
+    }
+
+    override class func canInit(with request: URLRequest) -> Bool { true }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+
+    override func startLoading() {
+        if let url = request.url {
+            Self.lock.lock()
+            Self.seen.append(url)
+            Self.lock.unlock()
+        }
+        let response = HTTPURLResponse(
+            url: request.url ?? URL(string: "https://invalid")!,
+            statusCode: 200, httpVersion: "HTTP/1.1", headerFields: nil
+        )!
+        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+        client?.urlProtocol(self, didLoad: Data())
+        client?.urlProtocolDidFinishLoading(self)
+    }
+
+    override func stopLoading() {}
+}
+
+// MARK: - What telemetry says
+
+/// The event list and what each one may carry. Nothing here sends anything —
+/// see `NoNetworkTests.telemetryIsInertUnderTest` — so what is tested is the
+/// payload that *would* be built.
+@Suite("Telemetry")
+struct TelemetryTests {
+
+    /// One of every event, with a value in each slot.
+    private let every: [ForgeTelemetry.Event] = [
+        .appFirstOpen,
+        .onboardingBeatView(.doOne),
+        .onboardingFocusChosen(count: 2),
+        .onboardingCompleted,
+        .firstPullCompleted,
+        .activityCompleted(.honor),
+        .dayEarned,
+        .pullAbandoned,
+        .challengeAccepted,
+        .challengeCompleted,
+        .activityAdded(.library),
+        .notificationOpened(.morning),
+        .weeklyReviewCompleted,
+        .reentryShown,
+        .reentryRecovered,
+        .chapterClosed,
+        .paywallView(.invitation),
+        .paywallDismissed(.invitation),
+        .trialStarted(.annual),
+        .purchaseCompleted(.lifetime),
+        .restoreTapped,
+    ]
+
+    @Test("The event names are exactly the agreed list")
+    func names() {
+        #expect(every.map(\.name) == [
+            "app_first_open", "onboarding_beat_view", "onboarding_focus_chosen",
+            "onboarding_completed", "first_pull_completed", "activity_completed",
+            "day_earned", "pull_abandoned", "challenge_accepted",
+            "challenge_completed", "activity_added", "notification_opened",
+            "weekly_review_completed", "reentry_shown", "reentry_recovered",
+            "chapter_closed", "paywall_view", "paywall_dismissed",
+            "trial_started", "purchase_completed", "restore_tapped",
+        ])
+    }
+
+    /// The only keys that may ever appear. There is no key an activity name,
+    /// a sentence somebody wrote or a health reading could arrive under.
+    @Test("Every payload carries only closed values and the install's age")
+    func payloadsAreClosed() {
+        let allowed: Set<String> = [
+            "beat", "count", "method", "source", "kind", "door", "plan", "days_since_install",
+        ]
+        for event in every {
+            let payload = ForgeTelemetry.payload(for: event, daysSinceInstall: 3)
+            #expect(Set(payload.keys).isSubset(of: allowed), Comment(rawValue: event.name))
+            #expect(payload["days_since_install"] == "3", Comment(rawValue: event.name))
+        }
+        #expect(ForgeTelemetry.Event.onboardingBeatView(.doOne).parameters == ["beat": "do_one"])
+        #expect(ForgeTelemetry.Event.activityCompleted(.basic).parameters == ["method": "basic"])
+        #expect(ForgeTelemetry.Event.notificationOpened(.review).parameters == ["kind": "review"])
+        #expect(ForgeTelemetry.Event.purchaseCompleted(.annual).parameters == ["plan": "annual"])
+        #expect(ForgeTelemetry.Event.onboardingFocusChosen(count: 0).parameters == ["count": "0"])
+    }
+
+    @Test("A missing install age reads as zero, never as nothing")
+    func installAgeDefaults() {
+        #expect(ForgeTelemetry.payload(for: .dayEarned, daysSinceInstall: nil)["days_since_install"] == "0")
+        #expect(ForgeTelemetry.payload(for: .dayEarned, daysSinceInstall: -4)["days_since_install"] == "0")
+    }
+
+    @Test("Every first-run beat before the end is named, and the end is not")
+    func beats() {
+        #expect(ForgeTelemetry.Beat(.promise) == .promise)
+        #expect(ForgeTelemetry.Beat(.doOne) == .doOne)
+        #expect(ForgeTelemetry.Beat(.closing) == .closing)
+        #expect(ForgeTelemetry.Beat(.finished) == nil)
+    }
+
+    /// Derived from the record, so nothing new is stored to know it.
+    @Test("days_since_install is read off the oldest record")
+    func installAgeIsDerived() {
+        let progress = ProgressStore(
+            defaults: UserDefaults(suiteName: "forge.tests.\(UUID().uuidString)") ?? .standard
+        )
+        #expect(progress.firstRecordedDay == nil)
+        #expect(progress.daysSinceFirstRecord == 0)
+
+        let first = progress.currentDay.adding(days: -9)
+        progress.record(DayRecord(day: first, plannedIDs: ["water"]))
+        progress.record(DayRecord(day: progress.currentDay.adding(days: -2), plannedIDs: ["water"]))
+        #expect(progress.firstRecordedDay == first)
+        #expect(progress.daysSinceFirstRecord == 9)
     }
 }
 

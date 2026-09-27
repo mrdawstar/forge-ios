@@ -1546,6 +1546,136 @@ from 1 of 3 to 2 of 3, all four tabs opened, Settings read to the bottom with no
 Account section on it, the Privacy Policy row opening the live page, and a cold
 relaunch that kept the day and did not replay the onboarding.
 
+### 2o. 1.0.1 hygiene (2026-09-25)
+
+A small release of fixes found looking at 1.0 on a phone. Nothing in §5 moved;
+the chapter threshold is the one behaviour change, and it only hides a link.
+
+1. **Scripture on the wall.** `ForgeQuotes` gained 23 short Bible verses
+   (Philippians 4:13, Joshua 1:9, Proverbs 24:16, Isaiah 40:31, Romans 5:3–4,
+   1 Corinthians 9:24 and 9:27, 2 Timothy 1:7, Galatians 6:9, Proverbs 27:17,
+   James 1:2–4 and a dozen more), spread over the six themes and attributed to
+   book, chapter and verse. KJV wording, or a close modern rendering of it —
+   see the note on `AttributedQuote`. Every existing line stays (21 → 44). The
+   Batman and Rocky lines named in the brief were already removed on
+   2026-09-15 (§2n era, see `ForgeQuotes.resilience`) and were not re-added.
+2. **"What do you want to build?"** Skip is a text button top-right; the
+   capsule is only Continue (disabled until something is chosen). The six
+   `RitualCategory.meaning` lines are one short line each (≤ 32 chars) so the
+   sixth row is not clipped. `FocusHexagon.reach` is 0.55 chosen / 0.22 not,
+   so choosing draws an intention rather than a finished shape.
+3. **"Choose three".** Fixed title "Pick three for today."; the button reads
+   "Choose 3 · N selected" until three are picked (`FirstRunCopy`).
+4. **Home, first day.** The scene's badge reads **DAY ONE** at zero days kept
+   (`HomeCopy.daysBadge`). The loose prompt carries one line of what is still
+   on today — "2 left · Deep work, Wake up" — which is only ever non-empty
+   under the first run's grace (`ForgeViewModel.leftToday`, `HomeCopy.leftLine`).
+5. **Blade tab.** "Close this chapter" appears only once the chapter has run
+   14 days (`ChapterReading.canClose`, counting the opening day as day one).
+   "Your blades · N of 6" verified: six earnable blades, one per blade rung of
+   `Ladder` above the zero-day Starter; a test pins the two together.
+6. **One primary button.** `ForgeButton` (cream `.glassProminent` capsule) was
+   already the primary component, so it is reused rather than duplicated as a
+   `ForgePrimaryButton`. The challenge sheet's blue "Accept" / "Take this one"
+   / "Mark it done" now use it, and the sheet opens at `.medium` (`.large` on
+   drag).
+
+Tests: quote counts and the named verses (`ForgeQuoteTests`), the 14-day
+threshold and the blade counter against `Ladder` (`ChapterTests`), and the
+copy above (`FirstDayCopyTests`). Written on Linux without a build — run the
+suite in Xcode before tagging.
+
+### 2p. Telemetry (2026-09-25)
+
+Forge could not answer the first question about its own launch: where people
+leave. Which beat of the first run, whether the pull is found, whether a
+re-entry brings anybody back. So it counts those — anonymously, and only those.
+
+#### What was built
+
+- **`Engine/ForgeTelemetry.swift`**, the only file that imports TelemetryDeck
+  (app id `5E5C19F4-…-68E6FDFE47C5`). An `Event` enum, one `send(_:)`, and
+  `start()` from `ForgeApp.init`. No call site names a signal as a string or
+  touches the SDK. The Swift package was already referenced by the project;
+  this links its `TelemetryDeck` product into the Forge target.
+- **The events, and only these:** `app_first_open`, `onboarding_beat_view{beat}`,
+  `onboarding_focus_chosen{count}`, `onboarding_completed`,
+  `first_pull_completed`, `activity_completed{method}`, `day_earned`,
+  `pull_abandoned`, `challenge_accepted`, `challenge_completed`,
+  `activity_added{source}`, `notification_opened{kind}`,
+  `weekly_review_completed`, `reentry_shown`, `reentry_recovered`,
+  `chapter_closed` — and, defined with no call site until the paywall lands,
+  `paywall_view{door}`, `paywall_dismissed{door}`, `trial_started{plan}`,
+  `purchase_completed{plan}`, `restore_tapped`.
+- **Every parameter is a closed value.** `beat`, `method`, `source`, `kind`,
+  `door`, `plan` are raw values of enums; `count` is a number. No case can carry
+  an activity name, an identity, a chapter, a review, a quote, a chosen time or
+  a HealthKit reading. `TelemetryTests.payloadsAreClosed` holds the key set.
+- **`days_since_install` on every signal**, and nothing new stored to know it:
+  `ProgressStore.firstRecordedDay` is the oldest day in the history, and Forge
+  writes today's record on first open (the planned list goes down before
+  anything is done), so that day is the install day. Handed to telemetry as a
+  closure from `ContentView`, which holds the store.
+- **Settings → Privacy → "Share anonymous usage"**, on by default, one
+  sentence under it. Stored under `forge.shareUsage.v1` in the App Group.
+  Off means `send` returns before anything is built; nothing is queued.
+- **Silent under test**, by `ForgeTelemetry.isRunningTests`, checked on every
+  send. The SDK's automatic session signal is off, so the list above is the
+  whole of what Forge sends by name; turning the switch off mid-session also
+  sets the SDK's own `analyticsDisabled`.
+
+#### Where each event fires
+
+| Event | Call site |
+|---|---|
+| `app_first_open` | `ContentView` launch pass: first run not finished, on the day of the first record. A relaunch mid-onboarding that day counts again; read unique users. |
+| `onboarding_beat_view` | `ForgeViewModel.firstRunStage` `didSet`; the opening `promise` beat from the launch pass. |
+| `onboarding_focus_chosen` | `FirstRunView.advance`, leaving *build* for *choose*. Zero for Skip. |
+| `onboarding_completed` | `ForgeViewModel.finishFirstRun`. |
+| `first_pull_completed`, `day_earned`, `reentry_recovered` | `ForgeViewModel.isOut` setter, when the day goes from not earned to earned. Recovered = the `ReEntry` gap was open the moment before. Undo-and-pull again re-sends `day_earned`. |
+| `activity_completed` | `tick` (`basic`) and `keepPromise` (`honor`), only when newly done. |
+| `pull_abandoned` | `SwordEngine.dragEnded`, slipped back after moving past 5%. |
+| `challenge_accepted` / `_completed` | `ChallengeStore.accept`, `take`, `complete`. |
+| `activity_added` | `AddActivitySheet` (`library`, `custom`), Becoming's offer (`becoming`), `ForgeViewModel.apply` (`plan`). |
+| `notification_opened` | `ContentView`, on `notifications.opened`. |
+| `weekly_review_completed` | `ReviewStore.answer`, first answer for a week only. |
+| `reentry_shown` | `ContentView.offerWhatIsDue`. |
+| `chapter_closed` | `ChapterStore.close`. |
+
+#### The network, now
+
+One host, `nom.telemetrydeck.com`, in `ForgeNetwork.allowedHosts`.
+`URLSessionTransport` refuses every other host with `.notConfigured` before a
+socket exists — so even a Supabase project pasted back into `Info.plist` could
+not connect. `NoNetworkTests` checks the list is exactly that host, that
+look-alikes and plain http are refused, and — with a `URLProtocol` tripwire
+standing where the network would be — that a request elsewhere never reaches
+the session while the allowed host does. `BackendRegressionTests` does the same
+through `HTTPClient` with a project configured. Adding a host means changing
+both tests, the manifest and the labels together.
+
+#### Privacy
+
+`PrivacyInfo.xcprivacy` declares **Product Interaction** and **Other Diagnostic
+Data** (what the SDK attaches to every signal: device model, OS and app version, screen size, language, locale, region and time zone, appearance and accessibility settings, and its own anonymous session counts (sessions, days used, first-session date)), Analytics, **not linked**, **not
+tracking**. `APP_STORE.md` §1, the review note in §6 and the §8 checklist say
+the same. The hosted policy at forgebetter.app/privacy needs the paragraph in
+the PR description before the next submission.
+
+#### Also
+
+The Becoming tab's sign is now a solid diamond plate with a turn-right arrow
+knocked out of it (`BecomingSign.svg`, same asset name, same template
+rendering) — see `AppTab.image`.
+
+#### Not verified
+
+Written on Linux with no build. The TelemetryDeck calls (`Config`,
+`sendNewSessionBeganSignal`, `analyticsDisabled`, `initialize`, `signal`) were
+checked against the SwiftSDK 2.14.2 source but not compiled; the first signals
+should be checked in the TelemetryDeck dashboard in Test Mode, which the SDK
+turns on by itself for Debug builds.
+
 ### 2q. AI without an account (2026-09-25)
 
 Forge's model jobs need a server — the key cannot ship in the app — and the
@@ -1847,20 +1977,23 @@ review screen and the same `isModelWritten` flag.
 
 ### Everything else that touches the network
 
-Re-audited **2026-09-15**, after the account was removed (§2n):
+Re-audited **2026-09-25**, when anonymous usage was added (§2p):
 
 | Path | Starts when | Gated on |
 |---|---|---|
 | StoreKit | launch, and on any transaction | Apple's own, no user data |
+| TelemetryDeck, `nom.telemetrydeck.com` | an event in `ForgeTelemetry.Event` | **Share anonymous usage** (on by default); never under test |
 
-**That is the whole table now.** Sign-in, token refresh, sync, device
+**That is the whole table now.** `ForgeNetwork.allowedHosts` is exactly the
+TelemetryDeck host, `URLSessionTransport` refuses anything else before a socket
+exists, and `NoNetworkTests` / `BackendRegressionTests.onlyTelemetryIsAllowed`
+fail the run if either changes. Sign-in, token refresh, sync, device
 registration and the entitlement row every one required a Supabase project and
 a session, and there is neither — `SupabaseConfig.fromBundle()` answers nil, so
 no client is constructed and no request can be formed. There is no remote push
 (the Live Activity is `pushType: nil`), no remotely loaded image or asset, no
-analytics, attribution or crash SDK, and no third-party host or framework
-anywhere: `otool -L` on the Release binary is Apple's frameworks and nothing
-else.
+attribution or crash SDK, and no third-party host or framework other than
+TelemetryDeck's — see §2p.
 
 ## 8. UX and design principles
 

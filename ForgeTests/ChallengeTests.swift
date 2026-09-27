@@ -607,6 +607,45 @@ struct ForgeQuoteTests {
         #expect(Set(ForgeQuotes.all.map(\.text)).count == ForgeQuotes.all.count)
     }
 
+    /// Pinned, so a line cannot go missing in a merge without somebody
+    /// noticing. 21 shipped in 1.0; 1.0.1 added 23 verses of scripture.
+    @Test("The wall holds exactly the lines it was given")
+    func quoteCount() {
+        #expect(ForgeQuotes.all.count == 44)
+        #expect(ForgeQuotes.resilience.count == 8)
+        #expect(ForgeQuotes.focus.count == 6)
+        #expect(ForgeQuotes.discipline.count == 8)
+        #expect(ForgeQuotes.action.count == 6)
+        #expect(ForgeQuotes.toughness.count == 7)
+        #expect(ForgeQuotes.perseverance.count == 9)
+    }
+
+    /// 1.0.1 added scripture alongside the wall; it replaced nobody.
+    @Test("The existing voices are all still there")
+    func existingVoicesKept() {
+        let sources = Set(ForgeQuotes.all.map(\.source))
+        for name in [
+            "David Goggins", "Jocko Willink", "James Clear", "Mike Tyson",
+            "Kobe Bryant", "Michael Jordan", "Muhammad Ali", "Marcus Aurelius",
+        ] {
+            #expect(sources.contains(name), Comment(rawValue: name))
+        }
+    }
+
+    @Test("The verses Forge was built around are on the wall")
+    func scriptureIsThere() {
+        let sources = Set(ForgeQuotes.all.map(\.source))
+        for reference in [
+            "Philippians 4:13", "Joshua 1:9", "Proverbs 24:16", "Isaiah 40:31",
+            "Romans 5:3\u{2013}4", "1 Corinthians 9:24", "1 Corinthians 9:27",
+            "2 Timothy 1:7", "Galatians 6:9", "Proverbs 27:17", "James 1:2\u{2013}4",
+        ] {
+            #expect(sources.contains(reference), Comment(rawValue: reference))
+        }
+        let philippians = ForgeQuotes.all.first { $0.source == "Philippians 4:13" }
+        #expect(philippians?.text == "I can do all things through Christ who strengthens me.")
+    }
+
     @Test("Every theme has something to say")
     func everyThemeIsStocked() {
         for theme in QuoteTheme.allCases {

@@ -238,6 +238,7 @@ struct ActivityLibraryView: View {
             suggest: suggest,
             onCommit: { draft in
                 vm.createCustomRitual(draft)
+                ForgeTelemetry.send(.activityAdded(.custom))
                 ForgeHaptics.shared.ritualVerified()
                 // Straight back to the day, where the new activity is
                 // already waiting.
@@ -266,6 +267,7 @@ struct ActivityLibraryView: View {
     private func add(_ ritual: Ritual) {
         ForgeHaptics.shared.tap()
         vm.addRitual(ritual.id, onWeekday: target)
+        ForgeTelemetry.send(.activityAdded(.library))
         dismiss()
     }
 

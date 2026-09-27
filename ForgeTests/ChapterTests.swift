@@ -374,4 +374,58 @@ struct ChapterTests {
         #expect(swords.claimBlades() == true, "the seventh day earned nothing")
         #expect(swords.pendingUnlock?.id == 4, "the Knight Sword is what seven days earns")
     }
+
+    // MARK: - 1.0.1: the way out waits two weeks
+
+    private func reading(elapsed: Int) -> ChapterReading {
+        ChapterReading(daysKept: 0, daysElapsed: elapsed, completionRate: 0)
+    }
+
+    @Test("Close this chapter is hidden until the chapter is fourteen days old")
+    func closingWaitsAFortnight() {
+        #expect(ChapterReading.daysBeforeClosing == 14)
+        #expect(!reading(elapsed: 1).canClose)
+        #expect(!reading(elapsed: 13).canClose)
+        #expect(reading(elapsed: 14).canClose)
+        #expect(reading(elapsed: 42).canClose)
+    }
+
+    /// Through the real reading, so the threshold is measured in the same days
+    /// `daysElapsed` counts — the day it opened is day one.
+    @Test("A chapter opened thirteen days ago can be closed on its fourteenth day")
+    func closingCountsTheOpeningDay() {
+        let progress = makeProgress()
+        let store = makeStore()
+        var chapter = store.open(name: "Autumn", identityIDs: [])!
+
+        chapter.openedAt = instant(progress, daysAgo: 12)
+        #expect(chapter.reading(from: progress).daysElapsed == 13)
+        #expect(!chapter.reading(from: progress).canClose)
+
+        chapter.openedAt = instant(progress, daysAgo: 13)
+        #expect(chapter.reading(from: progress).daysElapsed == 14)
+        #expect(chapter.reading(from: progress).canClose)
+    }
+
+    // MARK: - 1.0.1: "Your blades · 1 of 6"
+
+    /// The collection's count is over earned blades, and there is one blade
+    /// for every rung of the ladder that carries one — the Starter at zero is
+    /// given, not earned, on both. If a rung or a blade is ever added to one
+    /// and not the other, "1 of 6" stops being true.
+    @Test("The blade counter's denominator is the ladder's blade rungs")
+    func bladeCounterMatchesTheLadder() {
+        let progress = makeProgress()
+        let suite = UserDefaults(suiteName: "forge.swords.\(UUID().uuidString)") ?? .standard
+        let swords = SwordStore(progress: progress, defaults: suite)
+
+        let ladderBlades = Ladder.rungs.filter { $0.mark.bladeID != nil && $0.threshold > 0 }
+        #expect(ladderBlades.count == 6)
+        #expect(swords.earnable.count == ladderBlades.count)
+        #expect(swords.earnable.map(\.requirement) == ladderBlades.map(\.threshold))
+        #expect(swords.ownedLabel == "0 of 6")
+
+        earn(progress, daysAgo: 0)
+        #expect(swords.ownedLabel == "1 of 6")
+    }
 }

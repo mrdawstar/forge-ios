@@ -155,12 +155,16 @@ final class ReviewStore {
         whatNext: String,
         at instant: Date = .now
     ) -> WeeklyReview {
+        let isFirstAnswer = self.review(for: start)?.completedAt == nil
         var review = review(for: start) ?? WeeklyReview(weekStart: start)
         review.whatHappened = WeeklyReview.trimmed(whatHappened)
         review.whatNext = WeeklyReview.trimmed(whatNext)
         review.completedAt = instant
         review.updatedAt = instant
         upsert(review)
+        // Counted once per week. Going back to edit what was written is not a
+        // second review.
+        if isFirstAnswer { ForgeTelemetry.send(.weeklyReviewCompleted) }
         return review
     }
 

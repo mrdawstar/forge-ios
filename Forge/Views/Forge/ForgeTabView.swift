@@ -407,7 +407,10 @@ struct ForgeTabView: View {
                                 : nil
                         )
                     case .loose:
-                        LoosePromptView(pull: engine.pos)
+                        LoosePromptView(
+                            pull: engine.pos,
+                            left: HomeCopy.leftLine(vm.leftToday.map(\.label))
+                        )
                     case .list, .week:
                         ritualList
                     }
@@ -946,6 +949,11 @@ struct EmptyDayView: View {
 /// the pull live. Short, physical, second person — no exclamation, no emoji.
 struct LoosePromptView: View {
     let pull: Double
+    /// "2 left · Deep work, Wake up", when the blade is loose with the list
+    /// unfinished — the first run's grace. The prompt replaces the list, and
+    /// without this line the two activities still on today vanished from the
+    /// screen with nothing saying they were there.
+    var left: String? = nil
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -994,11 +1002,60 @@ struct LoosePromptView: View {
                 .contentTransition(.opacity)
                 .padding(.top, 4)
 
+            // One line, and it gives way to the pull: once a hand is on the
+            // grip, the only thing the panel should be saying is the grip.
+            if let left {
+                Text(left)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.36))
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .padding(.horizontal, 24)
+                    .padding(.top, 10)
+                    .opacity(pull > 0.05 ? 0 : 1)
+            }
+
             Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity)
         .animation(.easeOut(duration: 0.25), value: title)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(Text("\(title). \(subtitle)"))
+        .accessibilityLabel(Text([title, subtitle, left].compactMap { $0 }.joined(separator: ". ")))
+    }
+}
+
+/// Words the home screen says about the day, kept out of the views so they
+/// can be tested.
+enum HomeCopy {
+
+    /// The days-kept capsule in the scene's corner, as its two halves.
+    ///
+    /// Before anything is kept it reads **DAY ONE**, not "0 DAYS". A zero is
+    /// the first thing a new install saw on the home screen, and it is a
+    /// score of nothing on the day somebody has only just begun — the one
+    /// morning the app most needs to describe where they are rather than what
+    /// they have not done.
+    struct DaysBadge: Equatable, Sendable {
+        /// The figure, or nil when the word says it all.
+        let count: String?
+        let word: String
+        let accessibility: String
+    }
+
+    static func daysBadge(daysKept: Int) -> DaysBadge {
+        guard daysKept > 0 else {
+            return DaysBadge(count: nil, word: "DAY ONE", accessibility: "Day one")
+        }
+        return DaysBadge(
+            count: "\(daysKept)",
+            word: daysKept == 1 ? "DAY" : "DAYS",
+            accessibility: daysKept == 1 ? "1 day kept" : "\(daysKept) days kept"
+        )
+    }
+
+    /// "2 left · Deep work, Wake up" — or nil when nothing is left.
+    static func leftLine(_ labels: [String]) -> String? {
+        guard !labels.isEmpty else { return nil }
+        return "\(labels.count) left \u{00B7} \(labels.joined(separator: ", "))"
     }
 }
