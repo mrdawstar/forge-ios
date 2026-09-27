@@ -105,6 +105,11 @@ struct FirstRunView: View {
 
     private func advance(to stage: ForgeViewModel.FirstRunStage) {
         ForgeHaptics.shared.tap()
+        // How many of the six were chosen — zero for a skip. The count, and
+        // never which ones.
+        if vm.firstRunStage == .build, stage == .choose {
+            ForgeTelemetry.send(.onboardingFocusChosen(count: vm.focus.count))
+        }
         vm.firstRunStage = stage
     }
 

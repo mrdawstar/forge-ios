@@ -10,8 +10,34 @@ protocol BackendTransport: Sendable {
     func send(_ request: URLRequest) async throws -> (Data, HTTPURLResponse)
 }
 
+/// Every host Forge's own code may open a connection to. **One.**
+///
+/// TelemetryDeck's ingest host, for anonymous usage (`ForgeTelemetry`). The SDK
+/// opens that connection itself; this list is what the tests hold it to, and
+/// what `URLSessionTransport` refuses anything outside of. Supabase is not on
+/// it: 1.0 has no account (§2n), so putting sync back means adding its host
+/// here and changing `NoNetworkTests` and `BackendRegressionTests` in the same
+/// commit — deliberately, not by pasting a URL into `Info.plist`.
+enum ForgeNetwork {
+    static let allowedHosts: Set<String> = [ForgeTelemetry.host]
+
+    /// HTTPS, and a host on the list exactly. A suffix match would let
+    /// `nom.telemetrydeck.com.example.net` through.
+    static func permits(_ url: URL?) -> Bool {
+        guard let url, url.scheme?.lowercased() == "https",
+              let host = url.host?.lowercased() else { return false }
+        return allowedHosts.contains(host)
+    }
+}
+
 struct URLSessionTransport: BackendTransport {
     let session: URLSession
+
+    /// A session handed in whole — the tests' way of watching what would have
+    /// gone out, with a `URLProtocol` standing where the network would be.
+    init(session: URLSession) {
+        self.session = session
+    }
 
     /// Short by web standards and deliberately so. Everything Forge sends can
     /// wait until the next foreground, and a request still hanging on after
@@ -29,6 +55,9 @@ struct URLSessionTransport: BackendTransport {
     }
 
     func send(_ request: URLRequest) async throws -> (Data, HTTPURLResponse) {
+        // Refused before a socket is opened. "Nothing was attempted" is
+        // exactly what happened.
+        guard ForgeNetwork.permits(request.url) else { throw BackendError.notConfigured }
         do {
             let (data, response) = try await session.data(for: request)
             guard let http = response as? HTTPURLResponse else {

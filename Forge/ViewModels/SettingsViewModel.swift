@@ -29,6 +29,16 @@ final class SettingsViewModel {
         didSet { store(haptics, as: Key.haptics, was: oldValue) }
     }
 
+    /// **Share anonymous usage.** On by default. The switch itself lives in
+    /// `ForgeTelemetry`, which has to read it at launch before this view model
+    /// exists; this is only the Settings row's handle on it.
+    var shareUsage: Bool = ForgeTelemetry.isSharingEnabled {
+        didSet {
+            guard shareUsage != oldValue else { return }
+            ForgeTelemetry.isSharingEnabled = shareUsage
+        }
+    }
+
     /// Guards the two `didSet`s while `init` is filling them in from disk.
     /// Without it, loading a stored `false` would write it straight back — which
     /// is harmless here and is exactly the shape of bug that is not harmless the

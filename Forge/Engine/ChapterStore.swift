@@ -148,6 +148,7 @@ final class ChapterStore {
         all[index].closedAt = instant
         all[index].updatedAt = instant
         persist()
+        ForgeTelemetry.send(.chapterClosed)
         return all[index]
     }
 

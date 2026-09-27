@@ -210,6 +210,23 @@ struct ContentView: View {
         // is the launch pass. Every later one comes from the scene phase above.
         .task {
             syncAmbient()
+            // How old the install is, for every signal: read off the oldest
+            // record each time rather than stored anywhere.
+            let store = progress
+            ForgeTelemetry.readInstallAge { [weak store] in store?.daysSinceFirstRecord }
+            // A launch that opens into the first run on the day of the first
+            // record. A relaunch mid-onboarding on that day counts again, which
+            // the dashboard reads as unique users rather than as signals.
+            if !forgeVM.hasCompletedFirstRun {
+                if progress.daysSinceFirstRecord == 0 {
+                    ForgeTelemetry.send(.appFirstOpen)
+                }
+                // The first beat is the one the stage starts on, so its
+                // `didSet` never fires for it.
+                if forgeVM.firstRunStage == .promise {
+                    ForgeTelemetry.send(.onboardingBeatView(.promise))
+                }
+            }
         }
         .onReceive(
             NotificationCenter.default.publisher(
@@ -250,7 +267,8 @@ struct ContentView: View {
         // Opened from a notification. All three are about the same thing, so
         // there is one place to land and no second tap to get there.
         .onChange(of: notifications.opened) { _, opened in
-            guard opened != nil else { return }
+            guard let opened else { return }
+            ForgeTelemetry.send(.notificationOpened(opened))
             landOnHome()
             notifications.opened = nil
         }
@@ -549,6 +567,7 @@ struct ContentView: View {
 
         if forgeVM.isReturning {
             isReturning = true
+            ForgeTelemetry.send(.reentryShown)
             return
         }
         if isChapterDue {

@@ -162,6 +162,9 @@ final class SwordEngine {
             vel = max(vel, 2.6)
             onBreakFree?()
         } else {
+            // A hand that took hold and let go before the break. A tap that
+            // barely moved the blade is not an attempt, so it is not counted.
+            if pos > 0.05 { ForgeTelemetry.send(.pullAbandoned) }
             target = 0
             lastCatch = 0
             onSlipBack?()

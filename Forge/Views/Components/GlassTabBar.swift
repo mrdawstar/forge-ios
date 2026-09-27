@@ -52,7 +52,7 @@ enum AppTab: String, CaseIterable, Hashable {
     /// The catalogue image a tab is drawn from, where no system symbol says the
     /// thing.
     ///
-    /// **Only Becoming has one, and it is a sign.** The tab has been three
+    /// **Only Becoming has one, and it is a sign.** The tab has been four
     /// glyphs now: `arrow.triangle.turn.up.right.diamond` while it was a shelf
     /// of worlds, then `hexagon` for the polygon every screen on it is built
     /// around. The hexagon is honest about the *content* and says nothing about
@@ -60,20 +60,20 @@ enum AppTab: String, CaseIterable, Hashable {
     /// not a picture of an idea, and beside a flame and a chart it reads as a
     /// placeholder somebody forgot to replace.
     ///
-    /// So it is a road sign again, but the right one: **a plain arrow pointing
-    /// forward, inside a diamond.** Becoming is the direction — the tab about
-    /// days that have not happened, sitting beside Blade, which is the record
-    /// of the ones that have — and a direction sign is the least decorated way
-    /// to say that. The *turn* arrow stays rejected for the reason it was
-    /// rejected the first time: a junction is a choice between routes, and this
-    /// tab is about one.
+    /// So it is a road sign: **a solid diamond plate with a turn-right arrow
+    /// knocked out of it** (since telemetry, `FORGE_CONTEXT.md` §2p — it was a
+    /// straight arrow in an outlined diamond before that). Becoming is the
+    /// direction, beside Blade, which is the record of days already kept; the
+    /// turn says the direction is a change of course rather than more of the
+    /// same road. Solid rather than outlined so it sits with the flame beside it,
+    /// which is `flame.fill`.
     ///
-    /// It is a `template`-rendered vector in `Assets.xcassets` rather than a
-    /// symbol because **SF Symbols has no `arrow.right.diamond`**: the family
-    /// carries `plus`, `minus`, `xmark`, `checkmark` and `questionmark` in a
-    /// diamond, and the only arrow in one is the junction. Drawn to the same
-    /// optics as its neighbours — one stroke weight, round caps and joins, and
-    /// the arrow sized so the sign reads before the arrow does.
+    /// It is a `template`-rendered vector in `Assets.xcassets` rather than
+    /// `arrow.triangle.turn.up.right.diamond.fill`: the system glyph's arrow is
+    /// a thin junction mark, and this one is drawn to the reference — a heavy
+    /// stem, one rounded bend, a broad head. The arrow is an even-odd hole in
+    /// the plate, so the tab bar's own background shows through it and the tint
+    /// colours only the plate, selected or not, exactly as it did the old sign.
     var image: String? {
         switch self {
         case .becoming: return "BecomingSign"

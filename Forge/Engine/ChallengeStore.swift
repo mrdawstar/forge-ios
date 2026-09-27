@@ -78,9 +78,11 @@ final class ChallengeStore {
     // MARK: - The three answers
 
     func accept() {
+        let wasAccepted = today.state == .accepted
         today.state = .accepted
         today.completedAt = nil
         persist()
+        if !wasAccepted { ForgeTelemetry.send(.challengeAccepted) }
     }
 
     /// Not today. Reversible all day — somebody who skips at eight and changes
@@ -96,6 +98,7 @@ final class ChallengeStore {
         today.state = .completed
         today.completedAt = progress.now
         persist()
+        ForgeTelemetry.send(.challengeCompleted)
     }
 
     /// Take it back.
@@ -143,6 +146,7 @@ final class ChallengeStore {
         guard challenge.id != today.challenge.id else { return }
         today = ChallengeDay(day: today.day, challenge: challenge, state: .accepted)
         persist()
+        ForgeTelemetry.send(.challengeAccepted)
     }
 
     // MARK: - Storage
