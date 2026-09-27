@@ -68,6 +68,12 @@ enum QuoteBook {
 /// summary of him — is either attributed correctly or left out. Modern
 /// copyrighted sources appear as short excerpts only. Characters are attributed
 /// to the character, never to the actor who spoke the line.
+///
+/// **Scripture** (added in 1.0.1) is attributed to book, chapter and verse. The
+/// wording is the public-domain King James text, or a close modern rendering of
+/// it where the Jacobean grammar would stop the line reading as a sentence —
+/// never a copyrighted translation quoted at length. The verses were chosen for
+/// what Forge is about: strength, discipline, getting back up, the long haul.
 struct AttributedQuote: Identifiable, Equatable, Sendable {
     let id: String
     let text: String
@@ -192,6 +198,27 @@ enum ForgeQuotes {
             "If there is no struggle, there is no progress.",
             "Frederick Douglass"
         ),
+        // Scripture — see `AttributedQuote`.
+        AttributedQuote(
+            "q.res.philippians",
+            "I can do all things through Christ who strengthens me.",
+            "Philippians 4:13"
+        ),
+        AttributedQuote(
+            "q.res.isaiah40",
+            "They that wait upon the Lord shall renew their strength; they shall run, and not be weary; they shall walk, and not faint.",
+            "Isaiah 40:31"
+        ),
+        AttributedQuote(
+            "q.res.corinthians9",
+            "All run, but one receives the prize. So run, that you may obtain it.",
+            "1 Corinthians 9:24"
+        ),
+        AttributedQuote(
+            "q.res.corinthians12",
+            "When I am weak, then am I strong.",
+            "2 Corinthians 12:10"
+        ),
     ]
 
     // MARK: Focus — a day of deep work
@@ -207,6 +234,22 @@ enum ForgeQuotes {
             "q.foc.clear",
             "You do not rise to the level of your goals. You fall to the level of your systems.",
             "James Clear"
+        ),
+        // Scripture — see `AttributedQuote`.
+        AttributedQuote(
+            "q.foc.ecclesiastes",
+            "Whatsoever thy hand findeth to do, do it with thy might.",
+            "Ecclesiastes 9:10"
+        ),
+        AttributedQuote(
+            "q.foc.proverbs4",
+            "Let your eyes look straight ahead, and your gaze stay fixed on what is before you.",
+            "Proverbs 4:25"
+        ),
+        AttributedQuote(
+            "q.foc.colossians",
+            "Whatever you do, do it heartily.",
+            "Colossians 3:23"
         ),
     ]
 
@@ -232,6 +275,27 @@ enum ForgeQuotes {
             "We are what we repeatedly do. Excellence, then, is not an act, but a habit.",
             "Will Durant"
         ),
+        // Scripture — see `AttributedQuote`.
+        AttributedQuote(
+            "q.dis.corinthians9",
+            "I discipline my body and bring it into subjection.",
+            "1 Corinthians 9:27"
+        ),
+        AttributedQuote(
+            "q.dis.timothy1",
+            "God has not given us a spirit of fear, but of power, and of love, and of a sound mind.",
+            "2 Timothy 1:7"
+        ),
+        AttributedQuote(
+            "q.dis.proverbs16",
+            "Better to rule your own spirit than to take a city.",
+            "Proverbs 16:32"
+        ),
+        AttributedQuote(
+            "q.dis.hebrews12",
+            "No discipline seems pleasant at the time. Afterward it yields the peaceable fruit of righteousness.",
+            "Hebrews 12:11"
+        ),
     ]
 
     // MARK: Action — a day that was mostly about starting
@@ -254,6 +318,22 @@ enum ForgeQuotes {
             "Nothing in the world is worth having or worth doing unless it means effort, pain, difficulty.",
             "Theodore Roosevelt"
         ),
+        // Scripture — see `AttributedQuote`.
+        AttributedQuote(
+            "q.act.joshua",
+            "Be strong and of a good courage; be not afraid, neither be thou dismayed.",
+            "Joshua 1:9"
+        ),
+        AttributedQuote(
+            "q.act.proverbs27",
+            "As iron sharpens iron, so one person sharpens another.",
+            "Proverbs 27:17"
+        ),
+        AttributedQuote(
+            "q.act.proverbs14",
+            "In all labour there is profit, but mere talk leads only to want.",
+            "Proverbs 14:23"
+        ),
     ]
 
     // MARK: Toughness — a challenge taken and finished
@@ -275,6 +355,22 @@ enum ForgeQuotes {
             "Michael Jordan"
         ),
         AttributedQuote("q.tou.proverb", "Fall seven times, stand up eight.", "Japanese proverb"),
+        // Scripture — see `AttributedQuote`.
+        AttributedQuote(
+            "q.tou.proverbs24",
+            "A just man falls seven times, and rises up again.",
+            "Proverbs 24:16"
+        ),
+        AttributedQuote(
+            "q.tou.micah",
+            "When I fall, I shall arise.",
+            "Micah 7:8"
+        ),
+        AttributedQuote(
+            "q.tou.isaiah41",
+            "Fear not, for I am with you. I will strengthen you.",
+            "Isaiah 41:10"
+        ),
     ]
 
     // MARK: Perseverance — the long view
@@ -294,6 +390,37 @@ enum ForgeQuotes {
             "q.per.plutarch",
             "Perseverance is more prevailing than violence.",
             "Plutarch"
+        ),
+        // Scripture — see `AttributedQuote`.
+        AttributedQuote(
+            "q.per.galatians",
+            "Let us not be weary in well doing: for in due season we shall reap, if we faint not.",
+            "Galatians 6:9"
+        ),
+        AttributedQuote(
+            "q.per.romans5",
+            "Tribulation works endurance; endurance, character; and character, hope.",
+            "Romans 5:3\u{2013}4"
+        ),
+        AttributedQuote(
+            "q.per.james1",
+            "Count it all joy when trials come: the testing of your faith produces patience, and patience makes you complete.",
+            "James 1:2\u{2013}4"
+        ),
+        AttributedQuote(
+            "q.per.hebrews12",
+            "Let us run with patience the race that is set before us.",
+            "Hebrews 12:1"
+        ),
+        AttributedQuote(
+            "q.per.timothy4",
+            "I have fought a good fight, I have finished my course, I have kept the faith.",
+            "2 Timothy 4:7"
+        ),
+        AttributedQuote(
+            "q.per.corinthians4",
+            "Though the outward man perish, the inward man is renewed day by day.",
+            "2 Corinthians 4:16"
         ),
     ]
 }

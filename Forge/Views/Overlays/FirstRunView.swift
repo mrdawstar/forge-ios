@@ -257,6 +257,27 @@ struct FirstRunView: View {
     /// still gets an offer that looks like it.
     private var build: some View {
         VStack(spacing: 0) {
+            // Skipping is a way past the question, not an answer to it, so it
+            // is a quiet text button in the corner rather than the capsule —
+            // the capsule is the one primary action on every beat, and a cream
+            // "Skip for now" under six rows made declining look like the thing
+            // the screen wanted. The row keeps its height once somebody has
+            // chosen, so nothing below it moves when the button goes.
+            HStack {
+                Spacer()
+                Button("Skip for now") {
+                    advance(to: .choose)
+                }
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(.secondary)
+                .buttonStyle(.plain)
+                .opacity(vm.focus.isEmpty ? 1 : 0)
+                .disabled(!vm.focus.isEmpty)
+                .accessibilityHidden(!vm.focus.isEmpty)
+            }
+            .frame(height: 32)
+            .padding(.horizontal, 24)
+
             VStack(spacing: 8) {
                 Text("What do you want to build?")
                     .font(.title.weight(.semibold))
@@ -273,12 +294,11 @@ struct FirstRunView: View {
             }
             .multilineTextAlignment(.center)
             .padding(.horizontal, 32)
-            .padding(.top, 8)
             .padding(.bottom, 12)
 
             if !typeSize.isAccessibilitySize {
                 FocusHexagon(chosen: vm.focus)
-                    .frame(height: 168)
+                    .frame(height: 160)
                     .padding(.bottom, 10)
             }
 
@@ -299,14 +319,16 @@ struct FirstRunView: View {
             }
             .scrollIndicators(.hidden)
 
-            ForgeButton(title: vm.focus.isEmpty ? "Skip for now" : "Continue") {
+            ForgeButton(title: "Continue") {
                 advance(to: .choose)
             }
+            .disabled(vm.focus.isEmpty)
             .padding(.horizontal, 24)
             .padding(.top, 12)
             .padding(.bottom, 12)
         }
-        .padding(.vertical, 24)
+        .padding(.top, 8)
+        .padding(.bottom, 24)
         // **Not on the whole beat.** It was, and a `withAnimation` covering a
         // `ScrollView` animates the scroll view's own layout: choosing a row
         // near the bottom of six made the list settle, which reads as the
@@ -365,7 +387,7 @@ struct FirstRunView: View {
     private var choose: some View {
         VStack(spacing: 0) {
             VStack(spacing: 8) {
-                Text(chooseTitle)
+                Text(FirstRunCopy.chooseTitle)
                     .font(.title.weight(.semibold))
                 Text("Finish them to earn the day. You can change them whenever you like.")
                     .font(.subheadline)
@@ -400,7 +422,7 @@ struct FirstRunView: View {
             }
             .scrollIndicators(.hidden)
 
-            ForgeButton(title: chosen.count == 3 ? "Continue" : "Pick \(3 - chosen.count) more") {
+            ForgeButton(title: FirstRunCopy.chooseButton(selected: chosen.count)) {
                 // No identities, and the empty array is the whole of what that
                 // means: the tag stays nil, which is exactly what every
                 // activity on every phone is until somebody says otherwise.
@@ -413,27 +435,6 @@ struct FirstRunView: View {
             .padding(.bottom, 12)
         }
         .padding(.vertical, 24)
-    }
-
-    /// Names what they chose, where they chose something. "Three for today,
-    /// then" over a list somebody has just been told is aimed at them is the app
-    /// forgetting the answer it was given ten seconds ago.
-    private var chooseTitle: String {
-        let names = RitualCategory.dimensions
-            .filter(vm.focus.contains)
-            .map { $0.label.lowercased() }
-        switch names.count {
-        case 0: return "Choose three for today."
-        case 1: return "Three for today, starting with \(names[0])."
-        case 2, 3:
-            var rest = names
-            let last = rest.removeLast()
-            return "Three for today: \(rest.joined(separator: ", ")) and \(last)."
-        default:
-            // Naming five parts of a person in a title makes a heading into a
-            // list. Past three it says how many, and the rows say which.
-            return "Three for today, out of the \(ForgeCount.spelled(names.count).lowercased()) you chose."
-        }
     }
 
     private var offered: [Ritual] {
@@ -698,6 +699,22 @@ private extension View {
     /// keeps a plain fade.
     func rises(after delay: Double) -> some View {
         modifier(RiseIn(delay: delay))
+    }
+}
+
+/// The words on the "choose three" beat, kept out of the view so they can be
+/// tested.
+///
+/// The title used to change with the answer on the screen before ("Three for
+/// today: physical and mental."), and the button used to say "Pick 2 more" —
+/// which read as the app refusing to go on rather than as a count of where
+/// somebody is. The title is fixed now, and the button counts.
+enum FirstRunCopy {
+    static let chooseTitle = "Pick three for today."
+
+    /// "Choose 3 · 1 selected" until there are three, then "Continue".
+    static func chooseButton(selected: Int) -> String {
+        selected >= 3 ? "Continue" : "Choose 3 \u{00B7} \(max(0, selected)) selected"
     }
 }
 
@@ -1069,8 +1086,17 @@ struct FocusHexagon: View {
     /// How far out each vertex sits. The floor is what stops an empty choice
     /// collapsing to a dot: an unchosen dimension is still part of a person, it
     /// is simply not the part they are pointing at this month.
+    ///
+    /// **A chosen one reaches about half way, not the edge.** Choosing is an
+    /// intention, not an achievement, and a vertex pinned to the outer ring
+    /// on the first screen drew six choices as a finished shape — the one
+    /// picture in the app that is supposed to be filled in by weeks of days.
+    nonisolated static func reach(isChosen: Bool) -> Double {
+        isChosen ? 0.55 : 0.22
+    }
+
     private func reach(_ dimension: RitualCategory) -> Double {
-        chosen.contains(dimension) ? 1 : 0.34
+        Self.reach(isChosen: chosen.contains(dimension))
     }
 
     var body: some View {

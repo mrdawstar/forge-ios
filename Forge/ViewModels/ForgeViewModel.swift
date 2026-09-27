@@ -607,6 +607,14 @@ final class ForgeViewModel {
         "\(totalDone) OF \(totalActive)"
     }
 
+    /// What is still unticked on today's list, in list order.
+    ///
+    /// Empty on an ordinary loose day — loose means finished. It is only ever
+    /// non-empty under the first run's grace, when the blade comes loose with
+    /// one of three done and the panel swaps the list for the pull prompt; see
+    /// `HomeCopy.leftLine`, which is what says so.
+    var leftToday: [Ritual] { todayRituals.filter { !isDone($0.id) } }
+
     /// The dots beside the count, and they read the same number it does —
     /// `totalDone` rather than `doneIDs`, or the picture and the words would
     /// disagree in exactly the case above.
