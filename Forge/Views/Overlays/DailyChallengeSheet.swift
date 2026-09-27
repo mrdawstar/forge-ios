@@ -143,7 +143,10 @@ struct DailyChallengeSheet: View {
                 if index >= cards.count - 6 { pages += 1 }
             }
         }
-        .presentationDetents([.large])
+        // Opens at half height: one card and its two buttons, with the
+        // screen behind still visible. The pager scrolls, and a drag takes it
+        // to full height for anybody browsing deeper into the shelf.
+        .presentationDetents([.medium, .large])
         .presentationCornerRadius(ForgeTheme.Radius.sheet)
         .presentationDragIndicator(.visible)
     }
@@ -405,15 +408,12 @@ struct DailyChallengeSheet: View {
         .accessibilityLabel(Text("\(quote.text) — \(quote.source)"))
     }
 
+    /// The cream capsule every other primary action in Forge wears — see
+    /// `ForgeButton`. This was the system's own prominent glass, which tints
+    /// blue, and made the one sheet in the app with a different idea of what
+    /// "the button to press" looks like.
     private func primary(_ title: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Text(title)
-                .font(.headline)
-                .frame(maxWidth: .infinity)
-                .frame(height: 52)
-        }
-        .buttonStyle(.glassProminent)
-        .buttonBorderShape(.roundedRectangle(radius: ForgeTheme.Radius.control))
+        ForgeButton(title: title, action: action)
     }
 
     private func secondary(_ title: String, action: @escaping () -> Void) -> some View {

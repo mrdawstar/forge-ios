@@ -744,21 +744,27 @@ struct SwordSceneView: View {
             // home screen where it could be lost. This one counts up and stays
             // up, which makes it a description of somebody rather than something
             // they are holding on to.
+            //
+            // Before the first day is kept it says DAY ONE rather than a zero
+            // — see `HomeCopy.daysBadge`.
+            let badge = HomeCopy.daysBadge(daysKept: vm.daysKept)
             HStack(spacing: 7) {
-                Text("\(vm.daysKept)")
-                    .font(.system(size: 11.5, weight: .semibold))
-                    .monospacedDigit()
-                    .foregroundStyle(.white)
-                Text(vm.daysKept == 1 ? "DAY" : "DAYS")
+                if let count = badge.count {
+                    Text(count)
+                        .font(.system(size: 11.5, weight: .semibold))
+                        .monospacedDigit()
+                        .foregroundStyle(.white)
+                }
+                Text(badge.word)
                     .font(.system(size: 9.5, weight: .medium))
                     .tracking(1.33)
-                    .foregroundStyle(.white.opacity(0.6))
+                    .foregroundStyle(.white.opacity(badge.count == nil ? 0.85 : 0.6))
             }
             .padding(.horizontal, 12)
             .frame(height: 30)
             .glassEffect(.regular, in: .capsule)
             .accessibilityElement(children: .combine)
-            .accessibilityLabel(Text("\(vm.daysKept) days kept"))
+            .accessibilityLabel(Text(badge.accessibility))
         }
         .padding(.horizontal, 24)
         .padding(.top, 58)

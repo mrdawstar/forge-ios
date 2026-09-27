@@ -1545,6 +1545,45 @@ from 1 of 3 to 2 of 3, all four tabs opened, Settings read to the bottom with no
 Account section on it, the Privacy Policy row opening the live page, and a cold
 relaunch that kept the day and did not replay the onboarding.
 
+### 2o. 1.0.1 hygiene (2026-09-25)
+
+A small release of fixes found looking at 1.0 on a phone. Nothing in §5 moved;
+the chapter threshold is the one behaviour change, and it only hides a link.
+
+1. **Scripture on the wall.** `ForgeQuotes` gained 23 short Bible verses
+   (Philippians 4:13, Joshua 1:9, Proverbs 24:16, Isaiah 40:31, Romans 5:3–4,
+   1 Corinthians 9:24 and 9:27, 2 Timothy 1:7, Galatians 6:9, Proverbs 27:17,
+   James 1:2–4 and a dozen more), spread over the six themes and attributed to
+   book, chapter and verse. KJV wording, or a close modern rendering of it —
+   see the note on `AttributedQuote`. Every existing line stays (21 → 44). The
+   Batman and Rocky lines named in the brief were already removed on
+   2026-09-15 (§2n era, see `ForgeQuotes.resilience`) and were not re-added.
+2. **"What do you want to build?"** Skip is a text button top-right; the
+   capsule is only Continue (disabled until something is chosen). The six
+   `RitualCategory.meaning` lines are one short line each (≤ 32 chars) so the
+   sixth row is not clipped. `FocusHexagon.reach` is 0.55 chosen / 0.22 not,
+   so choosing draws an intention rather than a finished shape.
+3. **"Choose three".** Fixed title "Pick three for today."; the button reads
+   "Choose 3 · N selected" until three are picked (`FirstRunCopy`).
+4. **Home, first day.** The scene's badge reads **DAY ONE** at zero days kept
+   (`HomeCopy.daysBadge`). The loose prompt carries one line of what is still
+   on today — "2 left · Deep work, Wake up" — which is only ever non-empty
+   under the first run's grace (`ForgeViewModel.leftToday`, `HomeCopy.leftLine`).
+5. **Blade tab.** "Close this chapter" appears only once the chapter has run
+   14 days (`ChapterReading.canClose`, counting the opening day as day one).
+   "Your blades · N of 6" verified: six earnable blades, one per blade rung of
+   `Ladder` above the zero-day Starter; a test pins the two together.
+6. **One primary button.** `ForgeButton` (cream `.glassProminent` capsule) was
+   already the primary component, so it is reused rather than duplicated as a
+   `ForgePrimaryButton`. The challenge sheet's blue "Accept" / "Take this one"
+   / "Mark it done" now use it, and the sheet opens at `.medium` (`.large` on
+   drag).
+
+Tests: quote counts and the named verses (`ForgeQuoteTests`), the 14-day
+threshold and the blade counter against `Ladder` (`ChapterTests`), and the
+copy above (`FirstDayCopyTests`). Written on Linux without a build — run the
+suite in Xcode before tagging.
+
 ### 2p. Telemetry (2026-09-25)
 
 Forge could not answer the first question about its own launch: where people

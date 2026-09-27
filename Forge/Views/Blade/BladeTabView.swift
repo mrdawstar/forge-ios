@@ -444,28 +444,33 @@ struct BladeTabView: View {
                 // `ChapterStore.close`, where the same argument is made about
                 // the storage. Confirmed once, because it is a line drawn and
                 // an accidental one would be a strange thing to find later.
-                Divider()
-                    .padding(.top, 2)
+                //
+                // Hidden for the first fortnight — see
+                // `ChapterReading.canClose`.
+                if reading.canClose {
+                    Divider()
+                        .padding(.top, 2)
 
-                Button("Close this chapter") {
-                    ForgeHaptics.shared.tap()
-                    isClosingChapter = true
-                }
-                .font(.footnote.weight(.medium))
-                .buttonStyle(.plain)
-                .foregroundStyle(.secondary)
-                .confirmationDialog(
-                    "Close this chapter?",
-                    isPresented: $isClosingChapter,
-                    titleVisibility: .visible
-                ) {
-                    Button("Close chapter") { chapters.close() }
-                    Button("Cancel", role: .cancel) {}
-                } message: {
-                    // Says the one thing somebody standing here needs to know:
-                    // that this is not a reset. Nothing about a chapter ever
-                    // owned any of the history it lay over.
-                    Text("The days inside it stay exactly as they are — nothing is reset and nothing is lost. You can start another whenever you like.")
+                    Button("Close this chapter") {
+                        ForgeHaptics.shared.tap()
+                        isClosingChapter = true
+                    }
+                    .font(.footnote.weight(.medium))
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.secondary)
+                    .confirmationDialog(
+                        "Close this chapter?",
+                        isPresented: $isClosingChapter,
+                        titleVisibility: .visible
+                    ) {
+                        Button("Close chapter") { chapters.close() }
+                        Button("Cancel", role: .cancel) {}
+                    } message: {
+                        // Says the one thing somebody standing here needs to know:
+                        // that this is not a reset. Nothing about a chapter ever
+                        // owned any of the history it lay over.
+                        Text("The days inside it stay exactly as they are — nothing is reset and nothing is lost. You can start another whenever you like.")
+                    }
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
