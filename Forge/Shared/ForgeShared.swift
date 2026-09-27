@@ -45,6 +45,10 @@ enum ForgeShared {
         "forge.libraryEdits.v1",
         "forge.commitment.v1",
         "forge.premiumInvited.v1",
+        // Which of Forge Pro's three doors have been shown. See
+        // `PremiumInvitation`; the key above is 1.0's single door, kept so an
+        // old install's value still migrates rather than being stranded.
+        "forge.paywallDoors.v1",
         // The markers somebody set for themselves. Not derivable from the
         // history — Forge cannot work out that somebody meant to read for
         // thirty days — so this is the one thing on the Blade tab that is

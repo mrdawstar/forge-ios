@@ -47,6 +47,12 @@ enum ForgeLinks {
     /// tell when it is wrong.
     static let support: URL? = url("https://forgebetter.app/support")
 
+    /// Apple's Standard License Agreement, which is the Terms of Use Forge Pro
+    /// is sold under. Linked from the paywall because App Review requires a
+    /// functional link to the terms beside every auto-renewing subscription;
+    /// `APP_STORE.md` §7 has the matching line for the App Store description.
+    static let appleEULA: URL? = url("https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")
+
     /// Empty, whitespace and anything that is not a real https URL all mean the
     /// same thing: not configured yet.
     private static func url(_ raw: String) -> URL? {

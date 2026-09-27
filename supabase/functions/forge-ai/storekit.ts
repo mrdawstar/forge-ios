@@ -48,10 +48,12 @@ export type ProductKind = "renewable" | "lifetime";
 
 /// `PremiumProduct` in `Forge/Models/Premium.swift`, and `Forge.storekit`.
 ///
-/// There is no monthly product: `Premium.swift` declares only these two and
-/// says why. A monthly plan would be one more `"renewable"` line here — the
-/// renewable path below is not specific to a period.
+/// Forge Pro sells three: monthly and annual (auto-renewable, one group) and
+/// lifetime. Monthly was deliberately absent in 1.0 and was added back with
+/// Forge Pro — see `Premium.swift`. The renewable path below is not specific to
+/// a period, so the monthly id is the whole change here.
 export const PREMIUM_PRODUCTS: Readonly<Record<string, ProductKind>> = {
+  "com.dawid.forge.premium.monthly": "renewable",
   "com.dawid.forge.premium.annual": "renewable",
   "com.dawid.forge.premium.lifetime": "lifetime",
 };

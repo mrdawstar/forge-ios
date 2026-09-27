@@ -115,6 +115,8 @@
 		A1B2C3D4E5F60718293A4B5C /* NotificationPrimerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B5D /* NotificationPrimerView.swift */; };
 		A1F0RGE0AIPLAN0BUILD1 /* SchedulePlan.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1F0RGE0AIPLAN0FILE01 /* SchedulePlan.swift */; };
 		A1F0RGE0AISHET0BUILD1 /* PlanSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1F0RGE0AISHET0FILE01 /* PlanSheet.swift */; };
+		F0A1B2C3D4E5F60718293A02 /* PaywallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0A1B2C3D4E5F60718293A01 /* PaywallView.swift */; };
+		F0A1B2C3D4E5F60718293A04 /* PremiumTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0A1B2C3D4E5F60718293A03 /* PremiumTests.swift */; };
 		A1F0RGE0ANALYT0BUILD1 /* Analytics.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1F0RGE0ANALYT0FILE01 /* Analytics.swift */; };
 		A1F0RGE0ASHEET0BUILD1 /* AnalyticsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1F0RGE0ASHEET0FILE01 /* AnalyticsSheet.swift */; };
 		A1F0RGE0ATEST00BUILD1 /* AnalyticsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1F0RGE0ATEST00FILE01 /* AnalyticsTests.swift */; };
@@ -295,6 +297,8 @@
 		A1B2C3D4E5F60718293A4B5D /* NotificationPrimerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationPrimerView.swift; sourceTree = "<group>"; };
 		A1F0RGE0AIPLAN0FILE01 /* SchedulePlan.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SchedulePlan.swift; sourceTree = "<group>"; };
 		A1F0RGE0AISHET0FILE01 /* PlanSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanSheet.swift; sourceTree = "<group>"; };
+		F0A1B2C3D4E5F60718293A01 /* PaywallView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaywallView.swift; sourceTree = "<group>"; };
+		F0A1B2C3D4E5F60718293A03 /* PremiumTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PremiumTests.swift; sourceTree = "<group>"; };
 		A1F0RGE0ANALYT0FILE01 /* Analytics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Analytics.swift; sourceTree = "<group>"; };
 		A1F0RGE0ASHEET0FILE01 /* AnalyticsSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalyticsSheet.swift; sourceTree = "<group>"; };
 		A1F0RGE0ATEST00FILE01 /* AnalyticsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalyticsTests.swift; sourceTree = "<group>"; };
@@ -364,6 +368,7 @@
 			isa = PBXGroup;
 			children = (
 				A1F0RGE0AISHET0FILE01 /* PlanSheet.swift */,
+				F0A1B2C3D4E5F60718293A01 /* PaywallView.swift */,
 				A1F0RGE0CSHEET0FILE01 /* DailyChallengeSheet.swift */,
 				CF5389B684FA44A2BBF1C13B /* DaySummaryView.swift */,
 				775FDDAEFB68E6BAD58FCAB0 /* AddActivitySheet.swift */,
@@ -436,6 +441,7 @@
 				A1F0RGE0MTEST00FILE01 /* CustomMilestoneTests.swift */,
 				A1F0RGE0ATEST00FILE01 /* AnalyticsTests.swift */,
 				7A1C40E2B1F04C6EA9D33002 /* NotificationPlanTests.swift */,
+				F0A1B2C3D4E5F60718293A03 /* PremiumTests.swift */,
 			);
 			path = ForgeTests;
 			sourceTree = "<group>";
@@ -813,6 +819,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				F0A1B2C3D4E5F60718293A04 /* PremiumTests.swift in Sources */,
 				2B27CDCBBC114CDB9B4CC596 /* AccessibilityTests.swift in Sources */,
 				1971B3C4770241629406251F /* ModelTrustTests.swift in Sources */,
 				7A1C40E2B1F04C6EA9D34602 /* BackendRegressionTests.swift in Sources */,
@@ -886,6 +893,7 @@
 				A1F0RGE0MCOMP00BUILD1 /* MilestoneComposer.swift in Sources */,
 				A1F0RGE0ASHEET0BUILD1 /* AnalyticsSheet.swift in Sources */,
 				A1F0RGE0AISHET0BUILD1 /* PlanSheet.swift in Sources */,
+				F0A1B2C3D4E5F60718293A02 /* PaywallView.swift in Sources */,
 				A1F0RGE0CSHEET0BUILD1 /* DailyChallengeSheet.swift in Sources */,
 				A1F0RGE0WEEKP00BUILD1 /* WeekPlannerView.swift in Sources */,
 				A1F0RGE0PTOOL00BUILD1 /* ForgeControlBar.swift in Sources */,

@@ -18,6 +18,7 @@ import {
   type Chain,
   lifetimeClaims,
   makeChain,
+  MONTHLY,
   signTransaction,
   testTrust,
   toBase64url,
@@ -48,6 +49,19 @@ Deno.test("a current annual subscription from a trusted chain verifies", async (
   assertEquals(entitlement.originalTransactionId, claims.originalTransactionId);
   assertEquals(entitlement.transactionId, claims.transactionId);
   assertEquals(entitlement.expiresAt?.getTime(), claims.expiresDate);
+});
+
+Deno.test("a current monthly subscription verifies on the same renewable path", async () => {
+  const claims = annualClaims({ productId: MONTHLY, expiresDate: Date.now() + 20 * 86_400_000 });
+  const entitlement = await verifyEntitlementJWS(await signTransaction(chain, claims), production);
+  assertEquals(entitlement.productId, "com.dawid.forge.premium.monthly");
+  assertEquals(entitlement.kind, "renewable");
+  assertEquals(entitlement.expiresAt?.getTime(), claims.expiresDate);
+  // Expired is expired, whatever the period.
+  await rejects(
+    await signTransaction(chain, annualClaims({ productId: MONTHLY, expiresDate: Date.now() - 1000 })),
+    "expired",
+  );
 });
 
 Deno.test("a lifetime purchase verifies and has no expiry", async () => {
@@ -187,6 +201,7 @@ Deno.test("a product that is not Forge Premium is refused", async () => {
   assertEquals(Object.keys(PREMIUM_PRODUCTS).sort(), [
     "com.dawid.forge.premium.annual",
     "com.dawid.forge.premium.lifetime",
+    "com.dawid.forge.premium.monthly",
   ]);
 });
 

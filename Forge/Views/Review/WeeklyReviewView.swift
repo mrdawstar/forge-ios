@@ -28,6 +28,14 @@ import SwiftUI
 /// fifty times different from doing it once. Everything else that was suggested
 /// — a score, a comparison, a mood — is still refused.
 ///
+/// # The sentence is Forge Pro; the week is not
+///
+/// Since Forge Pro (see `FORGE_CONTEXT.md` §6) the observation in beat one is
+/// the **Weekly Reading** and needs Pro. The marks, the count, last week's line
+/// and both questions are the record and stay free. Without Pro the sentence
+/// is simply absent — except once, at the first review that has one, when a
+/// locked row stands in its place (door 2, `PremiumInvitation`).
+///
 /// # Skippable, and it costs nothing
 ///
 /// "Not now" writes the week down as dealt with and never mentions it again.
@@ -57,6 +65,18 @@ struct WeeklyReviewView: View {
     /// still runs on for anybody offline, signed out or not paying.
     var betterReading: (() async -> PracticeReading?)?
 
+    /// Whether the reading may be shown. **Weekly Reading is Forge Pro**; the
+    /// marks, the count, last week's line and both questions are the record
+    /// and stay free whatever this says. See `PremiumGate`.
+    var isPremium: Bool = false
+    /// Door 2: show a locked, obscured Weekly Reading row in place of the
+    /// sentence. Decided by `PremiumInvitation` before the sheet opens, and
+    /// latched on appear so spending the door does not pull the row out from
+    /// under somebody who is looking at it.
+    var offersReading: Bool = false
+    /// The locked row has been seen; the door is spent.
+    var onReadingOffered: () -> Void = {}
+
     @State private var whatHappened = ""
     @State private var whatNext = ""
     @FocusState private var focus: Field?
@@ -68,6 +88,9 @@ struct WeeklyReviewView: View {
     /// reads. If a model answers and its answer survives validation, this is
     /// replaced; if it does not, nothing happens and nobody is told.
     @State private var reading: PracticeReading?
+    /// `offersReading`, as it was when the sheet opened.
+    @State private var isOfferingReading = false
+    @State private var paywallDoor: ForgeTelemetry.PaywallDoor?
 
     private enum Field { case happened, next }
 
@@ -112,7 +135,17 @@ struct WeeklyReviewView: View {
             whatHappened = existing?.whatHappened ?? ""
             whatNext = existing?.whatNext ?? ""
             reading = ruled
+            // Only offered when there is a reading to unlock. A first week has
+            // none, and selling an empty sentence would be selling nothing —
+            // the door stays unspent for a week that has one.
+            if !isPremium, offersReading, ruled != nil {
+                isOfferingReading = true
+                onReadingOffered()
+            }
         }
+        // Opened from the locked row, on top of the review, so closing it
+        // lands back on the week rather than on the home screen.
+        .paywall($paywallDoor)
         .task {
             // Silent on every failure. A model that is unreachable, unpaid for,
             // slow, or wrong leaves the phone's own sentence exactly where it
@@ -210,7 +243,9 @@ struct WeeklyReviewView: View {
     /// decoration.
     @ViewBuilder
     private var noticed: some View {
-        if let reading {
+        if !PremiumGate.showsWeeklyReading(isPremium: isPremium) {
+            if isOfferingReading { lockedReading }
+        } else if let reading {
             VStack(alignment: .leading, spacing: ForgeTheme.Space.tight) {
                 Rectangle()
                     .fill(ForgeTheme.separator)
@@ -237,6 +272,50 @@ struct WeeklyReviewView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .accessibilityElement(children: .combine)
+        }
+    }
+
+    /// Door 2: the Weekly Reading, locked.
+    ///
+    /// The shape of the sentence and none of its content — a placeholder drawn
+    /// redacted, never this week's reading blurred, so nothing sold is given
+    /// away and nothing is shown that could be read off the screen.
+    private var lockedReading: some View {
+        VStack(alignment: .leading, spacing: ForgeTheme.Space.tight) {
+            Rectangle()
+                .fill(ForgeTheme.separator)
+                .frame(height: 0.5)
+                .padding(.vertical, ForgeTheme.Space.row)
+
+            Button {
+                ForgeHaptics.shared.tap()
+                paywallDoor = PremiumInvitation.Door.weeklyReading.telemetry
+            } label: {
+                VStack(alignment: .leading, spacing: ForgeTheme.Space.tight) {
+                    HStack {
+                        Text("WEEKLY READING")
+                            .font(ForgeTheme.overline)
+                            .kerning(ForgeTheme.overlineKerning)
+                            .foregroundStyle(.tertiary)
+                        Spacer()
+                        ProBadge()
+                    }
+                    Text("Most of what you asked for held this week, and one thing slipped twice.")
+                        .font(.title3)
+                        .lineSpacing(3)
+                        .redacted(reason: .placeholder)
+                        .accessibilityHidden(true)
+                    Text("Forge Pro reads your record back to you. Tap to see it.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(.rect)
+            }
+            .buttonStyle(.plain)
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel(Text("Weekly Reading, Forge Pro"))
+            .accessibilityHint(Text("Opens Forge Pro"))
         }
     }
 

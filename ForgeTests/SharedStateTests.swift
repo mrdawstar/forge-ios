@@ -119,6 +119,8 @@ struct SharedStateTests {
             // update stranded them: a fortnight of unlock overlays replayed,
             // and the once-ever Premium invitation came back a second time.
             "forge.celebratedSwords.v1", "forge.premiumInvited.v1",
+            // Forge Pro's three doors. Stranding this would re-open every one.
+            "forge.paywallDoors.v1",
             // The cloud's bookkeeping. Leaving these behind is not data loss,
             // but it does mean re-uploading a whole history to say nothing.
             "forge.sync.owner.v1", "forge.sync.pullCursor.v1",

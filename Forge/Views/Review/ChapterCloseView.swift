@@ -54,10 +54,17 @@ struct ChapterCloseView: View {
     /// Retire one, from the question at the foot.
     let onRetire: (Identity) -> Void
     let onLater: () -> Void
+    /// Door 3: the Forge Pro invitation, at the foot of the screen. Decided by
+    /// `PremiumInvitation` before the sheet opens and latched on appear.
+    var offersPro: Bool = false
+    /// The invitation has been seen; the door is spent.
+    var onProOffered: () -> Void = {}
 
     @State private var nextName = ""
     @State private var nextIntention = ""
     @State private var isOpening = false
+    @State private var isOfferingPro = false
+    @State private var paywallDoor: ForgeTelemetry.PaywallDoor?
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -71,6 +78,13 @@ struct ChapterCloseView: View {
                     if !reviews.isEmpty { saidSection }
                     question
                     if isOpening { next }
+                    // Last, below everything somebody came here to read. The
+                    // chapter is theirs; this is an offer beside it.
+                    if isOfferingPro {
+                        PremiumInvitationView {
+                            paywallDoor = PremiumInvitation.Door.chapterClose.telemetry
+                        }
+                    }
                 }
                 .padding(.horizontal, ForgeTheme.Space.gutter)
                 .padding(.top, ForgeTheme.Space.row)
@@ -90,6 +104,12 @@ struct ChapterCloseView: View {
         .presentationDetents([.large])
         .presentationCornerRadius(ForgeTheme.Radius.sheet)
         .presentationDragIndicator(.visible)
+        .onAppear {
+            guard offersPro, !isOfferingPro else { return }
+            isOfferingPro = true
+            onProOffered()
+        }
+        .paywall($paywallDoor)
     }
 
     // MARK: - What it was

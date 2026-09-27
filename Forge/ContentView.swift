@@ -31,6 +31,18 @@ struct ContentView: View {
     /// running forever, in a class whose own comment explains why it never
     /// cancels one.
     @State private var store: ForgeStore
+    /// The paywall, when it is up, and the door it came through. Nil nearly
+    /// always. Set only by `offerFirstBladeDoor` here — the other doors are
+    /// opened from inside the sheets they belong to.
+    @State private var paywallDoor: ForgeTelemetry.PaywallDoor?
+    /// The first blade was celebrated inside the first run, so its door waits
+    /// for the first run to finish. In memory only: a force-quit on the closing
+    /// screen loses it, and the door then waits for the next blade instead —
+    /// which is the right way for it to fail, because it cannot fail into
+    /// appearing at launch.
+    @State private var isFirstBladeDoorOwed = false
+    /// Forge Pro's three unprompted doors. See `PremiumInvitation`.
+    private let invitation = PremiumInvitation()
     /// Which world the app is dressed in. Owned here alongside the other
     /// stores, because a Path changes what every screen looks like and there
     /// has to be exactly one answer to that for the whole process.
@@ -329,6 +341,12 @@ struct ContentView: View {
             guard !wasOut, isOut else { return }
             Task { @MainActor in await settleThenSpeak() }
         }
+        // Last, and it has to be: it puts the store into the environment, and
+        // the environment only reaches what is *inside* the modifier that sets
+        // it — the review and chapter sheets above included.
+        .modifier(
+            ForgeProModifier(store: store, door: $paywallDoor) { publishSnapshot() }
+        )
     }
 
     // MARK: - After the pull
@@ -656,7 +674,12 @@ struct ContentView: View {
             // `RemoteForgeAI.isModelEnabled`, which is the one line to change.
             betterReading: remote.isConnected
                 ? { [remote] in try? await remote.reading(brief: readingBrief(facts)) }
-                : nil
+                : nil,
+            // Weekly Reading is Pro. Door 2 is the locked row, shown once, at
+            // the first review that has a reading in it.
+            isPremium: store.isPremium,
+            offersReading: invitation.isOpen(.weeklyReading, at: doorMoment),
+            onReadingOffered: { [invitation] in invitation.markShown(.weeklyReading) }
         )
     }
 
@@ -704,7 +727,10 @@ struct ContentView: View {
                 onRetire: { identity in
                     identities.retire(identity.id, at: progress.now)
                 },
-                onLater: { showChapterClose = false }
+                onLater: { showChapterClose = false },
+                // Door 3, once.
+                offersPro: invitation.isOpen(.chapterClose, at: doorMoment),
+                onProOffered: { [invitation] in invitation.markShown(.chapterClose) }
             )
         }
     }
@@ -759,6 +785,12 @@ struct ContentView: View {
     private func finishFirstRun() {
         chapters.openFirst(identityIDs: identities.active.map(\.id))
         forgeVM.finishFirstRun()
+        // The first blade was celebrated inside the first run; its door was
+        // held until now so the paywall never lands on an onboarding screen.
+        if isFirstBladeDoorOwed {
+            isFirstBladeDoorOwed = false
+            offerFirstBladeDoor()
+        }
     }
 
     /// One short sentence, and then the app back. It takes itself away.
@@ -800,6 +832,42 @@ struct ContentView: View {
         // The blade they just earned was the last beat of the first run.
         if forgeVM.firstRunStage == .pull {
             forgeVM.firstRunStage = .closing
+            isFirstBladeDoorOwed = true
+        } else {
+            offerFirstBladeDoor()
+        }
+    }
+
+    // MARK: - Forge Pro's doors
+
+    /// Everything a door depends on, read now.
+    ///
+    /// Until StoreKit has answered, the entitlement is treated as Pro — an
+    /// unknown answer is never a reason to ask somebody for money.
+    private var doorMoment: PremiumInvitation.Moment {
+        PremiumInvitation.Moment(
+            isPremium: store.isPremium || !store.hasReadEntitlement,
+            hasCompletedFirstRun: forgeVM.hasCompletedFirstRun,
+            isDayInProgress: forgeVM.isFirstRunCovering
+                || forgeVM.summary != nil
+                || swords.pendingUnlock != nil
+                || forgeVM.pull > 0.01
+                || forgeVM.honorRitualID != nil
+                || isReturning
+        )
+    }
+
+    /// Door 1: the first blade celebration has closed.
+    ///
+    /// After the celebration's own fade, so the two are never on screen
+    /// together, and re-checked then — a pull started in that half-second, or
+    /// a sheet that came up, closes the door for this time without spending it.
+    private func offerFirstBladeDoor() {
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(650))
+            guard paywallDoor == nil, !showReview, !showChapterClose else { return }
+            guard invitation.claim(.firstBlade, at: doorMoment) else { return }
+            paywallDoor = PremiumInvitation.Door.firstBlade.telemetry
         }
     }
 }
@@ -863,6 +931,40 @@ extension ContentView {
             isAIConnected: remote.isConnected,
             notificationState: notificationState
         )
+    }
+}
+
+// MARK: - Forge Pro, at the root
+
+/// The store, the root paywall, and the accent gate, applied as one.
+///
+/// A modifier for the reason `MomentsModifier` is one: the root's body is at
+/// the edge of what the type checker will do in reasonable time.
+private struct ForgeProModifier: ViewModifier {
+    let store: ForgeStore
+    @Binding var door: ForgeTelemetry.PaywallDoor?
+    /// The accent was put back; the widgets have to hear about it.
+    let onAccentReset: () -> Void
+
+    func body(content: Content) -> some View {
+        content
+            // Door 1, and any paywall opened from a tab rather than a sheet.
+            .paywall($door)
+            // Accents 2–8 are Pro. Once StoreKit has actually answered — never
+            // on the `.free` placeholder it starts with — an install without
+            // Pro is put back on the free accent.
+            .task(id: store.hasReadEntitlement && !store.isPremium) {
+                guard store.hasReadEntitlement else { return }
+                let appearance = ForgeAppearance.shared
+                let wearable = PremiumGate.wearable(appearance.accent, isPremium: store.isPremium)
+                guard wearable != appearance.accent else { return }
+                appearance.accent = wearable
+                onAccentReset()
+            }
+            // One entitlement for every screen, including the sheets that open
+            // the paywall from inside themselves. Outermost, so it reaches all
+            // of them.
+            .environment(store)
     }
 }
 

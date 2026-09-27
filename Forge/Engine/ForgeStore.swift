@@ -26,9 +26,25 @@ final class ForgeStore {
     }
 
     private(set) var status: Status = .loading
+    private(set) var monthly: Product?
     private(set) var annual: Product?
     private(set) var lifetime: Product?
     private(set) var entitlement: PremiumEntitlement = .free
+    /// Which plan the entitlement comes from, for Settings to name. Nil for
+    /// somebody on the free tier.
+    private(set) var activePlan: PremiumProduct?
+    /// Whether the entitlement has been read at least once since launch.
+    ///
+    /// `entitlement` starts at `.free` before StoreKit has answered, and
+    /// nothing that takes something *away* — the accent falling back to Forge
+    /// blue — may act on that placeholder. See `ContentView`.
+    private(set) var hasReadEntitlement = false
+    /// Whether this Apple Account can still take the annual plan's free trial.
+    ///
+    /// Asked of StoreKit rather than assumed: somebody who has already had a
+    /// trial in this subscription group is not offered a second one, and the
+    /// paywall must not print "7 days free" to them.
+    private(set) var isTrialEligible = false
 
     /// The purchase currently in flight, so exactly one button can show a
     /// spinner and no button can be pressed twice.
@@ -56,14 +72,24 @@ final class ForgeStore {
         return entitlement.isPremium
     }
 
-    /// Both products, in the order the screen shows them.
-    var offerings: [Product] { [annual, lifetime].compactMap { $0 } }
+    /// Every product that loaded, in the order the paywall shows them:
+    /// annual, monthly, lifetime.
+    var offerings: [Product] { PremiumProduct.displayOrder.compactMap(product(for:)) }
 
-    /// The trial, in the words the App Store gave us rather than words of our
+    func product(for plan: PremiumProduct) -> Product? {
+        switch plan {
+        case .monthly: monthly
+        case .annual: annual
+        case .lifetime: lifetime
+        }
+    }
+
+    /// The trial, in the terms the App Store gave us rather than words of our
     /// own. Nil when the offer is not there — somebody who has already used it,
     /// or a build whose product could not be loaded.
     var trial: Product.SubscriptionOffer? {
-        guard let offer = annual?.subscription?.introductoryOffer,
+        guard isTrialEligible,
+              let offer = annual?.subscription?.introductoryOffer,
               offer.paymentMode == .freeTrial
         else { return nil }
         return offer
@@ -94,10 +120,14 @@ final class ForgeStore {
             let loaded = try await Product.products(for: PremiumProduct.identifiers)
             for product in loaded {
                 switch PremiumProduct(id: product.id) {
+                case .monthly: monthly = product
                 case .annual: annual = product
                 case .lifetime: lifetime = product
                 case nil: break
                 }
+            }
+            if let subscription = annual?.subscription {
+                isTrialEligible = await subscription.isEligibleForIntroOffer
             }
             // An empty answer is not an error from StoreKit's point of view, but
             // it is one from the screen's: there would be nothing to tap.
@@ -120,24 +150,19 @@ final class ForgeStore {
     /// revocation check is belt and braces for a refund that has been recorded
     /// but not yet dropped.
     func refreshEntitlement() async {
-        var found: PremiumEntitlement = .free
+        var owned: [PremiumProduct] = []
 
         for await result in Transaction.currentEntitlements {
             guard let transaction = try? verified(result) else { continue }
             guard transaction.revocationDate == nil else { continue }
-            switch PremiumProduct(id: transaction.productID) {
-            case .lifetime:
-                // Outranks a subscription: somebody who bought it once should
-                // never be told they are on a plan that could lapse.
-                found = .lifetime
-            case .annual:
-                if found != .lifetime { found = .subscribed }
-            case nil:
-                continue
-            }
+            guard let product = PremiumProduct(id: transaction.productID) else { continue }
+            owned.append(product)
         }
 
-        entitlement = found
+        // Lifetime outranks a subscription — see `PremiumEntitlement.resolve`.
+        entitlement = PremiumEntitlement.resolve(owned)
+        activePlan = PremiumEntitlement.plan(among: owned)
+        hasReadEntitlement = true
     }
 
     /// Everything the App Store tells us after the fact: a renewal, a refund, a
@@ -156,7 +181,10 @@ final class ForgeStore {
     // MARK: Buying
 
     enum Outcome: Equatable {
-        case bought
+        /// Paid for, or — with `startedTrial` — the free trial has begun and
+        /// nothing has been charged yet. The two are told apart so telemetry
+        /// never counts a trial as a sale.
+        case bought(startedTrial: Bool)
         case cancelled
         /// Ask-to-buy, or a card that needs the bank. Nothing to do but wait —
         /// the update listener will catch it whenever it lands.
@@ -179,7 +207,10 @@ final class ForgeStore {
                 // screen is never dismissed a frame before it is true.
                 await refreshEntitlement()
                 await transaction.finish()
-                return .bought
+                let startedTrial = transaction.offer?.type == .introductory
+                    && transaction.offer?.paymentMode == .freeTrial
+                if startedTrial { isTrialEligible = false }
+                return .bought(startedTrial: startedTrial)
 
             case .userCancelled:
                 // Not a failure and not worth a word on screen.

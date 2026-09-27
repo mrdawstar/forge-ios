@@ -13,18 +13,18 @@
   "nonRenewingSubscriptions": [],
   "products": [
     {
-      "displayPrice": "74.99",
+      "displayPrice": "99.99",
       "familyShareable": true,
       "internalID": "4A91C7D2",
       "localizations": [
         {
-          "description": "Forge Premium, once. Every archetype, an archetype written for you, your week read back in sentences a rule could not write, and your practice backed up across your devices. Your whole history stays free.",
-          "displayName": "Forge Premium \u2014 Lifetime",
+          "description": "Forge Pro: the Weekly Reading, Plan in your own words, and eight accents. Your whole record stays free. Bought once; never renews.",
+          "displayName": "Forge Pro \u2014 Lifetime",
           "locale": "en_US"
         }
       ],
       "productID": "com.dawid.forge.premium.lifetime",
-      "referenceName": "Premium Lifetime",
+      "referenceName": "Pro Lifetime",
       "type": "NonConsumable"
     }
   ],
@@ -85,12 +85,12 @@
     {
       "id": "21B4E8F0",
       "localizations": [],
-      "name": "Forge Premium",
+      "name": "Forge Pro",
       "subscriptions": [
         {
           "adHocOffers": [],
           "codeOffers": [],
-          "displayPrice": "29.99",
+          "displayPrice": "49.99",
           "familyShareable": true,
           "groupNumber": 1,
           "internalID": "8C3D5B7A",
@@ -101,14 +101,35 @@
           },
           "localizations": [
             {
-              "description": "Every archetype, an archetype written for you, your week read back in sentences a rule could not write, and your practice backed up across your devices. Your whole history stays free.",
-              "displayName": "Forge Premium \u2014 Annual",
+              "description": "Forge Pro: the Weekly Reading, Plan in your own words, and eight accents. Your whole record stays free.",
+              "displayName": "Forge Pro \u2014 Annual",
               "locale": "en_US"
             }
           ],
           "productID": "com.dawid.forge.premium.annual",
           "recurringSubscriptionPeriod": "P1Y",
-          "referenceName": "Premium Annual",
+          "referenceName": "Pro Annual",
+          "subscriptionGroupID": "21B4E8F0",
+          "type": "RecurringSubscription"
+        },
+        {
+          "adHocOffers": [],
+          "codeOffers": [],
+          "displayPrice": "9.99",
+          "familyShareable": true,
+          "groupNumber": 1,
+          "internalID": "5E1A9C3B",
+          "introductoryOffer": null,
+          "localizations": [
+            {
+              "description": "Forge Pro: the Weekly Reading, Plan in your own words, and eight accents. Your whole record stays free.",
+              "displayName": "Forge Pro \u2014 Monthly",
+              "locale": "en_US"
+            }
+          ],
+          "productID": "com.dawid.forge.premium.monthly",
+          "recurringSubscriptionPeriod": "P1M",
+          "referenceName": "Pro Monthly",
           "subscriptionGroupID": "21B4E8F0",
           "type": "RecurringSubscription"
         }
