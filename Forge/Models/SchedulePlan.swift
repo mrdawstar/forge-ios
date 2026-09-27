@@ -284,7 +284,7 @@ struct AIBrief: Equatable, Sendable {
     /// The world being walked, by name.
     ///
     /// **Always nil.** The archetypes are gone and nothing sets this any more.
-    /// It survives because `ClaudeForgeAI` encodes it into the request body and
+    /// It survives because `RemoteForgeAI` encodes it into the request body and
     /// the edge function's schema still names the field — removing it here is a
     /// wire-format change to a deployed service, which is not a change to make
     /// from the client side alone. It is not rendered on the disclosure screen,
@@ -415,7 +415,7 @@ enum ForgeAIError: Error, Equatable {
     /// Named for what it originally meant — "a model would have got this and
     /// there is not one" — and kept because that is still true. What changed is
     /// what it *says*: 1.0 ships with the model deliberately off (see
-    /// `ClaudeForgeAI.isModelEnabled`), so telling somebody their request is
+    /// `RemoteForgeAI.isModelEnabled`), so telling somebody their request is
     /// waiting on a connection is telling them to come back for something that
     /// is not coming. The message teaches the grammar that does work instead.
     case notConnected

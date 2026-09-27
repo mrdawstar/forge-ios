@@ -531,7 +531,7 @@ struct DayCountTests {
 ///
 /// This is a tripwire and it is meant to fail loudly the day somebody turns the
 /// model on. When that day comes, the thing to change is
-/// `ClaudeForgeAI.isModelEnabled` **and** the privacy nutrition labels in
+/// `RemoteForgeAI.isModelEnabled` **and** the privacy nutrition labels in
 /// `APP_STORE.md` §1, which currently answer "not collected" for the AI brief
 /// on the strength of exactly this.
 ///
@@ -553,20 +553,24 @@ struct NoNetworkTests {
 
     @Test("The model is off in this release")
     func theModelIsOff() {
-        #expect(ClaudeForgeAI.isModelEnabled == false)
+        #expect(RemoteForgeAI.isModelEnabled == false)
     }
 
     /// The one that matters. A configured project **and** a valid token still
     /// produces a disconnected client, because the switch is read before either.
     @Test("A configured project with a signed-in token is still not connected")
     func aConfiguredProjectStaysOffline() {
-        let ai = ClaudeForgeAI(config: configured) { "a-valid-looking-token" }
+        let ai = RemoteForgeAI(
+            config: configured,
+            token: { "a-valid-looking-token" },
+            entitlement: { "a-valid-looking-transaction" }
+        )
         #expect(!ai.isConnected)
     }
 
     @Test("No project configured is not connected either")
     func noProjectStaysOffline() {
-        #expect(!ClaudeForgeAI(config: nil) { nil }.isConnected)
+        #expect(!RemoteForgeAI(config: nil, token: { nil }, entitlement: { nil }).isConnected)
     }
 
     /// Every answer comes from the arithmetic, and says so. `isModelWritten` is
@@ -574,7 +578,11 @@ struct NoNetworkTests {
     /// something; nothing may come back true.
     @Test("Every answer is the phone's own, and admits it")
     func everyAnswerIsLocal() async throws {
-        let ai = ClaudeForgeAI(config: configured) { "a-valid-looking-token" }
+        let ai = RemoteForgeAI(
+            config: configured,
+            token: { "a-valid-looking-token" },
+            entitlement: { "a-valid-looking-transaction" }
+        )
 
         var brief = AIBrief()
         brief.activities = [
@@ -601,12 +609,41 @@ struct NoNetworkTests {
     /// phone-written too.
     @Test("A weekly reading is written by the rules")
     func theReadingIsLocal() async throws {
-        let ai = ClaudeForgeAI(config: configured) { "a-valid-looking-token" }
+        let ai = RemoteForgeAI(
+            config: configured,
+            token: { "a-valid-looking-token" },
+            entitlement: { "a-valid-looking-transaction" }
+        )
         var brief = AIBrief()
         brief.week = ReviewFacts(kept: 3, asked: 7)
 
         let reading = try await ai.reading(brief: brief)
         #expect(!reading.isModelWritten)
+    }
+
+    /// The anonymous identity is only ever minted on the way to a model, and
+    /// with the model off nothing is on the way to one. Neither credential is
+    /// even asked for — no StoreKit read, no sign-up, no refresh.
+    @Test("With the model off, neither credential is ever asked for")
+    func credentialsAreNeverRequested() async throws {
+        let asked = CredentialCounter()
+        let ai = RemoteForgeAI(
+            config: configured,
+            token: { await asked.token() },
+            entitlement: { await asked.entitlement() }
+        )
+
+        var brief = AIBrief()
+        brief.activities = [
+            ScheduledActivity(id: "read", name: "Read", startMinute: nil, minutes: 15, weekdays: []),
+        ]
+        brief.week = ReviewFacts(kept: 3, asked: 7)
+        _ = try await ai.plan(brief: brief, request: "plan my week")
+        _ = try await ai.reading(brief: brief)
+        _ = try await ai.challenge(brief: brief, difficulty: .medium, focus: .discipline, wish: "")
+
+        #expect(await asked.tokens == 0)
+        #expect(await asked.entitlements == 0)
     }
 
     // MARK: - The one host
@@ -804,5 +841,21 @@ struct TelemetryTests {
         progress.record(DayRecord(day: progress.currentDay.adding(days: -2), plannedIDs: ["water"]))
         #expect(progress.firstRecordedDay == first)
         #expect(progress.daysSinceFirstRecord == 9)
+    }
+}
+
+/// Counts how often `RemoteForgeAI` reaches for its credentials.
+actor CredentialCounter {
+    private(set) var tokens = 0
+    private(set) var entitlements = 0
+
+    func token() -> String? {
+        tokens += 1
+        return "a-valid-looking-token"
+    }
+
+    func entitlement() -> String? {
+        entitlements += 1
+        return "a-valid-looking-transaction"
     }
 }

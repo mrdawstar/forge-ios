@@ -14,12 +14,35 @@ import Foundation
 ///
 /// So every request in this file goes to **Forge's own backend** — a Supabase
 /// edge function at `functions/v1/forge-ai`, see `supabase/functions/forge-ai` —
-/// which holds the key as a server secret, checks that the caller is signed in
-/// and entitled, and talks to Anthropic on the app's behalf. The app never sees
-/// a model endpoint, never holds a model key, and cannot be made to leak one.
-/// That the function also becomes the one place to add rate limiting, a spend
-/// cap and an audit log is the second reason, and it would be sufficient on its
-/// own.
+/// which holds `OPENAI_API_KEY` as a server secret and talks to OpenAI on the
+/// app's behalf. The app never sees a model endpoint, never holds a model key,
+/// and cannot be made to leak one. That the function also becomes the one place
+/// to check entitlement and cap spend is the second reason, and it would be
+/// sufficient on its own.
+///
+/// # Who the request is from, with no account
+///
+/// Forge has no visible account (`FORGE_CONTEXT.md` §2n) and this does not add
+/// one. Every request carries two things, and neither is anything a person
+/// types, sees or manages:
+///
+/// - **A Supabase JWT for an anonymous user** (`AnonymousIdentity`) — a random
+///   id with no name, email or password, created silently the first time a
+///   Premium feature reaches the model. The function requires it.
+/// - **The signed StoreKit 2 transaction** for the current Premium purchase, in
+///   `X-Forge-Transaction` (`ForgeStore.entitlementProof`). The function
+///   verifies it offline against Apple's root certificate and keys its spend
+///   cap on the purchase, so one purchase cannot power unlimited identities.
+///
+/// The proof of purchase is asked for **first**. Somebody without Premium never
+/// has an anonymous identity created for them at all — they get the arithmetic,
+/// exactly as before, and nothing touches the network (`FORGE_CONTEXT.md` §2q).
+///
+/// # The two jobs
+///
+/// `reading` and `plan`, and nothing else. It is not a chat: there is no
+/// conversation and no free-form answer, only the shapes below, each checked on
+/// this phone before it is shown.
 ///
 /// # Why `LocalForgeAI` is still here
 ///
@@ -29,7 +52,7 @@ import Foundation
 /// is genuinely useful and always available. **The fallback is never disguised.**
 /// `SchedulePlan.isModelWritten` and `PracticeReading.isModelWritten` come back
 /// false, and every screen that shows either of them says which it got.
-struct ClaudeForgeAI: ForgeAI {
+struct RemoteForgeAI: ForgeAI {
 
     /// **Whether this release may talk to a model at all. It may not.**
     ///
@@ -49,7 +72,7 @@ struct ClaudeForgeAI: ForgeAI {
     /// Because it protects **every** construction of this type, including one
     /// written next year by somebody who has not read this file. `ContentView`
     /// is where the app is wired together and it would have been the natural
-    /// place; it is also a place where a second `ClaudeForgeAI` could appear
+    /// place; it is also a place where a second `RemoteForgeAI` could appear
     /// without anybody noticing the flag was not copied.
     ///
     /// # What it does, mechanically
@@ -73,8 +96,9 @@ struct ClaudeForgeAI: ForgeAI {
     /// `AIWirePlan.resolved(against:)` and
     /// `ReviewObservation.validate(_:against:)`, none of which was deleted.
     ///
-    /// Before flipping it: the edge function has to be deployed, migration
-    /// `0007_ai_usage.sql` applied, and `APP_STORE.md` §1 changed back — the
+    /// Before flipping it: follow `supabase/README.md` (anonymous sign-ins on,
+    /// migrations through `0008`, `OPENAI_API_KEY` set, `forge-ai` deployed),
+    /// put the project in `Info.plist`, and change `APP_STORE.md` §1 — the
     /// privacy nutrition labels currently say Forge collects nothing for this,
     /// and that answer is only true while this is `false`.
     static let isModelEnabled = false
@@ -84,14 +108,21 @@ struct ClaudeForgeAI: ForgeAI {
     /// passthrough to the arithmetic.
     private let endpoint: AIEndpoint?
 
-    /// A token for the signed-in account, or nil for somebody who is not.
+    /// A JWT for the invisible anonymous identity, or nil when one cannot be
+    /// had (no project, offline, anonymous sign-ins off on the server).
     ///
-    /// A closure rather than a reference to `AuthService`, for the reason the
-    /// whole `ForgeAI` protocol exists: this file must not know what an auth
-    /// service is, and the day somebody swaps the backend it must not need to.
+    /// A closure rather than a reference to `AnonymousIdentity`, for the reason
+    /// the whole `ForgeAI` protocol exists: this file must not know what an
+    /// auth service is, and the day somebody swaps the backend it must not
+    /// need to.
     ///
-    /// It is never called while `isModelEnabled` is false. See the note above.
+    /// It is never called while `isModelEnabled` is false, and never called
+    /// without a proof of purchase in hand. See the notes above.
     private let token: @Sendable () async -> String?
+
+    /// `Transaction.jwsRepresentation` for the current Premium entitlement, or
+    /// nil for somebody without one. See `ForgeStore.entitlementProof`.
+    private let entitlement: @Sendable () async -> String?
 
     /// What answers when the model cannot. Not a stub — see `LocalForgeAI`.
     ///
@@ -105,50 +136,54 @@ struct ClaudeForgeAI: ForgeAI {
 
     var isConnected: Bool { endpoint != nil }
 
-    init(config: SupabaseConfig?, token: @escaping @Sendable () async -> String?) {
-        self.endpoint = Self.isModelEnabled ? config.map(AIEndpoint.init) : nil
+    init(
+        config: SupabaseConfig?,
+        token: @escaping @Sendable () async -> String?,
+        entitlement: @escaping @Sendable () async -> String?
+    ) {
+        self.endpoint = Self.isModelEnabled ? config.map { AIEndpoint(config: $0) } : nil
         self.token = token
+        self.entitlement = entitlement
+    }
+
+    /// Both credentials, in the order that matters: the purchase, then the
+    /// identity. Nil means "answer locally", and the caller does not care why.
+    ///
+    /// `guard` stops at the first failing condition, so with no endpoint
+    /// neither closure runs, and with no purchase no identity is created.
+    private func connect() async -> Connection? {
+        guard let endpoint,
+              let transaction = await entitlement(),
+              let token = await token()
+        else { return nil }
+        return Connection(
+            endpoint: endpoint,
+            credentials: AICredentials(token: token, transaction: transaction)
+        )
+    }
+
+    private struct Connection {
+        let endpoint: AIEndpoint
+        let credentials: AICredentials
     }
 
     // MARK: - Challenges
 
-    /// A challenge written for this person, or the catalogue's nearest one.
-    ///
-    /// The fallback here is unusually good — sixty hand-written challenges
-    /// filtered by aim and weight — so the bar for using the model's answer is
-    /// simply that it came back and was not empty. There is no claim about the
-    /// user in a challenge, so there is nothing to check it against.
+    /// The catalogue's nearest challenge — sixty hand-written ones, filtered by
+    /// aim and weight. The model does not write challenges; this stays on the
+    /// protocol as the seam it has always been.
     func challenge(
         brief: AIBrief,
         difficulty: ChallengeDifficulty,
         focus: ChallengeFocus,
         wish: String
     ) async throws -> DailyChallenge {
-        guard let endpoint, let token = await token() else {
-            return try await fallback.challenge(
-                brief: brief, difficulty: difficulty, focus: focus, wish: wish
-            )
-        }
-        do {
-            let written = try await endpoint.challenge(
-                AIRequest(
-                    task: .challenge,
-                    brief: AIWireBrief(brief),
-                    request: wish,
-                    difficulty: difficulty.rawValue,
-                    focus: focus.rawValue
-                ),
-                token: token
-            )
-            guard let made = written.challenge(focus: focus, difficulty: difficulty) else {
-                throw ForgeAIError.failed
-            }
-            return made
-        } catch {
-            return try await fallback.challenge(
-                brief: brief, difficulty: difficulty, focus: focus, wish: wish
-            )
-        }
+        // Always the catalogue. The model's challenge job was retired with the
+        // generator (§2j.3) and the backend no longer serves it: the two jobs a
+        // model does for Forge are the reading and the plan.
+        try await fallback.challenge(
+            brief: brief, difficulty: difficulty, focus: focus, wish: wish
+        )
     }
 
     // MARK: - Planning
@@ -163,13 +198,13 @@ struct ClaudeForgeAI: ForgeAI {
     /// would be applied against an id nothing owns.
     func plan(brief: AIBrief, request: String) async throws -> SchedulePlan {
         guard !brief.isEmpty else { throw ForgeAIError.nothingToPlan }
-        guard let endpoint, let token = await token() else {
+        guard let call = await connect() else {
             return try await fallback.plan(brief: brief, request: request)
         }
         do {
-            let written = try await endpoint.plan(
+            let written = try await call.endpoint.plan(
                 AIRequest(task: .plan, brief: AIWireBrief(brief), request: request),
-                token: token
+                credentials: call.credentials
             )
             let changes = written.changes.compactMap { $0.resolved(against: brief) }
             guard !changes.isEmpty, !written.summary.isEmpty else {
@@ -196,13 +231,13 @@ struct ClaudeForgeAI: ForgeAI {
     /// which they cannot check and have every reason to believe.
     func reading(brief: AIBrief) async throws -> PracticeReading {
         guard let facts = brief.week else { throw ForgeAIError.nothingToRead }
-        guard let endpoint, let token = await token() else {
+        guard let call = await connect() else {
             return try await fallback.reading(brief: brief)
         }
         do {
-            let written = try await endpoint.reading(
+            let written = try await call.endpoint.reading(
                 AIRequest(task: .reading, brief: AIWireBrief(brief)),
-                token: token
+                credentials: call.credentials
             )
             guard let checked = ReviewObservation.validate(written.observation, against: facts)
             else { throw ForgeAIError.unverifiable }
@@ -218,7 +253,7 @@ struct ClaudeForgeAI: ForgeAI {
 
 /// Everything that actually crosses the network, and nothing else.
 ///
-/// Split from `ClaudeForgeAI` so the thing above can be read as product logic —
+/// Split from `RemoteForgeAI` so the thing above can be read as product logic —
 /// what is asked, what is checked, what is fallen back to — without HTTP in the
 /// middle of it, and so the shapes below sit next to each other where the edge
 /// function's own types can be compared against them by eye.
@@ -228,49 +263,65 @@ struct AIEndpoint: Sendable {
     let client: HTTPClient
 
     init(config: SupabaseConfig) {
+        self.init(config: config, client: HTTPClient(config: config))
+    }
+
+    /// A client handed in whole — the tests' way of seeing the request
+    /// without a network.
+    init(config: SupabaseConfig, client: HTTPClient) {
         self.config = config
-        self.client = HTTPClient(config: config)
+        self.client = client
     }
 
     /// `https://<project>.supabase.co/functions/v1/forge-ai`.
     var url: URL { config.url.appendingPathComponent("functions/v1/forge-ai") }
 
-    func challenge(_ request: AIRequest, token: String) async throws -> AIWireChallenge {
-        try await send(AIWireChallenge.self, request, token: token)
+    /// The header the function reads the StoreKit transaction from.
+    static let transactionHeader = "X-Forge-Transaction"
+
+    func plan(_ request: AIRequest, credentials: AICredentials) async throws -> AIWirePlan {
+        try await send(AIWirePlan.self, request, credentials: credentials)
     }
 
-    func plan(_ request: AIRequest, token: String) async throws -> AIWirePlan {
-        try await send(AIWirePlan.self, request, token: token)
-    }
-
-    func reading(_ request: AIRequest, token: String) async throws -> AIWireReading {
-        try await send(AIWireReading.self, request, token: token)
+    func reading(_ request: AIRequest, credentials: AICredentials) async throws -> AIWireReading {
+        try await send(AIWireReading.self, request, credentials: credentials)
     }
 
     private func send<T: Decodable>(
-        _ type: T.Type, _ request: AIRequest, token: String
+        _ type: T.Type, _ request: AIRequest, credentials: AICredentials
     ) async throws -> T {
         guard let body = try? JSONEncoder().encode(request) else {
             throw ForgeAIError.failed
         }
         return try await client.send(
-            type, .post, url: url, body: body, accessToken: token
+            type, .post, url: url, body: body,
+            headers: [Self.transactionHeader: credentials.transaction],
+            accessToken: credentials.token
         )
     }
 }
 
-/// What Forge posts. One shape for all four tasks, because four request types
-/// for one endpoint is four places to add a field and three places to forget.
+/// What a model request is sent under: the anonymous identity's JWT and the
+/// signed StoreKit transaction. Neither names a person.
+struct AICredentials: Sendable {
+    let token: String
+    let transaction: String
+}
+
+/// What Forge posts. One shape for both tasks, because a request type per task
+/// for one endpoint is a place per task to add a field and forget one.
+///
+/// Carries nothing that says who is asking or what they bought — those travel
+/// as the JWT and `X-Forge-Transaction`, and the function reads them from
+/// there alone.
 struct AIRequest: Encodable, Sendable {
     enum Task: String, Encodable, Sendable {
-        case challenge, plan, reading
+        case plan, reading
     }
 
     let task: Task
     let brief: AIWireBrief
     var request: String = ""
-    var difficulty: String?
-    var focus: String?
 }
 
 /// `AIBrief`, flattened for JSON.
@@ -382,34 +433,6 @@ struct AIWireBrief: Encodable, Sendable {
 /// JSON schema, so a field arriving absent means something has gone wrong on the
 /// far side — and the right response to that is to use what did arrive, or fall
 /// back, not to crash a review screen.
-struct AIWireChallenge: Decodable, Sendable {
-    var title: String = ""
-    var detail: String = ""
-
-    init(from decoder: Decoder) throws {
-        let c = try decoder.container(keyedBy: CodingKeys.self)
-        title = try c.decodeIfPresent(String.self, forKey: .title) ?? ""
-        detail = try c.decodeIfPresent(String.self, forKey: .detail) ?? ""
-    }
-
-    private enum CodingKeys: String, CodingKey { case title, detail }
-
-    /// Nil when there is not enough here to show somebody.
-    func challenge(focus: ChallengeFocus, difficulty: ChallengeDifficulty) -> DailyChallenge? {
-        let title = String(self.title.trimmingCharacters(in: .whitespacesAndNewlines).prefix(70))
-        let detail = String(self.detail.trimmingCharacters(in: .whitespacesAndNewlines).prefix(240))
-        guard !title.isEmpty, !detail.isEmpty else { return nil }
-        return DailyChallenge(
-            id: "model.\(UUID().uuidString.prefix(8))",
-            title: title,
-            detail: detail,
-            focus: focus,
-            difficulty: difficulty,
-            isPersonal: true
-        )
-    }
-}
-
 struct AIWireReading: Decodable, Sendable {
     var observation: String = ""
 

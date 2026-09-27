@@ -96,7 +96,7 @@ event's `plan` is "annual" or "lifetime", never a price, receipt or Apple ID,
 and Purchases stays **not collected**.
 
 The other candidate was the AI brief, and **1.0 does not send it.**
-`ClaudeForgeAI.isModelEnabled` is `false`, which forces the endpoint to nil, so
+`RemoteForgeAI.isModelEnabled` is `false`, which forces the endpoint to nil, so
 there is no object in the process capable of forming that request — not for a
 plan, not for a challenge, and not for the weekly reading. There is now a second
 lock on the same door: the endpoint is built from `SupabaseConfig`, and there is

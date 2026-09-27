@@ -104,7 +104,7 @@ struct LocalForgeAI: ForgeAI {
     /// It is still word overlap and not comprehension, and it is still allowed
     /// to be: this is the fallback that runs when no model is reachable, and a
     /// shelf of sixty is small enough that crude matching lands more often
-    /// than not. `ClaudeForgeAI` is what runs when it matters.
+    /// than not — and challenges are never sent to a model (§2q).
     static func sharesStem(_ a: String, _ b: String) -> Bool {
         let shortest = min(a.count, b.count)
         guard shortest > 0 else { return false }

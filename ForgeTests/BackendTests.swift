@@ -353,3 +353,249 @@ struct BackendTests {
         #expect(AuthProvider(rawValue: "azure") == .unknown)
     }
 }
+
+// MARK: - AI without an account (§2q)
+
+/// The invisible anonymous identity, the proof of purchase, and the header the
+/// function reads it from — against a scripted transport, so nothing here
+/// touches a network.
+@Suite("AI without an account")
+struct AnonymousAITests {
+
+    private let config = SupabaseConfig(
+        url: URL(string: "https://example.supabase.co")!,
+        anonKey: "sb_publishable_test"
+    )
+
+    private func session(_ access: String, refresh: String) -> String {
+        """
+        {"access_token":"\(access)","refresh_token":"\(refresh)","expires_in":3600,\
+        "user":{"id":"8f7c0e2a-0000-4000-8000-00000000000a","app_metadata":{"provider":"anonymous"}}}
+        """
+    }
+
+    private func identity(
+        _ transport: ScriptedTransport,
+        store: InMemorySessionStore = InMemorySessionStore(),
+        clock: TestClock = TestClock()
+    ) -> AnonymousIdentity {
+        AnonymousIdentity(
+            api: SupabaseAuthAPI(client: HTTPClient(config: config, transport: transport)),
+            store: store,
+            now: { clock.now }
+        )
+    }
+
+    @Test("With no project configured there is no identity and no request")
+    func unconfiguredIsInert() async {
+        let store = InMemorySessionStore()
+        let identity = AnonymousIdentity(api: nil, store: store)
+        #expect(await identity.accessToken() == nil)
+        #expect(store.load() == nil)
+    }
+
+    @Test("The first token signs up anonymously — no email, no password — and is kept")
+    func firstTokenSignsUpAnonymously() async throws {
+        let transport = ScriptedTransport([.json(200, session("a1", refresh: "r1"))])
+        let store = InMemorySessionStore()
+        let identity = identity(transport, store: store)
+
+        #expect(await identity.accessToken() == "a1")
+
+        let sent = try #require(transport.requests.first)
+        #expect(sent.httpMethod == "POST")
+        #expect(sent.url?.path.hasSuffix("/auth/v1/signup") == true)
+        #expect(sent.httpBody.flatMap { String(data: $0, encoding: .utf8) } == "{}")
+
+        let kept = try #require(store.load())
+        #expect(kept.provider == .anonymous)
+        #expect(kept.email == nil)
+        #expect(kept.accessToken == "a1")
+
+        // Cached: no second request while it is fresh.
+        #expect(await identity.accessToken() == "a1")
+        #expect(transport.requests.count == 1)
+    }
+
+    @Test("A stale token is refreshed, not replaced")
+    func staleTokenRefreshes() async throws {
+        let transport = ScriptedTransport([
+            .json(200, session("a1", refresh: "r1")),
+            .json(200, session("a2", refresh: "r2")),
+        ])
+        let clock = TestClock()
+        let identity = identity(transport, clock: clock)
+
+        #expect(await identity.accessToken() == "a1")
+        clock.advance(by: 3600)
+        #expect(await identity.accessToken() == "a2")
+
+        let refresh = try #require(transport.requests.last?.url)
+        #expect(refresh.path.hasSuffix("/auth/v1/token"))
+        #expect(refresh.query?.contains("grant_type=refresh_token") == true)
+    }
+
+    @Test("A refused refresh mints a new identity; an offline one keeps the old")
+    func refreshFailures() async throws {
+        let clock = TestClock()
+
+        let refused = ScriptedTransport([
+            .json(200, session("a1", refresh: "r1")),
+            .json(400, #"{"error_description":"Invalid Refresh Token"}"#),
+            .json(200, session("b1", refresh: "s1")),
+        ])
+        let fresh = identity(refused, clock: clock)
+        #expect(await fresh.accessToken() == "a1")
+        clock.advance(by: 3600)
+        #expect(await fresh.accessToken() == "b1")
+        #expect(refused.requests.last?.url?.path.hasSuffix("/auth/v1/signup") == true)
+
+        let store = InMemorySessionStore()
+        let offline = ScriptedTransport([.json(200, session("a1", refresh: "r1")), .offline])
+        let kept = identity(offline, store: store, clock: clock)
+        #expect(await kept.accessToken() == "a1")
+        clock.advance(by: 3600)
+        #expect(await kept.accessToken() == nil)
+        #expect(store.load()?.refreshToken == "r1")
+    }
+
+    @Test("Anonymous sign-ins switched off on the server is simply no token")
+    func signUpRefused() async {
+        let transport = ScriptedTransport([.json(422, #"{"msg":"Anonymous sign-ins are disabled"}"#)])
+        #expect(await identity(transport).accessToken() == nil)
+    }
+
+    @Test("Two requests at once mint one identity")
+    func concurrentCallersShareOneSignUp() async {
+        let transport = ScriptedTransport([.json(200, session("a1", refresh: "r1"))], delay: .milliseconds(50))
+        let identity = identity(transport)
+        async let first = identity.accessToken()
+        async let second = identity.accessToken()
+        let tokens = await [first, second]
+        #expect(tokens == ["a1", "a1"])
+        #expect(transport.requests.count == 1)
+    }
+
+    @Test("The anonymous provider is its own case")
+    func anonymousProvider() {
+        #expect(AuthProvider(rawValue: "anonymous") == .anonymous)
+    }
+
+    // MARK: The proof of purchase
+
+    private func candidate(
+        _ product: PremiumProduct?, expires: TimeInterval? = nil, revoked: Bool = false, jws: String
+    ) -> EntitlementCandidate {
+        EntitlementCandidate(
+            productID: product?.rawValue ?? "com.dawid.forge.tip",
+            expirationDate: expires.map { Date(timeIntervalSince1970: 1_000_000 + $0) },
+            revocationDate: revoked ? Date(timeIntervalSince1970: 1) : nil,
+            jws: jws
+        )
+    }
+
+    private let now = Date(timeIntervalSince1970: 1_000_000)
+
+    @Test("No Premium, no proof")
+    func noPremiumNoProof() {
+        #expect(ForgeStore.bestProof(among: [], now: now) == nil)
+        #expect(ForgeStore.bestProof(among: [candidate(nil, jws: "tip")], now: now) == nil)
+    }
+
+    @Test("Lifetime is preferred; revoked and expired are never sent")
+    func proofChoice() {
+        let annual = candidate(.annual, expires: 86_400, jws: "annual")
+        let lifetime = candidate(.lifetime, jws: "lifetime")
+        #expect(ForgeStore.bestProof(among: [annual, lifetime], now: now) == "lifetime")
+        #expect(ForgeStore.bestProof(among: [annual], now: now) == "annual")
+        #expect(ForgeStore.bestProof(among: [candidate(.annual, expires: -1, jws: "old")], now: now) == nil)
+        #expect(ForgeStore.bestProof(among: [candidate(.lifetime, revoked: true, jws: "refunded")], now: now) == nil)
+        #expect(ForgeStore.bestProof(
+            among: [candidate(.annual, expires: 10, jws: "short"), candidate(.annual, expires: 99, jws: "long")],
+            now: now
+        ) == "long")
+    }
+
+    // MARK: The request
+
+    /// What goes up: the anonymous JWT as the bearer, the transaction in its
+    /// own header, and a body that says nothing about who is asking.
+    @Test("A model request carries the JWT and X-Forge-Transaction, and the body names nobody")
+    func requestShape() async throws {
+        let transport = ScriptedTransport([.json(200, #"{"observation":"Four of five Mondays."}"#)])
+        let endpoint = AIEndpoint(config: config, client: HTTPClient(config: config, transport: transport))
+        var brief = AIBrief()
+        brief.week = ReviewFacts(kept: 4, asked: 5)
+
+        let reading = try await endpoint.reading(
+            AIRequest(task: .reading, brief: AIWireBrief(brief)),
+            credentials: AICredentials(token: "anon-jwt", transaction: "signed.jws.value")
+        )
+        #expect(reading.observation == "Four of five Mondays.")
+
+        let sent = try #require(transport.requests.first)
+        #expect(sent.url?.path.hasSuffix("/functions/v1/forge-ai") == true)
+        #expect(sent.value(forHTTPHeaderField: "Authorization") == "Bearer anon-jwt")
+        #expect(sent.value(forHTTPHeaderField: "X-Forge-Transaction") == "signed.jws.value")
+        let body = try #require(sent.httpBody.flatMap { String(data: $0, encoding: .utf8) })
+        #expect(body.contains("\"task\":\"reading\""))
+        #expect(!body.contains("originalTransactionId"))
+        #expect(!body.contains("signed.jws.value"))
+        #expect(!body.contains("challenge"))
+    }
+}
+
+/// Answers in order, and writes down what it was asked.
+final class ScriptedTransport: BackendTransport, @unchecked Sendable {
+    enum Reply {
+        case json(Int, String)
+        case offline
+    }
+
+    private let lock = NSLock()
+    private var replies: [Reply]
+    private var sent: [URLRequest] = []
+    private let delay: Duration?
+
+    init(_ replies: [Reply], delay: Duration? = nil) {
+        self.replies = replies
+        self.delay = delay
+    }
+
+    var requests: [URLRequest] { lock.withLock { sent } }
+
+    func send(_ request: URLRequest) async throws -> (Data, HTTPURLResponse) {
+        let reply: Reply = lock.withLock {
+            sent.append(request)
+            return replies.isEmpty ? .offline : replies.removeFirst()
+        }
+        if let delay { try await Task.sleep(for: delay) }
+        switch reply {
+        case .offline:
+            throw BackendError.offline
+        case .json(let status, let body):
+            let response = HTTPURLResponse(
+                url: request.url!, statusCode: status, httpVersion: "HTTP/1.1",
+                headerFields: ["Content-Type": "application/json"]
+            )!
+            return (Data(body.utf8), response)
+        }
+    }
+}
+
+final class InMemorySessionStore: AnonymousSessionStore, @unchecked Sendable {
+    private let lock = NSLock()
+    private var session: AuthSession?
+
+    func load() -> AuthSession? { lock.withLock { session } }
+    func save(_ session: AuthSession) { lock.withLock { self.session = session } }
+    func clear() { lock.withLock { session = nil } }
+}
+
+final class TestClock: @unchecked Sendable {
+    private let lock = NSLock()
+    private var current = Date(timeIntervalSince1970: 2_000_000_000)
+
+    var now: Date { lock.withLock { current } }
+    func advance(by seconds: TimeInterval) { lock.withLock { current += seconds } }
+}

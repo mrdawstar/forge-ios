@@ -78,17 +78,17 @@ struct ContentView: View {
     ///
     /// A protocol rather than a concrete type, and the promise that made was
     /// kept: connecting the real model was this one property and nothing else.
-    /// `ClaudeForgeAI` posts to Forge's own backend — never to a model endpoint,
+    /// `RemoteForgeAI` posts to Forge's own backend — never to a model endpoint,
     /// and never with a key in the binary — and falls back to `LocalForgeAI`
-    /// whenever it cannot, which is a phone in a tunnel, an account that is not
-    /// signed in, a build with no project configured, or an answer that did not
+    /// whenever it cannot, which is a phone in a tunnel, somebody without
+    /// Premium, a build with no project configured, or an answer that did not
     /// survive being checked. Nothing in the app is worse for any of those.
     ///
     /// The generated archetype is the one thing reached on the concrete type
     /// rather than through the protocol: writing a world is not something every
     /// implementation can do, and the arithmetic should not pretend otherwise.
-    private let claude: ClaudeForgeAI
-    private var ai: ForgeAI { claude }
+    private let remote: RemoteForgeAI
+    private var ai: ForgeAI { remote }
 
     @Environment(\.scenePhase) private var scenePhase
 
@@ -131,14 +131,25 @@ struct ContentView: View {
                 forge?.challengeContext ?? ChallengeContext()
             }
         )
-        // Nil on both counts, and both are the point. There is no project in
-        // `Info.plist`, so `fromBundle()` answers nil and no endpoint can be
-        // built; and there is no account, so there is no token to lend one.
-        // `ClaudeForgeAI` is then a passthrough to `LocalForgeAI`, which is
-        // what every AI path in 1.0 already was — see
-        // `ClaudeForgeAI.isModelEnabled`, which is false and forces the same
-        // answer a second time.
-        claude = ClaudeForgeAI(config: SupabaseConfig.fromBundle()) { nil }
+        // No visible account, and none is added here (§2n, §2q). A model
+        // request is made under an invisible anonymous identity and carries
+        // the StoreKit proof of purchase — the proof is asked for first, so
+        // nobody without Premium ever has an identity created for them.
+        //
+        // In this build none of it runs. There is no project in `Info.plist`,
+        // so `fromBundle()` answers nil and no endpoint can be built; and
+        // `RemoteForgeAI.isModelEnabled` is false, which forces the same
+        // answer a second time. Neither closure below is ever called, and
+        // `RemoteForgeAI` is a passthrough to `LocalForgeAI`.
+        let config = SupabaseConfig.fromBundle()
+        let identity = AnonymousIdentity(
+            api: config.map { SupabaseAuthAPI(client: HTTPClient(config: $0)) }
+        )
+        remote = RemoteForgeAI(
+            config: config,
+            token: { await identity.accessToken() },
+            entitlement: { await ForgeStore.entitlementProof() }
+        )
     }
 
     var body: some View {
@@ -638,13 +649,13 @@ struct ContentView: View {
             // because a reading carries `ReviewFacts` on top of the brief.
             //
             // With the model off, handing the closure over anyway would still
-            // "work": `ClaudeForgeAI.reading` would fall to the arithmetic, come
+            // "work": `RemoteForgeAI.reading` would fall to the arithmetic, come
             // back with `isModelWritten == false`, and the view would drop it on
             // the next line. That is a call that exists only to be thrown away,
             // and the honest wiring is not to make it. See
-            // `ClaudeForgeAI.isModelEnabled`, which is the one line to change.
-            betterReading: claude.isConnected
-                ? { [claude] in try? await claude.reading(brief: readingBrief(facts)) }
+            // `RemoteForgeAI.isModelEnabled`, which is the one line to change.
+            betterReading: remote.isConnected
+                ? { [remote] in try? await remote.reading(brief: readingBrief(facts)) }
                 : nil
         )
     }
@@ -849,7 +860,7 @@ extension ContentView {
                     identities: identities.active
                 )
             ),
-            isAIConnected: claude.isConnected,
+            isAIConnected: remote.isConnected,
             notificationState: notificationState
         )
     }

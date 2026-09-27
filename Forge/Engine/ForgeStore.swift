@@ -232,6 +232,51 @@ final class ForgeStore {
         }
     }
 
+    // MARK: Proof of purchase, for the model
+
+    /// `jwsRepresentation` of the current Premium entitlement, for
+    /// `X-Forge-Transaction` — or nil for somebody without one.
+    ///
+    /// The JWS exactly as StoreKit holds it: Apple signed it, and `forge-ai`
+    /// verifies that signature offline against Apple Root CA G3 rather than
+    /// believing this app. Only transactions StoreKit itself verified on this
+    /// device are considered, so an unverified one is never even sent.
+    ///
+    /// `nonisolated` because it reads nothing on this object; it is called from
+    /// `RemoteForgeAI`'s closure, off the main actor.
+    nonisolated static func entitlementProof(now: Date = .now) async -> String? {
+        var candidates: [EntitlementCandidate] = []
+        for await result in Transaction.currentEntitlements {
+            guard case .verified(let transaction) = result else { continue }
+            candidates.append(
+                EntitlementCandidate(
+                    productID: transaction.productID,
+                    expirationDate: transaction.expirationDate,
+                    revocationDate: transaction.revocationDate,
+                    jws: result.jwsRepresentation
+                )
+            )
+        }
+        return bestProof(among: candidates, now: now)
+    }
+
+    /// Which one to send. Lifetime first — it cannot lapse, so it is the one
+    /// least likely to be refused. Otherwise the unrevoked subscription that
+    /// runs longest. Never a revoked, expired or non-Premium transaction: the
+    /// server would refuse it (402), and sending it would only cost a request.
+    nonisolated static func bestProof(among candidates: [EntitlementCandidate], now: Date) -> String? {
+        let premium = candidates.filter {
+            PremiumProduct(id: $0.productID) != nil && $0.revocationDate == nil
+        }
+        if let lifetime = premium.first(where: { PremiumProduct(id: $0.productID) == .lifetime }) {
+            return lifetime.jws
+        }
+        return premium
+            .filter { ($0.expirationDate ?? .distantPast) > now }
+            .max { ($0.expirationDate ?? .distantPast) < ($1.expirationDate ?? .distantPast) }?
+            .jws
+    }
+
     // MARK: Debug
 
     #if DEBUG
@@ -240,4 +285,12 @@ final class ForgeStore {
     /// StoreKit. Never compiled into a release build.
     var debugPremium: Bool?
     #endif
+}
+
+/// One entitlement StoreKit vouched for, reduced to what choosing needs.
+struct EntitlementCandidate: Equatable, Sendable {
+    let productID: String
+    let expirationDate: Date?
+    let revocationDate: Date?
+    let jws: String
 }

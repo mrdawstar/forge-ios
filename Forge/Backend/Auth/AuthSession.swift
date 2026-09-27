@@ -70,6 +70,10 @@ struct AuthSession: Codable, Equatable, Sendable {
 enum AuthProvider: String, Codable, Equatable, Sendable {
     case apple
     case google
+    /// An invisible anonymous identity — no provider, nobody signed in. Only
+    /// ever held by `AnonymousIdentity`, never by `AuthService`, and never
+    /// shown anywhere.
+    case anonymous
     /// A session restored from a build that predates this enum, or a provider
     /// added on the server before the app knew about it. Signing in still
     /// works; only the label in Settings is vaguer.
@@ -79,6 +83,7 @@ enum AuthProvider: String, Codable, Equatable, Sendable {
         switch rawValue.lowercased() {
         case "apple": self = .apple
         case "google": self = .google
+        case "anonymous": self = .anonymous
         default: self = .unknown
         }
     }
@@ -87,6 +92,7 @@ enum AuthProvider: String, Codable, Equatable, Sendable {
         switch self {
         case .apple: "Apple"
         case .google: "Google"
+        case .anonymous: "no account"
         case .unknown: "your account"
         }
     }
