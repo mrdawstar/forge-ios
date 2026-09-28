@@ -24,6 +24,9 @@ struct SettingsTabView: View {
     var aiBrief: AIBrief
     var aiReadingBrief: AIBrief
     var isAIConnected: Bool
+    /// Whether Forge's AI has been allowed — shown, and revocable, under
+    /// Planning. See `AIConsentStore`.
+    var aiConsent: AIConsentStore
     /// The scheduler's own reading of the day, handed in for the same reason
     /// `aiBrief` is: the primer draws the sentences Forge would actually send,
     /// and it can only do that from the value the scheduler is given.
@@ -379,7 +382,8 @@ struct SettingsTabView: View {
             NavigationLink {
                 AIDisclosureView(
                     brief: aiBrief, readingBrief: aiReadingBrief,
-                    isConnected: isAIConnected
+                    isConnected: isAIConnected,
+                    consent: aiConsent
                 )
             } label: {
                 Label(
@@ -387,13 +391,25 @@ struct SettingsTabView: View {
                     systemImage: "doc.text.magnifyingglass"
                 )
             }
+
+            // The consent, revocable in one tap. Shown whenever there is a
+            // choice to show: always once the model is reachable, and in this
+            // build only if an answer was somehow already recorded.
+            if isAIConnected || aiConsent.hasDecided {
+                LabeledContent("Forge's AI") {
+                    Text(AIDisclosureView.label(for: aiConsent.state))
+                }
+                if aiConsent.isAllowed {
+                    Button("Turn off Forge's AI", role: .destructive) { aiConsent.revoke() }
+                }
+            }
         } header: {
             Text("Planning")
         } footer: {
             Text(
                 isAIConnected
                     ? "Plan opens from the week, under the More button. It works out its moves on this phone; when you type a request in your own words it is sent by Forge's own server, never by this app, and only at the moment you ask."
-                    : "Plan opens from the week, under the More button. It reads your own week, your history and the six parts of your Shape, and works every move out on this phone. Nothing is sent anywhere."
+                    : "Plan opens from the week, under the More button. It reads your own week, your history and the six parts of your Shape, and works every move out on this phone. Forge's AI is not switched on in this version, so nothing is sent."
             )
         }
     }
@@ -502,6 +518,13 @@ struct SettingsTabView: View {
             Button("Reset Paywall Doors") {
                 PremiumInvitation().reset()
             }
+
+            // The consent can be walked, but nothing can be sent: the model is
+            // switched off in this build (§2r) whatever this says.
+            LabeledContent("AI consent") {
+                Text(AIDisclosureView.label(for: aiConsent.state))
+            }
+            Button("Reset AI Consent") { aiConsent.reset() }
 
             LabeledContent("Doors shown") {
                 Text(PremiumInvitation().shown.map(\.rawValue).joined(separator: ", ").isEmpty

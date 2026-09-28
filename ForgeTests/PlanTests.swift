@@ -523,7 +523,9 @@ struct DayCountTests {
 /// The promise 1.0 makes about the network, held by a test rather than by
 /// somebody remembering.
 ///
-/// **Forge 1.0 sends nothing anywhere for any AI feature.** Not for a plan, not
+/// **Until the activation step (§2r), Forge sends nothing anywhere for any AI
+/// feature** — the consent, the entitlement proof and the Weekly Reading flow
+/// are prepared (`AIPrepTests`), the switch is off. Not for a plan, not
 /// for a challenge, not for the weekly reading — and not on a phone that is
 /// signed in to a fully configured project, which is the case that would
 /// otherwise slip through, because everything about it looks like the case that
@@ -779,6 +781,7 @@ struct TelemetryTests {
         .trialStarted(.annual),
         .purchaseCompleted(.lifetime),
         .restoreTapped,
+        .readingFellBack,
     ]
 
     @Test("The event names are exactly the agreed list")
@@ -791,6 +794,7 @@ struct TelemetryTests {
             "weekly_review_completed", "reentry_shown", "reentry_recovered",
             "chapter_closed", "paywall_view", "paywall_dismissed",
             "trial_started", "purchase_completed", "restore_tapped",
+            "reading_fell_back",
         ])
     }
 

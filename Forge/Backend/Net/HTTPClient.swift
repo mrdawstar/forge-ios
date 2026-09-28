@@ -18,8 +18,29 @@ protocol BackendTransport: Sendable {
 /// it: 1.0 has no account (§2n), so putting sync back means adding its host
 /// here and changing `NoNetworkTests` and `BackendRegressionTests` in the same
 /// commit — deliberately, not by pasting a URL into `Info.plist`.
+///
+/// **Prepared for AI (§2r):** the configured Supabase project's host joins the
+/// list only when `RemoteForgeAI.isModelEnabled` is true *and* a project is in
+/// `Info.plist`. Both are false in this build, so the list is still exactly
+/// TelemetryDeck's host — `NoNetworkTests` and `BackendRegressionTests` hold
+/// that — and the activation PR does not have to touch this file.
 enum ForgeNetwork {
-    static let allowedHosts: Set<String> = [ForgeTelemetry.host]
+    static var allowedHosts: Set<String> {
+        var hosts: Set<String> = [ForgeTelemetry.host]
+        // The bundle is not even read while the switch is off.
+        if RemoteForgeAI.isModelEnabled,
+           let ai = aiHost(enabled: true, config: SupabaseConfig.fromBundle()) {
+            hosts.insert(ai)
+        }
+        return hosts
+    }
+
+    /// The Forge backend's host, when — and only when — the model is switched
+    /// on and a project is configured. Pure, so the tests can hold both halves.
+    static func aiHost(enabled: Bool, config: SupabaseConfig?) -> String? {
+        guard enabled, let host = config?.url.host?.lowercased(), !host.isEmpty else { return nil }
+        return host
+    }
 
     /// HTTPS, and a host on the list exactly. A suffix match would let
     /// `nom.telemetrydeck.com.example.net` through.

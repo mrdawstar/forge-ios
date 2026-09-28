@@ -101,11 +101,16 @@ enum ProFeature: String, CaseIterable, Sendable {
         }
     }
 
-    /// One line each, and every one of them describes something that works in
-    /// this build. Nothing here promises a model — see §5 rule #10.
+    /// One line each.
+    ///
+    /// ⚠️ **Release blocker (§2r):** the Weekly Reading line describes the
+    /// model-written reading, which only exists once remote AI is activated.
+    /// While `RemoteForgeAI.isModelEnabled` is false, Pro adds no Weekly Reading
+    /// beyond the free observation — so a build that sells Pro must not ship
+    /// before the activation PR, or this line must change.
     var detail: String {
         switch self {
-        case .weeklyReading: "Each week, one sentence on what held and what slipped, read from your own record."
+        case .weeklyReading: "Each week, a written reading of what held and what slipped, from Forge's AI — checked against your own record before you see it."
         case .planInWords: "Tell Plan the hours you cannot move and what you want fitted around them."
         case .accents: "Dress the app in any of the eight. Forge blue stays free."
         }
@@ -139,9 +144,51 @@ enum PremiumGate {
     /// Plan's free-text field. Plan's own moves stay free.
     static func canPlanInWords(isPremium: Bool) -> Bool { isPremium }
 
-    /// The Weekly Reading sentence. The week's marks, its count, last week's
-    /// line and both questions stay free.
+    /// The Weekly Reading — the model-written reading under the observation.
+    /// The rules' observation itself, the week's marks, its count, last week's
+    /// line and both questions stay free (§2r).
     static func showsWeeklyReading(isPremium: Bool) -> Bool { isPremium }
+}
+
+// MARK: - The weekly review's two sentences
+
+/// What sits in the weekly review's card, in order.
+///
+/// **The observation comes first and is free** — the rules' sentence, for
+/// everybody, whenever the record supports one. The Weekly Reading is the Pro
+/// half and only ever goes *under* it: locked for somebody without Pro (door
+/// 2, once), a "Read my week" button for Pro when a model is reachable, the
+/// model's validated reading once it has answered — and nothing at all for
+/// Pro while the model is switched off (§2r), because nothing may be invented
+/// to fill the space.
+enum WeeklyReviewReading {
+    enum Part: Equatable, Sendable {
+        case observation
+        case locked
+        case readButton
+        case written
+    }
+
+    static func parts(
+        hasObservation: Bool,
+        isPremium: Bool,
+        isOfferingLocked: Bool,
+        canReachModel: Bool,
+        hasWritten: Bool
+    ) -> [Part] {
+        // A week the record says nothing about has nothing to read further
+        // either: no observation, no Weekly Reading, no upsell.
+        guard hasObservation else { return [] }
+        var parts: [Part] = [.observation]
+        if !PremiumGate.showsWeeklyReading(isPremium: isPremium) {
+            if isOfferingLocked { parts.append(.locked) }
+        } else if hasWritten {
+            parts.append(.written)
+        } else if canReachModel {
+            parts.append(.readButton)
+        }
+        return parts
+    }
 }
 
 // MARK: - When Forge asks

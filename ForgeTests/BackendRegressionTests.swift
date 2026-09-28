@@ -453,6 +453,50 @@ struct BackendRegressionTests {
         #expect(NetworkTripwire.requests(containing: marker).isEmpty)
     }
 
+    /// **No visible way to sign in may come back — including with AI.**
+    ///
+    /// §2r prepares the AI path under an *invisible* anonymous identity, which
+    /// is exactly the change that could tempt somebody to add a sign-in screen
+    /// "while they are in there". This reads the app's own source and its
+    /// entitlements and fails if any user-visible authentication path appears:
+    /// an Apple or Google sign-in button, the old account section, the Sign in
+    /// with Apple entitlement, or a view reaching for the dormant `AuthService`
+    /// or `WebAuthFlow`. The anonymous identity is not a view and is allowed.
+    @Test("No screen can sign anybody in: no button, no account section, no entitlement")
+    func noVisibleAuthentication() throws {
+        let root = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let app = root.appendingPathComponent("Forge")
+
+        let entitlements = try String(
+            contentsOf: app.appendingPathComponent("Forge.entitlements"), encoding: .utf8
+        )
+        #expect(!entitlements.contains("com.apple.developer.applesignin"))
+
+        // Everything a person can see: the views, the root, the app.
+        var visible = [app.appendingPathComponent("ContentView.swift"),
+                       app.appendingPathComponent("ForgeApp.swift")]
+        let views = app.appendingPathComponent("Views")
+        let walker = FileManager.default.enumerator(at: views, includingPropertiesForKeys: nil)
+        while let file = walker?.nextObject() as? URL {
+            if file.pathExtension == "swift" { visible.append(file) }
+        }
+        #expect(visible.count > 10, "the source was not found — the check would pass vacuously")
+
+        let forbidden = [
+            "SignInWithAppleButton", "ASAuthorizationAppleIDButton", "ASAuthorizationController",
+            "AccountSection", "GIDSignIn", "AuthService(", "WebAuthFlow(", "signInWithApple",
+            "Sign in with", "Sign In with", "Create account", "Log in",
+        ]
+        for file in visible {
+            let source = try String(contentsOf: file, encoding: .utf8)
+            for word in forbidden {
+                #expect(!source.contains(word), Comment(rawValue: "\(file.lastPathComponent): \(word)"))
+            }
+        }
+    }
+
     /// The severance itself, checked rather than assumed.
     ///
     /// Even if something did construct an auth service, an unconfigured one can

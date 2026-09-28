@@ -20,6 +20,15 @@ import SwiftUI
 /// The list of what is *absent* is as load-bearing as the list of what is
 /// present, and it is written from the same struct's documentation rather than
 /// from a marketing intention.
+///
+/// # It is also the consent (§2r)
+///
+/// The same screen, with **Allow** and **Not now** under it, is what somebody
+/// reads before the first request Forge's AI would ever make for them —
+/// `decision` is set and the buttons appear. It is never shown at launch: it is
+/// raised by pressing something that would reach the model (see
+/// `View.aiConsent`), and only in a build where the model is switched on. From
+/// Settings it shows the choice already made, and takes it back.
 struct AIDisclosureView: View {
 
     /// The brief as it would be sent this minute, for the ordinary calls.
@@ -29,6 +38,11 @@ struct AIDisclosureView: View {
     let readingBrief: AIBrief
     /// Whether a model is reachable at all from this build.
     let isConnected: Bool
+    /// The consent, to show and to take back. Nil in a preview.
+    var consent: AIConsentStore? = nil
+    /// Set when this screen *is* the consent: `true` for Allow, `false` for
+    /// Not now. Nil when it is opened from Settings to be read.
+    var decision: ((Bool) -> Void)? = nil
 
     var body: some View {
         List {
@@ -40,12 +54,18 @@ struct AIDisclosureView: View {
                     .padding(.vertical, 2)
             }
 
+            howItWorksSection
             practiceSection
             activitiesSection
             identitiesSection
             weekSection
+            typedSection
             absentSection
             whereSection
+            if decision == nil { choiceSection }
+        }
+        .safeAreaInset(edge: .bottom) {
+            if let decision { decisionBar(decision) }
         }
         // The title has to agree with the first sentence under it. "What is
         // sent" over "nothing below is ever sent" is the screen contradicting
@@ -55,9 +75,107 @@ struct AIDisclosureView: View {
     }
 
     private var opening: String {
-        isConnected
+        if decision != nil {
+            return "Before Forge's AI answers for the first time, this is exactly what it would send, where it goes, and what it is used for. Nothing is sent unless you allow it."
+        }
+        return isConnected
             ? "Forge sends the following to its own server, which asks a model on your behalf. Nothing else about you is included, and nothing is kept."
             : "No model is connected in this build, so nothing below is ever sent. It is shown so you can see what would be."
+    }
+
+    // MARK: - What the AI is, before what it is sent
+
+    /// The five things somebody has to know before saying yes, in plain
+    /// sentences: what, to whom, who processes it, that their own words are in
+    /// it, and what it is never used for. Held by `AIConsentTests` so none can
+    /// be dropped quietly.
+    private var howItWorksSection: some View {
+        Section {
+            ForEach(Self.explanations, id: \.self) { line in
+                Text(line)
+                    .font(.subheadline)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        } header: {
+            Text("How Forge's AI works")
+        } footer: {
+            Text(isConnected
+                 ? "Only with Forge Pro, only when you press a button that asks for it, and only after you allow it here."
+                 : "Forge's AI is not switched on in this version of the app. Until it is, everything is worked out on this phone and none of this is sent.")
+        }
+    }
+
+    static let explanations: [String] = [
+        "What is sent: the values listed below — your practice in counts, your week's activities, what you said you are becoming, and, for the Weekly Reading, one week's counts.",
+        "Where it goes: to Forge's own backend (run on Supabase), under an anonymous identifier with no name or email, together with Apple's proof of your Forge Pro purchase.",
+        "Who processes it: the Forge backend asks OpenAI to write the answer. The app never talks to OpenAI directly and holds no OpenAI key.",
+        "Your own words: anything you typed that the feature needs — activity names, what you said you are becoming, a chapter's intention, and a request you type into Plan — may be processed to answer it.",
+        "What it is never used for: advertising or tracking. It is not sold, not linked to you, and OpenAI does not train on it.",
+    ]
+
+    /// Plan's free-text request, which is the one thing typed at the moment of
+    /// asking rather than read from the record.
+    private var typedSection: some View {
+        Section {
+            Text("The request you type into Plan, as you typed it — for example “I work 9 to 17 and want to read every evening”.")
+                .font(.subheadline)
+                .fixedSize(horizontal: false, vertical: true)
+        } header: {
+            Text("When you ask Plan in your own words, also")
+        } footer: {
+            Text("Sent only when you press Work it out. Plan's own suggestions are worked out on this phone and never sent.")
+        }
+    }
+
+    // MARK: - The choice
+
+    /// Allow, or Not now. Both close the sheet; only one ever sends anything.
+    private func decisionBar(_ decision: @escaping (Bool) -> Void) -> some View {
+        VStack(spacing: ForgeTheme.Space.tight) {
+            ForgePrimaryButton(title: "Allow") { decision(true) }
+            Button("Not now") { decision(false) }
+                .font(.body.weight(.medium))
+                .frame(minHeight: 44)
+            Text("Not now keeps everything on this phone. You can change this any time in Settings → Planning.")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .padding(.horizontal, ForgeTheme.Space.gutter)
+        .padding(.top, ForgeTheme.Space.inner)
+        .padding(.bottom, ForgeTheme.Space.tight)
+        .background(.bar)
+    }
+
+    /// From Settings: what was chosen, and the way to change it. Revoking is
+    /// one tap and takes effect before the next request.
+    @ViewBuilder
+    private var choiceSection: some View {
+        if let consent {
+            Section {
+                LabeledContent("Forge's AI") {
+                    Text(Self.label(for: consent.state))
+                }
+                switch consent.state {
+                case .allowed:
+                    Button("Turn off Forge's AI", role: .destructive) { consent.revoke() }
+                case .undecided, .declined:
+                    Button("Allow Forge's AI") { consent.allow() }
+                }
+            } header: {
+                Text("Your choice")
+            } footer: {
+                Text("Turning it off stops every request from the next one on. Forge goes on answering from this phone.")
+            }
+        }
+    }
+
+    static func label(for state: AIConsentStore.State) -> String {
+        switch state {
+        case .undecided: "Not asked yet"
+        case .allowed: "Allowed"
+        case .declined: "Off"
+        }
     }
 
     // MARK: - The four blocks, in the order they widen
@@ -194,13 +312,13 @@ struct AIDisclosureView: View {
             VStack(alignment: .leading, spacing: ForgeTheme.Space.tight) {
                 if isConnected {
                     Text("Forge's own server, and then OpenAI's API.")
-                    Text("The app holds no model key and never talks to a model directly. Requests are made by Forge's backend, which is the only place a key exists, only while you have Premium, and under an anonymous identifier with no name or email. OpenAI does not train on API data by default, and Forge asks it not to keep the response.")
+                    Text("The app holds no model key and never talks to a model directly. Requests are made by Forge's backend, which is the only place a key exists, only while you have Forge Pro, only after you allow it, and under an anonymous identifier with no name or email. It is not used for advertising or tracking. OpenAI does not train on API data by default, and Forge asks it not to keep the response.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 } else {
                     Text("Nowhere. Everything above stays on this phone.")
-                    Text("This build has no model connected and no account to connect one with. Plan works out every move on this device from your own record, and Forge makes no network request of any kind.")
+                    Text("This version has Forge's AI switched off. When it is switched on, requests will go to Forge's own backend and be processed by OpenAI, only with Forge Pro and only after you allow it. Until then Plan and the weekly review work everything out on this device, and nothing above is sent.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -236,5 +354,58 @@ struct AIDisclosureView: View {
         }
         parts.append(RitualRepeat(weekdays: activity.weekdays).label.lowercased())
         return parts.joined(separator: " · ")
+    }
+}
+
+// MARK: - Asking, at the moment it matters
+
+/// The two briefs the disclosure renders, handed in by whoever is about to ask.
+struct AIDisclosureBriefs {
+    let brief: AIBrief
+    let readingBrief: AIBrief
+}
+
+/// Presents the disclosure as a consent — Allow / Not now — and records the
+/// answer in `AIConsentStore` before telling the caller.
+///
+/// Attached to the screens that can reach the model (Plan, the weekly review)
+/// and raised only from a button press there. Nothing presents it at launch.
+private struct AIConsentPresenter: ViewModifier {
+    @Binding var isPresented: Bool
+    let briefs: AIDisclosureBriefs?
+    let onDecision: (Bool) -> Void
+    @Environment(AIConsentStore.self) private var consent: AIConsentStore?
+
+    func body(content: Content) -> some View {
+        content.sheet(isPresented: $isPresented) {
+            NavigationStack {
+                AIDisclosureView(
+                    brief: briefs?.brief ?? AIBrief(),
+                    readingBrief: briefs?.readingBrief ?? AIBrief(),
+                    isConnected: true,
+                    decision: { allowed in
+                        if allowed { consent?.allow() } else { consent?.decline() }
+                        isPresented = false
+                        onDecision(allowed)
+                    }
+                )
+                .navigationTitle("Forge's AI")
+            }
+            // Answered with a button, not a swipe: a swipe is neither yes nor
+            // no, and the caller is waiting to know which.
+            .interactiveDismissDisabled()
+        }
+    }
+}
+
+extension View {
+    /// Ask for AI consent when `isPresented` becomes true. `onDecision` is
+    /// called with the answer after it has been stored.
+    func aiConsent(
+        isPresented: Binding<Bool>,
+        briefs: AIDisclosureBriefs?,
+        onDecision: @escaping (Bool) -> Void
+    ) -> some View {
+        modifier(AIConsentPresenter(isPresented: isPresented, briefs: briefs, onDecision: onDecision))
     }
 }

@@ -1782,6 +1782,91 @@ and a reason. **No AI key is bundled in the app** — the app has never held one
 - `AIDisclosureView`'s connected wording names OpenAI and the anonymous
   identifier. It is only shown once the model is on.
 
+### 2r. AI prepared, activation pending (2026-09-28)
+
+**Status: the whole iOS side of Forge's AI is built, tested against scripts,
+and switched off.** `RemoteForgeAI.isModelEnabled` is still `false`, there is
+still no Supabase project in `Info.plist`, **no real `OPENAI_API_KEY` is
+configured anywhere**, and no test or build makes a real OpenAI or Supabase
+call. A later, small activation PR turns it on (checklist at the end).
+
+#### What is implemented
+
+- **AI UX and consent.** `AIConsentStore` (App Group key `forge.aiConsent.v1`:
+  `undecided` / `allowed` / `declined`). `AIDisclosureView` is also the consent:
+  it explains **what** is sent (the `AIBrief`, rendered, plus Plan's typed
+  request), that it goes to **Forge's backend** (Supabase), that **OpenAI**
+  processes it behind that backend, that the user's **own words** may be
+  processed for the feature, and that it is **not used for advertising or
+  tracking** — then **Allow** / **Not now**. It is raised by `View.aiConsent`
+  only when a button that would reach the model is pressed (Plan's "Work it
+  out", the review's "Read my week"), and only in a build where the model is
+  reachable — **never at launch**, never on opening Settings or a review.
+  **Not now** stores `declined`; the request then runs and `RemoteForgeAI`
+  answers from `LocalForgeAI`, sending nothing. Revocable in **Settings →
+  Planning** (row + "Turn off Forge's AI", and inside the disclosure).
+- **The order of checks** (`RemoteForgeAI.connect`), each stopping the next:
+  the switch → consent → the StoreKit proof → the anonymous identity. So the
+  identity is created **only for a Pro user, after consent, when a request is
+  actually attempted**.
+- **Anonymous Supabase identity stays invisible.** `AnonymousIdentity` (§2q) is
+  unchanged: no UI, Keychain-only, minted lazily inside `connect()`. No
+  `AccountSection`, no Apple/Google sign-in, no sync UI —
+  `BackendRegressionTests.noVisibleAuthentication` now scans the app's views and
+  entitlements and fails if any user-visible authentication path returns.
+- **StoreKit JWS proof prepared.** Every remote request carries
+  `X-Forge-Transaction` = `jwsRepresentation` of the best current Forge Pro
+  entitlement (`ForgeStore.entitlementProof`, unchanged). Backend verification
+  (§2q) is untouched.
+- **Weekly Reading Pro UX prepared.** The rules' observation is **free, first,
+  and shown to everybody** (this reverses PR #4's gating of it). Under it
+  (`WeeklyReviewReading.parts`): non-Pro → the locked row, door 2 (once);
+  Pro with a reachable model → "Read my week" → consent if undecided → the
+  model → a validated reading shown under the observation, labelled
+  model-written; **Pro in this build → nothing added**, nothing fabricated. The
+  reading is no longer requested from `.task` — opening a review cannot create
+  an identity.
+- **`reading_fell_back`** telemetry (no parameters) fires when a model reading
+  fails `ReviewObservation.validate` and the phone's sentence stands. No
+  generated or user-written text reaches telemetry.
+- **OpenAI stays behind the Forge backend.** The app contains no model key and
+  never contacts OpenAI; the only key is the future server secret
+  `OPENAI_API_KEY`. Anthropic / Claude is not referenced (the disclosure test
+  checks the copy).
+- **Local fallback remains active** for every path: switch off, no consent, no
+  purchase, offline, sign-ups off, 402/5xx, failed validation.
+- **Network allowlist prepared.** `ForgeNetwork.allowedHosts` adds the
+  configured project's host only when the switch is on and a project exists;
+  today it is still exactly TelemetryDeck's.
+- **Test seam.** `RemoteForgeAI(testingEndpoint:…)` is `#if DEBUG` only, so a
+  release binary cannot be constructed with a forced endpoint.
+
+Tests: `AIPrepTests` (consent, still-off, the future path against
+`ScriptedTransport` + a real `AnonymousIdentity` on a scripted auth endpoint,
+Weekly Reading layout), `NoNetworkTests`, `BackendRegressionTests`.
+
+#### ⚠️ Release blocker until activation
+
+`ProFeature.weeklyReading` sells a model-written reading, and with the switch
+off Pro adds no Weekly Reading beyond the free observation. **Do not ship a
+build that sells Forge Pro before the activation PR**, or change that line
+(and the App Store description, `APP_STORE.md` §4) first.
+
+#### Activation — the later PR, after the manual steps
+
+Manual (`supabase/README.md` §1): link the project; enable anonymous sign-ins;
+`supabase db push` through `0008`; OpenAI API billing + monthly limit; create
+the key and `supabase secrets set OPENAI_API_KEY` (never in the repo); decide
+`FORGE_ALLOW_SANDBOX`; `supabase functions deploy forge-ai` (never
+`--no-verify-jwt`); run the free smoke test (§1.8).
+
+Code (README §1.9): `ForgeSupabaseURL` + `ForgeSupabaseAnonKey` (publishable key
+only) in `Info.plist`; `isModelEnabled = true`; update the tripwires that exist
+to fail at exactly that moment (`NoNetworkTests`, `AIStillOffTests`,
+`BackendRegressionTests.theAppShipsWithNoAccount` / `onlyTelemetryIsAllowed`);
+switch `APP_STORE.md` §1 to the prepared labels, publish the prepared privacy
+paragraph (§2), use the prepared review note (§6); update `PrivacyInfo.xcprivacy`.
+
 ## 3. The core loop (as built)
 
 ```
@@ -1886,14 +1971,15 @@ questions, every answer ever written, Becoming, Plan's own moves, the widgets.
 
 | Pro adds | Gate | Where |
 |---|---|---|
-| **Weekly Reading** — the one sentence about the week (`ReviewObservation`, the rules, today; a model's when `isModelEnabled` is on) | `PremiumGate.showsWeeklyReading` | `WeeklyReviewView.noticed` |
+| **Weekly Reading** — a model-written reading *under* the free rules' observation, requested with "Read my week" (§2r; nothing is added while the model is off) | `PremiumGate.showsWeeklyReading`, `WeeklyReviewReading.parts` | `WeeklyReviewView.weeklyReading` |
 | **Plan in your own words** — the free-text field | `PremiumGate.canPlanInWords` | `PlanSheet.askInWords` |
 | **Eight accents** — accent 1 (Forge blue) is free, 2–8 are Pro | `PremiumGate.isLocked` | `AppearanceView` |
 
 A lapsed install falls back to Forge blue once StoreKit has *answered* — never
-on the `.free` placeholder `ForgeStore` starts with (`hasReadEntitlement`). The
-Weekly Reading is not described as model-written anywhere; the paywall copy
-(`ProFeature.detail`) says only what this build does (§5 rule #10).
+on the `.free` placeholder `ForgeStore` starts with (`hasReadEntitlement`). Since
+§2r the paywall's Weekly Reading line (`ProFeature.detail`) describes the
+model-written reading, which exists only once remote AI is activated — see the
+release blocker in §2r (§5 rule #10).
 
 **Products** (`PremiumProduct`, `Forge.storekit`, App Store Connect and
 `forge-ai`'s `PREMIUM_PRODUCTS` must all agree — `PremiumTests.storekitFile`
@@ -1975,12 +2061,12 @@ Three call sites were live; all three are local, and one no longer exists:
 |---|---|---|
 | `plan` | Plan's free-text field | `LocalForgeAI` — work hours, frequencies, a whole-week shift, moving one activity |
 | `challenge` | The challenge generator — **deleted, see §2j.3** | always the catalogue; the backend no longer serves it (§2q) |
-| `reading` | **the weekly review, automatically on `.task`** | `ReviewObservation`, the rules |
+| `reading` | the weekly review's **"Read my week"** (Pro), behind consent — §2r | `ReviewObservation`, the rules |
 
-That third one was the only outbound request in the app not behind a button, and
-it carried the widest payload — `ReviewFacts` on top of the brief.
-`ContentView` now passes `betterReading: nil` outright rather than handing over
-a closure whose answer would be discarded on the next line.
+That third one used to be the only outbound request in the app not behind a
+button (it ran on `.task`), and it carried the widest payload — `ReviewFacts` on
+top of the brief. Since §2r it is behind a button and consent, and
+`ContentView` still passes `betterReading: nil` while the model is off.
 
 **Plan's own suggestions never went through any of this.** `DayPlanner` (§2g)
 computes them from the record before `ForgeAI` is consulted at all, so the
@@ -1997,7 +2083,8 @@ protocol ForgeAI: Sendable {
 
 ### Turning it back on
 
-Change one `false` to `true`. Not one line of UI, not one screen, not one
+**Superseded in detail by §2r's activation list.** The short version still
+holds: change one `false` to `true`. Not one line of UI, not one screen, not one
 string: `isConnected` starts returning true and the disclosure screen, the
 Settings footer, the review's closure and Plan's field all swap on their own,
 because every one of them already branches on it. The wire types
