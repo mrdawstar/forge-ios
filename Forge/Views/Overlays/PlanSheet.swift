@@ -54,6 +54,10 @@ struct PlanSheet: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(ForgeStore.self) private var store: ForgeStore?
+    @Environment(AIConsentStore.self) private var consent: AIConsentStore?
+    /// The disclosure, raised by "Work it out" the first time a request would
+    /// actually leave the phone. See `AIConsentStore`.
+    @State private var isAskingConsent = false
     @State private var paywallDoor: ForgeTelemetry.PaywallDoor?
 
     private var canAskInWords: Bool {
@@ -119,6 +123,16 @@ struct PlanSheet: View {
         .presentationCornerRadius(ForgeTheme.Radius.sheet)
         .presentationDragIndicator(.visible)
         .paywall($paywallDoor)
+        // Asked only when the model is reachable and nobody has answered yet.
+        // Either answer then runs the request: Allow reaches the model, Not now
+        // is answered by `LocalForgeAI` exactly as before — `RemoteForgeAI`
+        // reads the stored answer before it reads anything else.
+        .aiConsent(
+            isPresented: $isAskingConsent,
+            briefs: AIDisclosureBriefs(brief: brief, readingBrief: brief)
+        ) { _ in
+            Task { await propose() }
+        }
         .task {
             guard moves.isEmpty else { return }
             let computed = DayPlanner.moves(vm.planFacts(wakeMinutes: brief.wakeMinutes))
@@ -502,7 +516,11 @@ struct PlanSheet: View {
                     Button {
                         ForgeHaptics.shared.tap()
                         isTyping = false
-                        Task { await propose() }
+                        if needsConsent {
+                            isAskingConsent = true
+                        } else {
+                            Task { await propose() }
+                        }
                     } label: {
                         HStack(spacing: 8) {
                             Image(systemName: "sparkle")
@@ -549,6 +567,13 @@ struct PlanSheet: View {
     }
 
     // MARK: - Doing it
+
+    /// Whether pressing "Work it out" must first ask. Only in a build where
+    /// the model is reachable — never in this one, where `ai.isConnected` is
+    /// false and every request is answered on the phone.
+    private var needsConsent: Bool {
+        ai.isConnected && !(consent?.hasDecided ?? false)
+    }
 
     private func propose() async {
         guard stage != .working, canAskInWords else { return }

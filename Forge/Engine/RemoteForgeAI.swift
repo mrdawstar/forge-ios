@@ -34,9 +34,22 @@ import Foundation
 ///   verifies it offline against Apple's root certificate and keys its spend
 ///   cap on the purchase, so one purchase cannot power unlimited identities.
 ///
-/// The proof of purchase is asked for **first**. Somebody without Premium never
-/// has an anonymous identity created for them at all — they get the arithmetic,
-/// exactly as before, and nothing touches the network (`FORGE_CONTEXT.md` §2q).
+/// # The order a request is allowed to happen in
+///
+/// `connect()` checks four things and stops at the first that fails, so the
+/// later ones never run:
+///
+/// 1. **The switch** — `isModelEnabled`. Off in this build (§2r).
+/// 2. **Consent** — `AIConsentStore`. Nobody's words leave the phone until they
+///    have read the disclosure and pressed Allow.
+/// 3. **The purchase** — the StoreKit JWS. Somebody without Forge Pro never
+///    has an anonymous identity created for them.
+/// 4. **The identity** — only now is the anonymous session read, minted or
+///    refreshed.
+///
+/// And all four only when a request is actually being made — a button was
+/// pressed. Nothing here runs at launch, on opening Settings, or on opening a
+/// weekly review (`FORGE_CONTEXT.md` §2q, §2r).
 ///
 /// # The two jobs
 ///
@@ -58,7 +71,8 @@ struct RemoteForgeAI: ForgeAI {
     ///
     /// # Why this is a constant and not a setting
     ///
-    /// 1.0 sends nothing anywhere for any AI feature, and that has to be a fact
+    /// Until activation (§2r) Forge sends nothing anywhere for any AI feature —
+    /// remote AI is prepared, not on — and that has to be a fact
     /// about the binary rather than a state it can be talked into. A toggle —
     /// in Settings, in a config file, behind an entitlement — is a thing that
     /// can be flipped by a bug, a stale default, a merge or a sync, and the
@@ -98,9 +112,13 @@ struct RemoteForgeAI: ForgeAI {
     ///
     /// Before flipping it: follow `supabase/README.md` (anonymous sign-ins on,
     /// migrations through `0008`, `OPENAI_API_KEY` set, `forge-ai` deployed),
-    /// put the project in `Info.plist`, and change `APP_STORE.md` §1 — the
-    /// privacy nutrition labels currently say Forge collects nothing for this,
-    /// and that answer is only true while this is `false`.
+    /// put the project in `Info.plist`, and switch `APP_STORE.md` §1 to its
+    /// prepared "once AI is activated" labels. The whole checklist is
+    /// `FORGE_CONTEXT.md` §2r, "Activation".
+    ///
+    /// **Still `false` after §2r.** The consent screen, the entitlement proof,
+    /// the Weekly Reading flow and the tests are all in place; this line is the
+    /// one thing the activation PR changes.
     static let isModelEnabled = false
 
     /// Nil in a build with no Supabase project configured — and nil in **every**
@@ -124,6 +142,15 @@ struct RemoteForgeAI: ForgeAI {
     /// nil for somebody without one. See `ForgeStore.entitlementProof`.
     private let entitlement: @Sendable () async -> String?
 
+    /// Whether the person has pressed Allow on the disclosure. Read before the
+    /// purchase and before the identity. See `AIConsentStore`.
+    private let consent: @Sendable () async -> Bool
+
+    /// Told when a model answered and its reading did not survive
+    /// `ReviewObservation.validate` — the `reading_fell_back` signal. Never
+    /// handed the text: telemetry carries no generated or user-written words.
+    private let onReadingFallback: @Sendable () -> Void
+
     /// What answers when the model cannot. Not a stub — see `LocalForgeAI`.
     ///
     /// In 1.0 it answers *everything*, and `Plan`'s own suggestions do not come
@@ -139,20 +166,48 @@ struct RemoteForgeAI: ForgeAI {
     init(
         config: SupabaseConfig?,
         token: @escaping @Sendable () async -> String?,
-        entitlement: @escaping @Sendable () async -> String?
+        entitlement: @escaping @Sendable () async -> String?,
+        consent: @escaping @Sendable () async -> Bool = { AIConsentStore.isAllowed() },
+        onReadingFallback: @escaping @Sendable () -> Void = { ForgeTelemetry.send(.readingFellBack) }
     ) {
         self.endpoint = Self.isModelEnabled ? config.map { AIEndpoint(config: $0) } : nil
         self.token = token
         self.entitlement = entitlement
+        self.consent = consent
+        self.onReadingFallback = onReadingFallback
     }
 
-    /// Both credentials, in the order that matters: the purchase, then the
-    /// identity. Nil means "answer locally", and the caller does not care why.
+    #if DEBUG
+    /// **Tests only, and never compiled into a release build.** The path the
+    /// activation PR will switch on, run against a scripted endpoint so the
+    /// order of checks and the shape of the request can be held by tests while
+    /// `isModelEnabled` is still false. No real network: the endpoint's client
+    /// is whatever transport the test hands it.
+    init(
+        testingEndpoint: AIEndpoint,
+        token: @escaping @Sendable () async -> String?,
+        entitlement: @escaping @Sendable () async -> String?,
+        consent: @escaping @Sendable () async -> Bool,
+        onReadingFallback: @escaping @Sendable () -> Void = {}
+    ) {
+        self.endpoint = testingEndpoint
+        self.token = token
+        self.entitlement = entitlement
+        self.consent = consent
+        self.onReadingFallback = onReadingFallback
+    }
+    #endif
+
+    /// Everything a request needs, in the order that matters: the switch,
+    /// consent, the purchase, then the identity. Nil means "answer locally",
+    /// and the caller does not care why.
     ///
-    /// `guard` stops at the first failing condition, so with no endpoint
-    /// neither closure runs, and with no purchase no identity is created.
+    /// `guard` stops at the first failing condition: with no endpoint nothing
+    /// runs; without consent the purchase is not even read; without a purchase
+    /// no identity is created.
     private func connect() async -> Connection? {
         guard let endpoint,
+              await consent(),
               let transaction = await entitlement(),
               let token = await token()
         else { return nil }
@@ -240,7 +295,12 @@ struct RemoteForgeAI: ForgeAI {
                 credentials: call.credentials
             )
             guard let checked = ReviewObservation.validate(written.observation, against: facts)
-            else { throw ForgeAIError.unverifiable }
+            else {
+                // A model answered and was wrong about the week. Counted — the
+                // count, never the words — and the phone's sentence stands.
+                onReadingFallback()
+                throw ForgeAIError.unverifiable
+            }
             return PracticeReading(observation: checked, isModelWritten: true)
         } catch {
             return try await fallback.reading(brief: brief)

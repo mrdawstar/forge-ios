@@ -75,6 +75,10 @@ enum ForgeTelemetry {
         case trialStarted(PremiumProduct)
         case purchaseCompleted(PremiumProduct)
         case restoreTapped
+        /// A model wrote a Weekly Reading and it failed
+        /// `ReviewObservation.validate`, so the phone's own sentence was used.
+        /// No parameters: never the text, never a reason written by the model.
+        case readingFellBack
 
         /// The signal's name on the wire.
         var name: String {
@@ -100,6 +104,7 @@ enum ForgeTelemetry {
             case .trialStarted: "trial_started"
             case .purchaseCompleted: "purchase_completed"
             case .restoreTapped: "restore_tapped"
+            case .readingFellBack: "reading_fell_back"
             }
         }
 

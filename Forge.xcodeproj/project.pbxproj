@@ -116,6 +116,8 @@
 		A1F0RGE0AIPLAN0BUILD1 /* SchedulePlan.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1F0RGE0AIPLAN0FILE01 /* SchedulePlan.swift */; };
 		A1F0RGE0AISHET0BUILD1 /* PlanSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1F0RGE0AISHET0FILE01 /* PlanSheet.swift */; };
 		F0A1B2C3D4E5F60718293A02 /* PaywallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0A1B2C3D4E5F60718293A01 /* PaywallView.swift */; };
+		F0A1B2C3D4E5F60718293B02 /* AIConsent.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0A1B2C3D4E5F60718293B01 /* AIConsent.swift */; };
+		F0A1B2C3D4E5F60718293B04 /* AIPrepTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0A1B2C3D4E5F60718293B03 /* AIPrepTests.swift */; };
 		F0A1B2C3D4E5F60718293A04 /* PremiumTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0A1B2C3D4E5F60718293A03 /* PremiumTests.swift */; };
 		A1F0RGE0ANALYT0BUILD1 /* Analytics.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1F0RGE0ANALYT0FILE01 /* Analytics.swift */; };
 		A1F0RGE0ASHEET0BUILD1 /* AnalyticsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1F0RGE0ASHEET0FILE01 /* AnalyticsSheet.swift */; };
@@ -298,6 +300,8 @@
 		A1F0RGE0AIPLAN0FILE01 /* SchedulePlan.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SchedulePlan.swift; sourceTree = "<group>"; };
 		A1F0RGE0AISHET0FILE01 /* PlanSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanSheet.swift; sourceTree = "<group>"; };
 		F0A1B2C3D4E5F60718293A01 /* PaywallView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaywallView.swift; sourceTree = "<group>"; };
+		F0A1B2C3D4E5F60718293B01 /* AIConsent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIConsent.swift; sourceTree = "<group>"; };
+		F0A1B2C3D4E5F60718293B03 /* AIPrepTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIPrepTests.swift; sourceTree = "<group>"; };
 		F0A1B2C3D4E5F60718293A03 /* PremiumTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PremiumTests.swift; sourceTree = "<group>"; };
 		A1F0RGE0ANALYT0FILE01 /* Analytics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Analytics.swift; sourceTree = "<group>"; };
 		A1F0RGE0ASHEET0FILE01 /* AnalyticsSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalyticsSheet.swift; sourceTree = "<group>"; };
@@ -442,6 +446,7 @@
 				A1F0RGE0ATEST00FILE01 /* AnalyticsTests.swift */,
 				7A1C40E2B1F04C6EA9D33002 /* NotificationPlanTests.swift */,
 				F0A1B2C3D4E5F60718293A03 /* PremiumTests.swift */,
+				F0A1B2C3D4E5F60718293B03 /* AIPrepTests.swift */,
 			);
 			path = ForgeTests;
 			sourceTree = "<group>";
@@ -672,6 +677,7 @@
 			isa = PBXGroup;
 			children = (
 				D914E431EC9A4F82B8527B64 /* RemoteForgeAI.swift */,
+				F0A1B2C3D4E5F60718293B01 /* AIConsent.swift */,
 				A1F0RGE0LOCAI00FILE01 /* LocalForgeAI.swift */,
 				A1F0RGE0CSTORE0FILE01 /* ChallengeStore.swift */,
 				A1F0RGE0TELEM00FILE01 /* ForgeTelemetry.swift */,
@@ -820,6 +826,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				F0A1B2C3D4E5F60718293A04 /* PremiumTests.swift in Sources */,
+				F0A1B2C3D4E5F60718293B04 /* AIPrepTests.swift in Sources */,
 				2B27CDCBBC114CDB9B4CC596 /* AccessibilityTests.swift in Sources */,
 				1971B3C4770241629406251F /* ModelTrustTests.swift in Sources */,
 				7A1C40E2B1F04C6EA9D34602 /* BackendRegressionTests.swift in Sources */,
@@ -894,6 +901,7 @@
 				A1F0RGE0ASHEET0BUILD1 /* AnalyticsSheet.swift in Sources */,
 				A1F0RGE0AISHET0BUILD1 /* PlanSheet.swift in Sources */,
 				F0A1B2C3D4E5F60718293A02 /* PaywallView.swift in Sources */,
+				F0A1B2C3D4E5F60718293B02 /* AIConsent.swift in Sources */,
 				A1F0RGE0CSHEET0BUILD1 /* DailyChallengeSheet.swift in Sources */,
 				A1F0RGE0WEEKP00BUILD1 /* WeekPlannerView.swift in Sources */,
 				A1F0RGE0PTOOL00BUILD1 /* ForgeControlBar.swift in Sources */,

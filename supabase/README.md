@@ -184,11 +184,13 @@ it. Turning it on is its own change, because it changes what the app collects:
    exists to fail when that happens.
 2. `RemoteForgeAI.isModelEnabled = true`, and update `NoNetworkTests`, which
    exists to fail when that happens.
-3. If the telemetry network allowlist has landed (`ForgeNetwork.allowedHosts`),
-   add the Supabase host to it and to its tests.
-4. Redo `docs/APP_STORE.md` §1 and the hosted privacy policy: the brief (activity
-   names, identity statements, weekly counts) goes to Forge's server and OpenAI,
-   under an anonymous user id, with a StoreKit transaction attached.
+3. `ForgeNetwork.allowedHosts` adds the configured project's host **by
+   itself** once steps 1 and 2 are done (prepared in `FORGE_CONTEXT.md` §2r) —
+   update the tests that assert it is TelemetryDeck alone.
+4. Switch `docs/APP_STORE.md` §1 to its prepared "once AI is activated" labels,
+   publish the prepared privacy-policy paragraph (§2), and use the prepared
+   review note (§6). Consent, the entitlement proof and the Weekly Reading flow
+   are already built — see §2r for the full activation list.
 
 ## 2. Running the function's tests
 

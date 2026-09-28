@@ -28,13 +28,26 @@ import SwiftUI
 /// fifty times different from doing it once. Everything else that was suggested
 /// — a score, a comparison, a mood — is still refused.
 ///
-/// # The sentence is Forge Pro; the week is not
+/// # The observation is free; the Weekly Reading is Forge Pro
 ///
-/// Since Forge Pro (see `FORGE_CONTEXT.md` §6) the observation in beat one is
-/// the **Weekly Reading** and needs Pro. The marks, the count, last week's line
-/// and both questions are the record and stay free. Without Pro the sentence
-/// is simply absent — except once, at the first review that has one, when a
-/// locked row stands in its place (door 2, `PremiumInvitation`).
+/// The rules' sentence (`ReviewObservation`) is **free, first, and shown to
+/// everybody** — it is the record read back as arithmetic, and it is on screen
+/// before anything else can be. Below it sits the **Weekly Reading**, the Pro
+/// half (`FORGE_CONTEXT.md` §6, §2r):
+///
+/// - Without Pro: a locked, redacted row, shown once, at the first review that
+///   has an observation — door 2, `PremiumInvitation`. Tapping it opens the
+///   paywall.
+/// - With Pro, in a build where the model is reachable: "Read my week". Pressed,
+///   it asks for AI consent the first time, then asks the model; a reading that
+///   survives `ReviewObservation.validate` is shown under the observation and
+///   labelled as model-written. Anything else leaves the observation standing.
+/// - With Pro, in *this* build (model switched off): nothing is added. There is
+///   no model to ask and nothing is fabricated in its place.
+///
+/// **Nothing is asked for on opening.** The reading used to be requested from
+/// `.task`, which would have minted an anonymous identity merely by opening a
+/// review. It is behind a button now.
 ///
 /// # Skippable, and it costs nothing
 ///
@@ -58,17 +71,19 @@ struct WeeklyReviewView: View {
     let onAnswer: (String, String) -> Void
     let onDismiss: () -> Void
 
-    /// Asks whoever owns the model for a better sentence about this same week.
+    /// Asks whoever owns the model for a Weekly Reading of this same week.
     ///
-    /// Optional, and every caller that does not supply one gets the rules —
-    /// which is what the whole screen ran on before a model existed and what it
-    /// still runs on for anybody offline, signed out or not paying.
+    /// Nil whenever the model is not reachable — every build until activation
+    /// (§2r) — and then the screen offers nothing beyond the observation.
+    /// Called only from "Read my week", never on opening.
     var betterReading: (() async -> PracticeReading?)?
 
-    /// Whether the reading may be shown. **Weekly Reading is Forge Pro**; the
-    /// marks, the count, last week's line and both questions are the record
-    /// and stay free whatever this says. See `PremiumGate`.
+    /// Whether the Weekly Reading is theirs. **The observation above it is
+    /// free whatever this says**, as are the marks, the count, last week's line
+    /// and both questions. See `PremiumGate`.
     var isPremium: Bool = false
+    /// What the consent screen shows, when "Read my week" has to ask first.
+    var consentBriefs: AIDisclosureBriefs? = nil
     /// Door 2: show a locked, obscured Weekly Reading row in place of the
     /// sentence. Decided by `PremiumInvitation` before the sheet opens, and
     /// latched on appear so spending the door does not pull the row out from
@@ -81,13 +96,20 @@ struct WeeklyReviewView: View {
     @State private var whatNext = ""
     @FocusState private var focus: Field?
 
-    /// What is on screen right now. Seeded from the rules **synchronously**, so
-    /// the review never opens on a spinner or an empty space that fills in
-    /// later: a ninety-second ritual cannot afford to begin with a wait, and a
-    /// sentence that appears after the eye has moved on is a sentence nobody
-    /// reads. If a model answers and its answer survives validation, this is
-    /// replaced; if it does not, nothing happens and nobody is told.
+    /// The rules' sentence. Seeded **synchronously**, so the review never opens
+    /// on a spinner or an empty space that fills in later: a ninety-second
+    /// ritual cannot afford to begin with a wait. Never replaced — a Weekly
+    /// Reading goes under it, not over it.
     @State private var reading: PracticeReading?
+    /// The Weekly Reading, when a model wrote one and it survived validation.
+    /// Only ever model-written; the rules' sentence is never put here.
+    @State private var written: PracticeReading?
+    @State private var isReadingWeek = false
+    /// Asked, and the model's answer did not survive (or never came). The
+    /// observation stands, and the screen says so once rather than pretending.
+    @State private var didFallBack = false
+    @State private var isAskingConsent = false
+    @Environment(AIConsentStore.self) private var consent: AIConsentStore?
     /// `offersReading`, as it was when the sheet opened.
     @State private var isOfferingReading = false
     @State private var paywallDoor: ForgeTelemetry.PaywallDoor?
@@ -146,14 +168,39 @@ struct WeeklyReviewView: View {
         // Opened from the locked row, on top of the review, so closing it
         // lands back on the week rather than on the home screen.
         .paywall($paywallDoor)
-        .task {
-            // Silent on every failure. A model that is unreachable, unpaid for,
-            // slow, or wrong leaves the phone's own sentence exactly where it
-            // already is — and there is nothing for the user to notice, because
-            // nothing has gone wrong from where they are sitting.
-            guard let betterReading, let written = await betterReading() else { return }
-            guard written.isModelWritten, !written.observation.isEmpty else { return }
-            reading = written
+        // The first "Read my week" asks. Not now answers with nothing further:
+        // the observation is already on screen, and nothing is sent.
+        .aiConsent(isPresented: $isAskingConsent, briefs: consentBriefs) { allowed in
+            if allowed { Task { await readWeek() } }
+        }
+    }
+
+    /// "Read my week": consent first unless it has been given, then the model.
+    ///
+    /// Asked again after a "Not now" — unlike Plan, where the phone's own plan
+    /// is a real answer, declining here would leave the button doing nothing,
+    /// and this is somebody pressing it on purpose, not the app asking.
+    private func requestReading() {
+        if !(consent?.isAllowed ?? false) {
+            isAskingConsent = true
+        } else {
+            Task { await readWeek() }
+        }
+    }
+
+    /// Asks once. A model-written, validated reading is shown under the
+    /// observation; anything else — declined consent, no purchase, offline, or
+    /// a reading that failed validation (`reading_fell_back`) — leaves the
+    /// observation as the answer, and says so.
+    private func readWeek() async {
+        guard let betterReading, !isReadingWeek else { return }
+        isReadingWeek = true
+        defer { isReadingWeek = false }
+        if let answer = await betterReading(), answer.isModelWritten, !answer.observation.isEmpty {
+            written = answer
+            didFallBack = false
+        } else {
+            didFallBack = true
         }
     }
 
@@ -182,6 +229,7 @@ struct WeeklyReviewView: View {
                 .padding(.top, ForgeTheme.Space.row)
 
             noticed
+            weeklyReading
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(ForgeTheme.Space.row)
@@ -243,9 +291,8 @@ struct WeeklyReviewView: View {
     /// decoration.
     @ViewBuilder
     private var noticed: some View {
-        if !PremiumGate.showsWeeklyReading(isPremium: isPremium) {
-            if isOfferingReading { lockedReading }
-        } else if let reading {
+        // Free, first, for everybody: the rules' sentence.
+        if let reading {
             VStack(alignment: .leading, spacing: ForgeTheme.Space.tight) {
                 Rectangle()
                     .fill(ForgeTheme.separator)
@@ -272,6 +319,89 @@ struct WeeklyReviewView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .accessibilityElement(children: .combine)
+        }
+    }
+
+    /// The Pro half, under the free observation.
+    ///
+    /// Which part goes here is `WeeklyReviewReading.parts` — pure, and held by
+    /// `AIPrepTests` — so the order (observation first, always) is a tested
+    /// fact rather than a property of this layout.
+    @ViewBuilder
+    private var weeklyReading: some View {
+        switch parts.last {
+        case .locked: lockedReading
+        case .written: if let written { proReading(written) }
+        case .readButton: readButton
+        case .observation, nil:
+            // Pro, and no model reachable (this build): nothing. The
+            // observation above is the answer, and nothing is invented to sit
+            // under it.
+            EmptyView()
+        }
+    }
+
+    private var parts: [WeeklyReviewReading.Part] {
+        WeeklyReviewReading.parts(
+            hasObservation: reading != nil,
+            isPremium: isPremium,
+            isOfferingLocked: isOfferingReading,
+            canReachModel: betterReading != nil,
+            hasWritten: written != nil
+        )
+    }
+
+    private func proReading(_ written: PracticeReading) -> some View {
+        VStack(alignment: .leading, spacing: ForgeTheme.Space.tight) {
+            Rectangle()
+                .fill(ForgeTheme.separator)
+                .frame(height: 0.5)
+                .padding(.vertical, ForgeTheme.Space.row)
+            Text("WEEKLY READING")
+                .font(ForgeTheme.overline)
+                .kerning(ForgeTheme.overlineKerning)
+                .foregroundStyle(.tertiary)
+            Text(written.observation)
+                .font(.body)
+                .lineSpacing(3)
+                .fixedSize(horizontal: false, vertical: true)
+            // Said because it is true. See `ForgeAI`.
+            Text("Written by a model from the numbers on this screen.")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    private var readButton: some View {
+        VStack(alignment: .leading, spacing: ForgeTheme.Space.tight) {
+            Rectangle()
+                .fill(ForgeTheme.separator)
+                .frame(height: 0.5)
+                .padding(.vertical, ForgeTheme.Space.row)
+            Button {
+                ForgeHaptics.shared.tap()
+                requestReading()
+            } label: {
+                HStack(spacing: ForgeTheme.Space.tight) {
+                    if isReadingWeek {
+                        ProgressView()
+                    } else {
+                        Image(systemName: ProFeature.weeklyReading.symbol)
+                    }
+                    Text("Read my week")
+                        .font(.subheadline.weight(.semibold))
+                }
+                .foregroundStyle(ForgeTheme.accent)
+            }
+            .buttonStyle(.plain)
+            .disabled(isReadingWeek)
+            if didFallBack {
+                Text("No reading this time. Forge's own sentence above stands for this week.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
     }
 

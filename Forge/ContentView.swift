@@ -43,6 +43,10 @@ struct ContentView: View {
     @State private var isFirstBladeDoorOwed = false
     /// Forge Pro's three unprompted doors. See `PremiumInvitation`.
     private let invitation = PremiumInvitation()
+    /// Whether somebody has allowed Forge's AI. Read by the consent screen and
+    /// Settings through the environment, and by `RemoteForgeAI` straight from
+    /// the suite before anything else. See `AIConsentStore`.
+    @State private var aiConsent: AIConsentStore
     /// Which world the app is dressed in. Owned here alongside the other
     /// stores, because a Path changes what every screen looks like and there
     /// has to be exactly one answer to that for the whole process.
@@ -115,6 +119,7 @@ struct ContentView: View {
         // overwritten by it, which builds two of everything.
         let chapters = ChapterStore()
         let reviews = ReviewStore()
+        _aiConsent = State(initialValue: AIConsentStore())
         _chapters = State(initialValue: chapters)
         _reviews = State(initialValue: reviews)
         _progress = State(initialValue: progress)
@@ -145,8 +150,10 @@ struct ContentView: View {
         )
         // No visible account, and none is added here (§2n, §2q). A model
         // request is made under an invisible anonymous identity and carries
-        // the StoreKit proof of purchase — the proof is asked for first, so
-        // nobody without Premium ever has an identity created for them.
+        // the StoreKit proof of purchase. `RemoteForgeAI` checks, in order:
+        // the switch, the person's consent, the purchase, and only then the
+        // identity — so nobody without Pro, or who has not pressed Allow, ever
+        // has one created, and nothing here runs at launch (§2r).
         //
         // In this build none of it runs. There is no project in `Info.plist`,
         // so `fromBundle()` answers nil and no endpoint can be built; and
@@ -345,7 +352,7 @@ struct ContentView: View {
         // the environment only reaches what is *inside* the modifier that sets
         // it — the review and chapter sheets above included.
         .modifier(
-            ForgeProModifier(store: store, door: $paywallDoor) { publishSnapshot() }
+            ForgeProModifier(store: store, consent: aiConsent, door: $paywallDoor) { publishSnapshot() }
         )
     }
 
@@ -657,8 +664,11 @@ struct ContentView: View {
                 reviews.dismiss(week: window.start, at: progress.now)
                 showReview = false
             },
-            // **Nil in 1.0**, and this is the one place in the app where that
-            // matters beyond tidiness.
+            // **Nil until AI is activated (§2r)**, and even then called only
+            // from the review's "Read my week" button — never on opening, so
+            // opening a review cannot create an anonymous identity.
+            //
+            // The history of why this was nil in 1.0:
             //
             // Every other AI path in Forge is behind a button. This one is not:
             // the review used to ask for a written reading from `.task`, the
@@ -678,6 +688,7 @@ struct ContentView: View {
             // Weekly Reading is Pro. Door 2 is the locked row, shown once, at
             // the first review that has a reading in it.
             isPremium: store.isPremium,
+            consentBriefs: AIDisclosureBriefs(brief: aiBrief, readingBrief: readingBrief(facts)),
             offersReading: invitation.isOpen(.weeklyReading, at: doorMoment),
             onReadingOffered: { [invitation] in invitation.markShown(.weeklyReading) }
         )
@@ -929,6 +940,7 @@ extension ContentView {
                 )
             ),
             isAIConnected: remote.isConnected,
+            aiConsent: aiConsent,
             notificationState: notificationState
         )
     }
@@ -942,6 +954,7 @@ extension ContentView {
 /// the edge of what the type checker will do in reasonable time.
 private struct ForgeProModifier: ViewModifier {
     let store: ForgeStore
+    let consent: AIConsentStore
     @Binding var door: ForgeTelemetry.PaywallDoor?
     /// The accent was put back; the widgets have to hear about it.
     let onAccentReset: () -> Void
@@ -965,6 +978,8 @@ private struct ForgeProModifier: ViewModifier {
             // the paywall from inside themselves. Outermost, so it reaches all
             // of them.
             .environment(store)
+            // AI consent, for the consent sheet and Settings, the same way.
+            .environment(consent)
     }
 }
 

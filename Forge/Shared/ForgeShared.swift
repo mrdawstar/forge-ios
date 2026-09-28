@@ -49,6 +49,9 @@ enum ForgeShared {
         // `PremiumInvitation`; the key above is 1.0's single door, kept so an
         // old install's value still migrates rather than being stranded.
         "forge.paywallDoors.v1",
+        // Whether Forge's AI has been allowed. Stranding it would ask again —
+        // or, worse, lose a revocation. See `AIConsentStore`.
+        "forge.aiConsent.v1",
         // The markers somebody set for themselves. Not derivable from the
         // history — Forge cannot work out that somebody meant to read for
         // thirty days — so this is the one thing on the Blade tab that is
