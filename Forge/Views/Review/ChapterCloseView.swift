@@ -129,16 +129,6 @@ struct ChapterCloseView: View {
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
-
-            ArtifactShareButton(
-                artifact: PracticeArtifact(
-                    occasion: .chapter(name: chapter.name),
-                    daysKept: daysKept,
-                    identity: evidence.first?.identity.statement,
-                    date: .now
-                )
-            )
-            .padding(.top, ForgeTheme.Space.tight)
         }
     }
 
@@ -372,6 +362,14 @@ struct ChapterCloseView: View {
                 .foregroundStyle(.tertiary)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
+
+            // The Proof Card, once "Close this chapter" has been pressed — the
+            // chapter's reading is complete. A quiet third action beside the two
+            // that were already here; it changes nothing about closing, and the
+            // share sheet opens only if somebody picks a format.
+            if isOpening {
+                ProofCardButton(occasion: .chapter, daysKept: daysKept)
+            }
         }
         .padding(.horizontal, ForgeTheme.Space.gutter)
         .padding(.top, ForgeTheme.Space.inner)

@@ -1415,6 +1415,16 @@ final class ForgeViewModel {
     /// here either.
     var shape: ForgeShape { progress.forgeShape(of: activeRituals) }
 
+    /// The Becoming tab's first-week contract, or nil once the shape is drawn.
+    /// Read off the record every time; see `FirstWeek`.
+    var firstWeek: FirstWeek? { progress.firstWeek(isShapeReadable: shape.isReadable) }
+
+    /// The smallest library activity for each dimension nothing is filed under.
+    /// See `BecomingStarter`.
+    var starters: [RitualCategory: Ritual] {
+        BecomingStarter.starters(in: shape, avoiding: Set(activeRitualIDs))
+    }
+
     /// Concrete activities that would feed a dimension, minus anything already
     /// kept. See `ForgeShape.suggestions(for:avoiding:limit:)`.
     func suggestions(for category: RitualCategory) -> [Ritual] {

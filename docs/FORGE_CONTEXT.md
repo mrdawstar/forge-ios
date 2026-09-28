@@ -1867,6 +1867,71 @@ to fail at exactly that moment (`NoNetworkTests`, `AIStillOffTests`,
 switch `APP_STORE.md` §1 to the prepared labels, publish the prepared privacy
 paragraph (§2), use the prepared review note (§6); update `PrivacyInfo.xcprivacy`.
 
+### 2s. The first week on Becoming, and the Proof Card (2026-09-28)
+
+Local only: everything here is read off the existing record. No model, no
+Supabase, no network.
+
+#### The first-week contract (`Models/FirstWeek.swift`)
+
+Before the shape can be drawn, the Becoming hero is one sentence and a bar
+instead of "Your shape is forming":
+
+> *Your shape draws itself on Sunday. Until then: three days kept of seven.*
+
+- **When it appears:** from the first recorded day (`ProgressStore
+  .firstRecordedDay`, or today for an empty record) until the shape is shown.
+- **When the real `ForgeShape` replaces it:** on the draw day — seven days after
+  the first recorded day — *if* `ForgeShape.isReadable` (unchanged: two measured
+  dimensions, five kept days of credit). A week that ends without enough to read
+  keeps the card, with the promise swapped for what is still true: *"Your shape
+  draws itself as the days add up. The last seven: two days kept."*
+- **Words:** the draw day is named ("on Sunday", "tomorrow", "next Sunday" on
+  day one); counts are "no days", "one day", "three days" — spelled via
+  `ForgeCount`, never "one days".
+- **Progress:** in the opening week, days lived of seven (the draw day comes
+  whatever is kept); after it, the last seven's kept days of seven. **Computed
+  from `DayRecord.isEarned` on every read — no counter, no flag, no key** (§5
+  rule #2; `FirstWeekTests.nothingIsStored`).
+
+#### Empty dimensions get a starter
+
+A dimension nothing is filed under shows, inside its row in The Six, one
+restrained line — *Smallest start: <activity>* — and an **Add** button
+(`BecomingStarter`). The activity is `ForgeShape.suggestions(…, limit: 1)`: the
+lowest-effort **library** activity filed under that dimension that is not
+already kept. Never invented, never added without the tap. It goes through
+`ForgeViewModel.addRitual` via `BecomingOffer.add`, which sends
+**`activity_added { source: becoming }`** and nothing else (no name, no text).
+The "Add to your day" list for a weak dimension uses the same path. Because the
+row carries it, the next-step card no longer repeats "Nothing is building …".
+"Nothing here" and "No days yet" are gone; a dimension with activities but no
+day yet reads "Starting".
+
+#### The Proof Card (`Views/Review/PracticeArtifact.swift`)
+
+`PracticeArtifact`, evolved rather than replaced: the sword in the stone
+(`hero`), the days kept **in words** ("One day kept", "Forty-two days kept"), a
+quiet occasion line, the date, and `forgebetter.app` — nothing else (no
+congratulation, no streak, no handle, no user text). Two formats,
+**1080 × 1920** and **1080 × 1080**, rendered as PNG only when the share sheet
+asks (`ProofCardFile`, `Transferable`), shared through `ShareLink`.
+
+**Exactly two entry points**, each a quiet third action titled *Save the proof*
+(`ProofCardButton`, a menu of the two formats):
+
+1. **Blade unlock** — in `SwordUnlockOverlay`, arriving with *Carry it* / *Keep*
+   once the celebration has staged; never over the pull.
+2. **Chapter close** — in `ChapterCloseView`'s commit bar once *Close this
+   chapter* has been pressed. Nothing else about closing changed; the old
+   "Save or share" button at the top of that screen is this one, moved.
+
+**Forge never asks for sharing anywhere else**: no prompt at launch, no random
+or later prompt, no notification, nothing in an unfinished day, and the share
+sheet never opens on its own. `ProofCardTests.proofCardDoors` reads the source
+and fails if `ProofCardButton` is placed anywhere else or anything other than
+`PracticeArtifact.swift` can open a share sheet.
+
 ## 3. The core loop (as built)
 
 ```
