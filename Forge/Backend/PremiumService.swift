@@ -34,14 +34,16 @@ final class PremiumService {
     ///
     /// Best effort and silent. Nothing on screen depends on it, and a failure
     /// costs nothing but a stale row.
-    func record(_ entitlement: PremiumEntitlement) async {
+    /// `plan` is the product the entitlement actually comes from, when known —
+    /// with monthly and annual both sold, "subscribed" no longer names one.
+    func record(_ entitlement: PremiumEntitlement, plan: PremiumProduct? = nil) async {
         guard let api, let userID = auth.userID else { return }
         guard let token = try? await auth.validAccessToken() else { return }
 
         let row = PremiumRow(
             userID: userID,
             entitlement: Self.name(for: entitlement),
-            productID: Self.product(for: entitlement)?.rawValue,
+            productID: (plan ?? Self.product(for: entitlement))?.rawValue,
             updatedAt: Date(),
             syncedAt: nil
         )
@@ -58,6 +60,8 @@ final class PremiumService {
         }
     }
 
+    /// A best guess for callers that do not say which plan: annual is the
+    /// default subscription.
     private static func product(for entitlement: PremiumEntitlement) -> PremiumProduct? {
         switch entitlement {
         case .free: nil

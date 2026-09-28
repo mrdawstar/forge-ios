@@ -66,8 +66,10 @@ enum ForgeTelemetry {
         case reentryShown
         case reentryRecovered
         case chapterClosed
-        // The paywall's. Defined now so the event list is settled in one
-        // place; the call sites arrive with the paywall itself.
+        // The paywall's. `paywallView` when it appears, `paywallDismissed`
+        // when it is closed without buying, both carrying the door it was
+        // opened from. A trial and a sale are separate events so a trial is
+        // never counted as revenue.
         case paywallView(PaywallDoor)
         case paywallDismissed(PaywallDoor)
         case trialStarted(PremiumProduct)
@@ -150,12 +152,22 @@ enum ForgeTelemetry {
     }
 
     /// Where the paywall was opened from.
+    ///
+    /// The first three are the unprompted doors, each shown at most once —
+    /// see `PremiumInvitation`. The rest are somebody tapping something
+    /// locked, or asking for it in Settings.
     enum PaywallDoor: String, CaseIterable, Sendable {
-        /// The one invitation on the Blade tab — see `PremiumInvitation`.
-        case invitation
-        /// A premium feature that was tapped while locked.
-        case feature
-        /// Settings.
+        /// After the first blade celebration closes.
+        case firstBlade = "first_blade"
+        /// The locked Weekly Reading row in the weekly review.
+        case weeklyReading = "weekly_reading"
+        /// The invitation at a chapter close.
+        case chapterClose = "chapter_close"
+        /// A locked accent in Appearance.
+        case accent
+        /// Plan's locked free-text field.
+        case plan
+        /// The Forge Pro section in Settings.
         case settings
     }
 
@@ -282,6 +294,7 @@ extension PremiumProduct {
     /// The plan as it is named in the data — not the App Store product id.
     var telemetryName: String {
         switch self {
+        case .monthly: "monthly"
         case .annual: "annual"
         case .lifetime: "lifetime"
         }

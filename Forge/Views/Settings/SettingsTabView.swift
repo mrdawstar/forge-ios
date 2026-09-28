@@ -1,3 +1,4 @@
+import StoreKit
 import SwiftUI
 
 struct SettingsTabView: View {
@@ -31,6 +32,9 @@ struct SettingsTabView: View {
     /// The permission explanation, raised the first time somebody turns the
     /// switch on here without iOS ever having been asked.
     @State private var showPrimer = false
+    @State private var paywallDoor: ForgeTelemetry.PaywallDoor?
+    /// What Restore found, said under the section. Nil until somebody taps it.
+    @State private var restoreNote: String?
 
     #if DEBUG
     @State private var pending: [String] = []
@@ -39,6 +43,8 @@ struct SettingsTabView: View {
     var body: some View {
         NavigationStack {
             List {
+                proSection
+
                 restDaySection
 
                 appearanceSection
@@ -90,12 +96,87 @@ struct SettingsTabView: View {
             .navigationTitle("Settings")
             .scrollIndicators(.hidden)
             .sheet(isPresented: $showPrimer) { primer }
+            .paywall($paywallDoor)
         }
     }
 
     private static var versionLine: String {
         let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
         return "Forge \(version ?? "1.0")"
+    }
+
+    // MARK: - Forge Pro
+
+    /// What somebody has, and the two things they may need to do about it.
+    ///
+    /// Near the top because it is the one row people come to Settings
+    /// specifically to find — to check they have what they paid for, to bring
+    /// it back on a new phone, or to cancel. Restore and Manage are required
+    /// wherever a subscription is sold, and they are here rather than only on
+    /// the paywall because somebody who has already paid never sees that.
+    private var proSection: some View {
+        Section {
+            LabeledContent("Status") {
+                Text(proStatus)
+            }
+
+            if !store.isPremium {
+                Button("See Forge Pro") { paywallDoor = .settings }
+            }
+
+            Button {
+                ForgeTelemetry.send(.restoreTapped)
+                restoreNote = nil
+                Task {
+                    let restored = await store.restore()
+                    restoreNote = restored ? "Forge Pro is on." : store.failure
+                }
+            } label: {
+                HStack {
+                    Text("Restore Purchases")
+                    if store.isRestoring {
+                        Spacer()
+                        ProgressView()
+                    }
+                }
+            }
+            .disabled(store.isRestoring)
+
+            if store.entitlement == .subscribed {
+                Button("Manage Subscription") {
+                    Task { await manageSubscriptions() }
+                }
+            }
+        } header: {
+            Text("Forge Pro")
+        } footer: {
+            Text(restoreNote ?? proFooter)
+        }
+    }
+
+    private var proStatus: String {
+        guard store.isPremium else { return "Free" }
+        guard let plan = store.activePlan else { return "Forge Pro" }
+        return "Forge Pro · \(plan.planName)"
+    }
+
+    private var proFooter: String {
+        switch store.entitlement {
+        case .free: "Forge is free. Pro adds the Weekly Reading, Plan in your own words and seven more accents. Your record is never part of it."
+        case .subscribed: "Renews automatically. Cancel any time in Manage Subscription; your record stays exactly as it is either way."
+        case .lifetime: "Yours for good. It never renews and is never charged again."
+        }
+    }
+
+    /// Apple's own sheet, in this window. Cancelling, switching plans and
+    /// refunds all happen there — Forge never handles any of them itself.
+    @MainActor
+    private func manageSubscriptions() async {
+        let scene = UIApplication.shared.connectedScenes
+            .first { $0.activationState == .foregroundActive } as? UIWindowScene
+        guard let scene else { return }
+        try? await AppStore.showManageSubscriptions(in: scene)
+        await store.refreshEntitlement()
     }
 
     // MARK: - Rest days
@@ -332,14 +413,11 @@ struct SettingsTabView: View {
         }
     }
 
-    /// The two documents, and nothing else.
+    /// The documents, and nothing else.
     ///
-    /// This was Restore Purchases, Manage Subscription and the legal links. The
-    /// first two went with the paywall: 1.0 sells nothing, so there is nothing
-    /// to restore and no subscription to manage, and a control that opens
-    /// Apple's sheet to tell somebody they have bought nothing is a control that
-    /// exists to look finished. They come back with the paywall in 1.1 — see
-    /// `ForgeStore`, which is still here and still reads the entitlement.
+    /// Restore Purchases and Manage Subscription left this section in 1.0,
+    /// when nothing was sold, and came back with Forge Pro — at the top of the
+    /// screen, in `proSection`, rather than here.
     ///
     /// The links stay because they are required whether or not anything is sold,
     /// and they remain absent rather than broken if a URL is ever unset.
@@ -408,6 +486,34 @@ struct SettingsTabView: View {
 
             Button("Run First Launch Again", role: .destructive) {
                 forge.resetFirstRun(identities: identities)
+            }
+
+            // Both sides of every Pro gate without a sandbox account, and the
+            // three doors back to unshown so they can be walked again.
+            Picker("Forge Pro", selection: Binding(
+                get: { store.debugPremium.map { $0 ? 1 : 0 } ?? -1 },
+                set: { store.debugPremium = $0 == -1 ? nil : $0 == 1 }
+            )) {
+                Text("StoreKit").tag(-1)
+                Text("On").tag(1)
+                Text("Off").tag(0)
+            }
+
+            Button("Reset Paywall Doors") {
+                PremiumInvitation().reset()
+            }
+
+            LabeledContent("Doors shown") {
+                Text(PremiumInvitation().shown.map(\.rawValue).joined(separator: ", ").isEmpty
+                     ? "none"
+                     : PremiumInvitation().shown.map(\.rawValue).joined(separator: ", "))
+                    .font(.caption)
+            }
+
+            Menu("Open Paywall As…") {
+                ForEach(ForgeTelemetry.PaywallDoor.allCases) { door in
+                    Button(door.rawValue) { paywallDoor = door }
+                }
             }
 
             // Read back out of the system rather than reported by the app, so

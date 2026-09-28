@@ -37,6 +37,13 @@ import SwiftUI
 /// across days that are not consecutive, shifts everything by an offset and
 /// moves one activity to another day, and refuses honestly at anything wider
 /// rather than inventing.
+///
+/// # Forge Pro
+///
+/// **The free-text field is Pro; the moves are not.** Everything Forge works
+/// out from the record on its own stays free — that is the record read back
+/// as arithmetic. Asking in your own words is the Pro half, and without Pro
+/// the field is a locked row that opens the paywall. See `PremiumGate`.
 struct PlanSheet: View {
     @Bindable var vm: ForgeViewModel
     var brief: AIBrief
@@ -46,6 +53,12 @@ struct PlanSheet: View {
     var onApplied: () -> Void = {}
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(ForgeStore.self) private var store: ForgeStore?
+    @State private var paywallDoor: ForgeTelemetry.PaywallDoor?
+
+    private var canAskInWords: Bool {
+        PremiumGate.canPlanInWords(isPremium: store?.isPremium ?? false)
+    }
 
     @State private var request = ""
     @State private var stage: Stage = .offering
@@ -105,6 +118,7 @@ struct PlanSheet: View {
         .presentationDetents([.large])
         .presentationCornerRadius(ForgeTheme.Radius.sheet)
         .presentationDragIndicator(.visible)
+        .paywall($paywallDoor)
         .task {
             guard moves.isEmpty else { return }
             let computed = DayPlanner.moves(vm.planFacts(wakeMinutes: brief.wakeMinutes))
@@ -281,7 +295,21 @@ struct PlanSheet: View {
     /// cannot know: an outside commitment ("I work 9 to 17") and a decision
     /// somebody has already made ("move my workout to Wednesday"). Neither is
     /// in the record, so no amount of reading it would produce them.
+    @ViewBuilder
     private var askInWords: some View {
+        if canAskInWords {
+            wordsField
+        } else {
+            VStack(alignment: .leading, spacing: 0) {
+                SectionHeading("Or ask for something")
+                    .padding(.bottom, ForgeTheme.Space.inner)
+                ProLockedRow(feature: .planInWords) { paywallDoor = .plan }
+            }
+            .padding(.top, ForgeTheme.Space.tight)
+        }
+    }
+
+    private var wordsField: some View {
         VStack(alignment: .leading, spacing: 0) {
             SectionHeading(
                 "Or ask for something",
@@ -467,7 +495,8 @@ struct PlanSheet: View {
         VStack(spacing: 8) {
             switch stage {
             case .offering, .working:
-                if !request.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                if canAskInWords,
+                   !request.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                     || stage == .working
                 {
                     Button {
@@ -522,7 +551,7 @@ struct PlanSheet: View {
     // MARK: - Doing it
 
     private func propose() async {
-        guard stage != .working else { return }
+        guard stage != .working, canAskInWords else { return }
         withAnimation(.forgeRow) { stage = .working }
         failure = nil
 

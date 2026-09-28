@@ -29,6 +29,38 @@ struct ForgeButton: View {
     }
 }
 
+/// The one primary action on a screen, with room for it to be busy.
+///
+/// `ForgeButton` in its primary style, plus a spinner that replaces the title
+/// while something the button started is still running — a purchase, above
+/// all, where a second tap must be impossible and the first must visibly have
+/// landed. Disabled while busy.
+struct ForgePrimaryButton: View {
+    let title: String
+    var isBusy: Bool = false
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            ZStack {
+                Text(title)
+                    .font(.headline)
+                    .opacity(isBusy ? 0 : 1)
+                if isBusy {
+                    ProgressView()
+                        .tint(Color(red: 0.063, green: 0.063, blue: 0.078))
+                }
+            }
+            .frame(maxWidth: .infinity)
+        }
+        .controlSize(.extraLarge)
+        .buttonBorderShape(.capsule)
+        .modifier(ForgeButtonStyleModifier(style: .primary))
+        .disabled(isBusy)
+        .accessibilityLabel(Text(title))
+    }
+}
+
 private struct ForgeButtonStyleModifier: ViewModifier {
     let style: ForgeButtonStyle
 

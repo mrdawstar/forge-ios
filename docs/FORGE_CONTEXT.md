@@ -1726,9 +1726,8 @@ separate app PR (README §1.9).
   `com.dawid.forge.premium.annual` (auto-renewable, `expiresDate` must be in the
   future) or `…premium.lifetime` (non-consumable), no `revocationDate`, and the
   environment.
-- There is **no monthly product** — `Premium.swift` defines only annual and
-  lifetime. The renewable path is generic; a monthly id would be one line in
-  `PREMIUM_PRODUCTS`.
+- ~~There is no monthly product.~~ **Superseded by §6 (Forge Pro, 2026-09-27):**
+  `…premium.monthly` is sold and is in `PREMIUM_PRODUCTS` as a renewable.
 - **Production vs Sandbox.** Only `Production` is accepted unless the server
   secret `FORGE_ALLOW_SANDBOX` is exactly `true`. `Xcode` (local StoreKit
   testing) is always refused — it is not Apple-signed. TestFlight and App
@@ -1866,35 +1865,99 @@ doc comments before touching any of them.
 | 5 | **One progression against one number.** Blades and milestones counted days kept at nearly the same thresholds on the same screen; they are one `Ladder` now. Nothing may add a second. | `Ladder` |
 | 6 | **The app never plays a character.** No person to be, no costume to wear. Enforced now by there being nothing left that could — see §2c for why the worlds went. | — |
 | 7 | **A suggestion appends and never removes.** Adding what Becoming or Plan offers can never cost somebody the list they spent months tuning — which is why there is no confirmation dialog in front of one. A dialog in front of an offer is the app admitting the offer is risky. | `ScheduleChange.adopt`, `ForgeViewModel.addRitual` |
-| 8 | **Forge asks about money once, ever.** Not at launch, not in onboarding, not on a timer, never over a day. Only after 5 days kept, on the Blade tab. | `PremiumInvitation` |
+| 8 | **Forge asks about money at three doors, each at most once, in order — and never over a day.** *Changed on purpose with Forge Pro (2026-09-27); this replaces "asks once, ever … after 5 days kept, on the Blade tab".* The doors: after the first blade celebration closes; a locked Weekly Reading row at the first review that has a reading; an invitation at the first chapter close. Never at launch, never during the day flow or the pull, never in the first run, never to a Pro install, and a later door retires any earlier one it overtook. Tapping a locked control is somebody asking and is not rationed. See §6. | `PremiumInvitation` |
 | 9 | **Nothing writes to the schedule without being read first.** `DayPlanner` and any model both propose `ScheduleChange` values; `ForgeViewModel.apply` is reached only from a button that says how many changes it is about to make. | `SchedulePlan.swift`, `PlanSheet` |
 | 10 | **Never claim a model wrote something it didn't.** `isConnected` and `isModelWritten` are surfaced, never hidden. | `ForgeAI`, `LocalForgeAI` |
 | 11 | **Rest days are not misses.** They neither break nor extend a chain. | `ProgressStore.restWeekdays` |
 | 12 | **The day is a practice, not a calendar.** Activities are standing arrangements (weekday set + time), not dated instances. | §11 |
 
-## 6. Free vs Premium
+## 6. Free vs Forge Pro
 
-**Nothing in 1.0 is behind a paywall.** No paywall screen, no invitation, no
-locked control anywhere in the app. The archetypes were the only thing Premium
-had that shipped and worked; they are gone, and selling model-written features
-that are not deployed would have been dishonest.
+**Forge Pro is sold from 1.1 (2026-09-27).** The decisions below are final
+business decisions and are recorded here as **deliberate changes** to what 1.0
+said: §5 rule #8 ("asks once, ever") and the "no monthly plan" argument that
+used to head `Premium.swift`. Neither is an accident to be reverted.
 
-What survives in `Models/Premium.swift` is only the part that is a *contract*:
-two product identifiers already configured in App Store Connect, and the three
-entitlement states `ForgeStore` reads out of StoreKit. **Neither is referenced by
-any screen.** They are kept because 1.1 adds Premium back around the model, and
-rebuilding a verified StoreKit layer that already works would be the actual
-waste.
+**The line.** Forge is free. **Pro reads your record back to you.** Everything
+that *is* the record stays free forever (§5 rule #1, unchanged): the day, the
+pull, history, heatmap, trends, streak, blades, milestones, rest days,
+chapters, the weekly review's marks, count, last week's line and both
+questions, every answer ever written, Becoming, Plan's own moves, the widgets.
 
-**Three monetisation ideas considered and rejected**, each of which a growth team
-would suggest first:
+| Pro adds | Gate | Where |
+|---|---|---|
+| **Weekly Reading** — the one sentence about the week (`ReviewObservation`, the rules, today; a model's when `isModelEnabled` is on) | `PremiumGate.showsWeeklyReading` | `WeeklyReviewView.noticed` |
+| **Plan in your own words** — the free-text field | `PremiumGate.canPlanInWords` | `PlanSheet.askInWords` |
+| **Eight accents** — accent 1 (Forge blue) is free, 2–8 are Pro | `PremiumGate.isLocked` | `AppearanceView` |
 
-- *Capping the history* — charging rent on someone's own life. This was the old
-  line and removing it was right.
+A lapsed install falls back to Forge blue once StoreKit has *answered* — never
+on the `.free` placeholder `ForgeStore` starts with (`hasReadEntitlement`). The
+Weekly Reading is not described as model-written anywhere; the paywall copy
+(`ProFeature.detail`) says only what this build does (§5 rule #10).
+
+**Products** (`PremiumProduct`, `Forge.storekit`, App Store Connect and
+`forge-ai`'s `PREMIUM_PRODUCTS` must all agree — `PremiumTests.storekitFile`
+reads the `.storekit`):
+
+| | Monthly | Annual | Lifetime |
+|---|---|---|---|
+| Product ID | `com.dawid.forge.premium.monthly` | `com.dawid.forge.premium.annual` | `com.dawid.forge.premium.lifetime` |
+| Type | Auto-renewable, group *Forge Pro* | Auto-renewable, same group, same level | Non-consumable |
+| Price (US) | $9.99 / month | $49.99 / year | $99.99 once |
+| Intro offer | — | **7-day free trial** (1 week, free) | — |
+
+**Monthly is back on purpose.** 1.0 refused it ("charging rent … re-decided
+twelve times a year"). Pro is a reading, and somebody deciding whether a reading
+is worth anything should be able to try it for a month. Annual stays the default
+and the only plan with a trial; lifetime stays for anybody who never wants to
+be asked again. Lifetime outranks a subscription (`PremiumEntitlement.resolve`).
+
+**The paywall** (`PaywallView`): black, the sword in the stone (`hero`), the
+headline *"Forge is free. Pro reads your record back to you."*, the three
+benefits, annual selected (*"7 days free, then $49.99/year"* when StoreKit says
+the account is eligible), monthly and lifetime under it, `ForgePrimaryButton`,
+**Restore purchases**, **Not now** pinned and always visible, the renewal terms
+for the selected plan, Terms of Use (Apple's standard EULA) and the Privacy
+Policy. **Every price is `Product.displayPrice`**; `PremiumCopy` only builds the
+words around it.
+
+**The three doors** (`PremiumInvitation`, App Group key
+`forge.paywallDoors.v1`, each at most once, in order):
+
+1. **First blade** — after the first blade celebration *closes*. Inside the
+   first run (where "Struck" is always earned) it waits until the first run
+   finishes. For an install upgraded from 1.0, it is the next blade.
+2. **Weekly Reading** — the first weekly review that *has* a reading shows a
+   locked, redacted row in its place (a placeholder, never this week's sentence
+   blurred). Tapping opens the paywall; seeing it spends the door. A first week
+   with no reading does not spend it.
+3. **Chapter close** — `PremiumInvitationView`, one card at the foot of
+   `ChapterCloseView`, below everything the person came to read.
+
+Never: at launch, during the day flow or the pull (`doorMoment.isDayInProgress`),
+in the first run, over a summary or celebration, or to a Pro install; and until
+StoreKit has answered, the install is treated as Pro. The locked controls
+(accents, Plan's field) and **Settings → Forge Pro** open the paywall whenever
+tapped — that is somebody asking, not a door.
+
+**Settings → Forge Pro** (top of Settings): status (Free / Forge Pro · plan),
+See Forge Pro, Restore Purchases, and — for a subscription — Manage
+Subscription via `AppStore.showManageSubscriptions(in:)`.
+
+**Telemetry** (§2p, no new keys): `paywall_view` / `paywall_dismissed` with
+`door` (`first_blade`, `weekly_reading`, `chapter_close`, `accent`, `plan`,
+`settings`), `trial_started` and `purchase_completed` with `plan` (a trial is
+never counted as a sale), `restore_tapped`.
+
+**Still rejected**, each of which a growth team would suggest first:
+
+- *Capping the history* — charging rent on someone's own life.
 - *Capping activities per day or edit frequency* — makes the free app worse
   exactly where it's supposed to be good, and punishes beginners hardest.
 - *Gating a whole tab* — a fully locked tab is an advertisement wearing a tab bar
   icon, and it teaches people to stop tapping it.
+- *A paywall at launch, in onboarding, on a timer, or over the day* — see the
+  doors above.
 
 ## 7. Planning, and where a model would plug in
 

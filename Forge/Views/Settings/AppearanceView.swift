@@ -25,6 +25,11 @@ import SwiftUI
 /// in front of a colour would make a two-second decision feel like a
 /// transaction. Going back is one tap on the swatch that was there before, and
 /// the previous choice is still on screen while the new one is being looked at.
+///
+/// # Seven of the eight are Forge Pro
+///
+/// Forge blue is free; the other seven carry a lock and open the paywall
+/// instead of applying. See `PremiumGate`, which is the whole rule.
 struct AppearanceView: View {
 
     /// Read straight off the singleton. See `ForgeAppearance` — this is the one
@@ -33,6 +38,11 @@ struct AppearanceView: View {
     private var appearance: ForgeAppearance { ForgeAppearance.shared }
 
     @Environment(\.dynamicTypeSize) private var typeSize
+    /// Optional so a preview without a store still draws — as the free tier.
+    @Environment(ForgeStore.self) private var store: ForgeStore?
+    @State private var paywallDoor: ForgeTelemetry.PaywallDoor?
+
+    private var isPremium: Bool { store?.isPremium ?? false }
 
     /// Four across on a normal phone, two at the accessibility sizes, where a
     /// name under a swatch needs the whole half-width to stay on one line.
@@ -56,6 +66,13 @@ struct AppearanceView: View {
                             swatch(option)
                         }
                     }
+
+                    if !isPremium {
+                        Text("Forge blue is free. The other seven come with Forge Pro.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                 }
 
                 Text("The accent is the one colour Forge uses to mean *chosen*, *done* and *yours*. It never touches the room, the stone or the blade — those are the scene, and the scene is not a preference.")
@@ -70,6 +87,7 @@ struct AppearanceView: View {
         .scrollIndicators(.hidden)
         .navigationTitle("Appearance")
         .navigationBarTitleDisplayMode(.inline)
+        .paywall($paywallDoor)
     }
 
     // MARK: - What it looks like
@@ -154,8 +172,14 @@ struct AppearanceView: View {
     /// trying to judge.
     private func swatch(_ option: ForgeThemeAccent) -> some View {
         let isChosen = appearance.accent == option
+        let isLocked = PremiumGate.isLocked(option, isPremium: isPremium)
         return Button {
             guard !isChosen else { return }
+            guard !isLocked else {
+                ForgeHaptics.shared.tap()
+                paywallDoor = .accent
+                return
+            }
             ForgeHaptics.shared.detent()
             withAnimation(.forgeSelection) { appearance.accent = option }
         } label: {
@@ -175,6 +199,13 @@ struct AppearanceView: View {
                             // than as a hole.
                             Circle().strokeBorder(.white.opacity(0.14), lineWidth: 0.5)
                         }
+                        .overlay {
+                            if isLocked {
+                                Image(systemName: "lock.fill")
+                                    .font(.system(size: 13, weight: .semibold))
+                                    .foregroundStyle(.black.opacity(0.55))
+                            }
+                        }
                 }
                 .frame(height: 54)
 
@@ -188,7 +219,7 @@ struct AppearanceView: View {
             .contentShape(.rect)
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(Text(option.label))
+        .accessibilityLabel(Text(isLocked ? "\(option.label), Forge Pro" : option.label))
         .accessibilityValue(Text(option.note))
         .accessibilityAddTraits(isChosen ? [.isButton, .isSelected] : .isButton)
     }
