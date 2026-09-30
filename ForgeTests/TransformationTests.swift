@@ -61,6 +61,14 @@ struct TransformationTests {
         #expect(all[3].blade == Sword.collection.last, "full potential is the last blade there is")
     }
 
+    @Test("Every blade has its days under it, in words")
+    func daysLines() {
+        let all = frames(uniform(1), focus: [.physical])
+        #expect(all.map(\.daysLine) == [
+            "No days kept yet", "Five days kept", "Twenty-one days kept", "Sixty days kept",
+        ])
+    }
+
     @Test("The projection is deterministic")
     func deterministic() {
         let answers = uniform(2, sleep: 0)

@@ -87,25 +87,56 @@ struct OnboardingProgress: View {
 }
 
 /// The row above every beat from the first question on: back where going back
-/// means something, the bar, and a way out where the flow was opened from
-/// somewhere else.
+/// means something, the bar, and — on the right — a way past a beat that can
+/// be skipped, or a way out where the flow was opened from somewhere else.
+///
+/// **Both corners are the same fixed width whether anything is in them or
+/// not**, so the bar is the same length on every beat and never moves as the
+/// sequence goes past it.
 struct OnboardingTopBar: View {
     let progress: Double
     var onBack: (() -> Void)? = nil
     var onClose: (() -> Void)? = nil
+    /// "Skip", on a beat that can be passed without answering it.
+    var onSkip: (() -> Void)? = nil
+
+    private let corner: CGFloat = 60
 
     var body: some View {
-        HStack(spacing: 10) {
-            corner(symbol: "chevron.left", label: "Back", action: onBack)
+        HStack(spacing: 6) {
+            icon("chevron.left", label: "Back", action: onBack)
+                .frame(width: corner, alignment: .leading)
+
             OnboardingProgress(value: progress)
-            corner(symbol: "xmark", label: "Close", action: onClose)
+
+            Group {
+                if let onSkip {
+                    Button {
+                        ForgeHaptics.shared.tap()
+                        onSkip()
+                    } label: {
+                        Text("Skip")
+                            .font(.subheadline.weight(.medium))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .frame(minWidth: 44, minHeight: 44)
+                            .contentShape(.rect)
+                    }
+                    .buttonStyle(.plain)
+                    .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
+                    .transition(.opacity)
+                } else {
+                    icon("xmark", label: "Close", action: onClose)
+                }
+            }
+            .frame(width: corner, alignment: .trailing)
         }
-        .padding(.horizontal, 10)
+        .padding(.horizontal, 6)
         .frame(height: 44)
+        .animation(.easeOut(duration: 0.2), value: onSkip == nil)
     }
 
-    /// The same width whether it is there or not, so the bar never moves.
-    private func corner(symbol: String, label: String, action: (() -> Void)?) -> some View {
+    private func icon(_ symbol: String, label: String, action: (() -> Void)?) -> some View {
         Button {
             ForgeHaptics.shared.tap()
             action?()
@@ -198,6 +229,8 @@ private struct AnswerRow: View {
     let isSelected: Bool
     let action: () -> Void
 
+    @Environment(\.dynamicTypeSize) private var typeSize
+
     var body: some View {
         Button(action: action) {
             HStack(spacing: 12) {
@@ -217,9 +250,13 @@ private struct AnswerRow: View {
                         AnyShapeStyle(ForgeTheme.accent)
                     )
                     .contentTransition(.symbolEffect(.replace))
+                    // The mark stops growing where the words still need to.
+                    // Left to scale, it took the width "Sometimes" needed at
+                    // the accessibility sizes, and the answer was hyphenated.
+                    .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
                     .accessibilityHidden(true)
             }
-            .padding(.horizontal, 18)
+            .padding(.horizontal, typeSize.isAccessibilitySize ? 14 : 18)
             .padding(.vertical, 14)
             .frame(maxWidth: .infinity, minHeight: 58, alignment: .leading)
             .contentShape(.rect)

@@ -19,7 +19,7 @@ struct ScienceBeat: View {
     var body: some View {
         VStack(spacing: 0) {
             ScrollView {
-                VStack(spacing: 14) {
+                VStack(spacing: 12) {
                     Spacer(minLength: 0)
 
                     Text(FirstRunCopy.scienceTitle)
@@ -27,7 +27,7 @@ struct ScienceBeat: View {
                         .multilineTextAlignment(.center)
                         .fixedSize(horizontal: false, vertical: true)
                         .accessibilityAddTraits(.isHeader)
-                        .padding(.bottom, 6)
+                        .padding(.bottom, 4)
 
                     ForEach(Array(FirstRunCopy.findings.enumerated()), id: \.offset) { _, finding in
                         FindingCard(finding: finding)
@@ -36,7 +36,7 @@ struct ScienceBeat: View {
                     Spacer(minLength: 0)
                 }
                 .padding(.horizontal, 20)
-                .padding(.vertical, 14)
+                .padding(.vertical, 10)
                 .frame(maxWidth: .infinity, minHeight: scrollHeight)
             }
             .scrollIndicators(.hidden)
@@ -59,13 +59,13 @@ private struct FindingCard: View {
     let finding: FirstRunCopy.Finding
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 6) {
             Text(finding.title)
                 .font(.headline)
                 .foregroundStyle(.primary)
 
             Text(finding.body)
-                .font(.subheadline)
+                .font(.footnote)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
 
@@ -80,7 +80,7 @@ private struct FindingCard: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.top, 2)
         }
-        .padding(ForgeTheme.Space.row)
+        .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
         .forgeCard(radius: ForgeTheme.Radius.card)
         .accessibilityElement(children: .combine)
@@ -106,43 +106,55 @@ struct PlanBeat: View {
     let onContinue: () -> Void
 
     @State private var editing: PlanEntry?
+    @State private var scrollHeight: CGFloat = 0
 
     var body: some View {
         VStack(spacing: 0) {
-            VStack(spacing: 8) {
-                Text(FirstRunCopy.planTitle)
-                    .font(.title.weight(.semibold))
-                    .accessibilityAddTraits(.isHeader)
-                Text(FirstRunCopy.planSubtitle)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .multilineTextAlignment(.center)
-            .padding(.horizontal, 32)
-            .padding(.top, 8)
-            .padding(.bottom, 18)
-
-            // ARC-PICKER (session S3): the Arc choice (Lock In 7 first) goes
-            // here, above the list it appends to — DIRECTION_1_1 §5. An Arc
-            // shows what it adds before it adds it (§5 #7 and #9).
-
+            // The heading and the rows scroll together and sit centred when
+            // there are only three: a short plan pinned to the top of the
+            // screen read as a list waiting to be filled.
             ScrollView {
-                VStack(spacing: 8) {
-                    ForEach(entries) { entry in
-                        if let ritual = entry.ritual {
-                            PlanRow(ritual: ritual, entry: entry) {
-                                ForgeHaptics.shared.tap()
-                                editing = entry
+                VStack(spacing: 0) {
+                    Spacer(minLength: 0)
+
+                    VStack(spacing: 8) {
+                        Text(FirstRunCopy.planTitle)
+                            .font(.title.weight(.semibold))
+                            .accessibilityAddTraits(.isHeader)
+                        Text(FirstRunCopy.planSubtitle)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 32)
+                    .padding(.bottom, 18)
+
+                    // ARC-PICKER (session S3): the Arc choice (Lock In 7 first)
+                    // goes here, above the list it appends to — DIRECTION_1_1
+                    // §5. An Arc shows what it adds before it adds it (§5 #7
+                    // and #9).
+
+                    VStack(spacing: 8) {
+                        ForEach(entries) { entry in
+                            if let ritual = entry.ritual {
+                                PlanRow(ritual: ritual, entry: entry) {
+                                    ForgeHaptics.shared.tap()
+                                    editing = entry
+                                }
                             }
                         }
                     }
+                    .padding(.horizontal, 20)
+
+                    Spacer(minLength: 0)
                 }
-                .padding(.horizontal, 20)
-                .padding(.bottom, 8)
+                .padding(.vertical, 10)
+                .frame(maxWidth: .infinity, minHeight: scrollHeight)
             }
             .scrollIndicators(.hidden)
             .scrollBounceBehavior(.basedOnSize)
+            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { scrollHeight = $0 }
 
             ForgeButton(title: "Continue") {
                 ForgeHaptics.shared.tap()

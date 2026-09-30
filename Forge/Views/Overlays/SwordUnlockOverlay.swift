@@ -17,6 +17,7 @@ struct SwordUnlockOverlay: View {
     var onKeep: () -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     @State private var bladeIn = false
     @State private var textIn = false
@@ -59,10 +60,14 @@ struct SwordUnlockOverlay: View {
         VStack(spacing: 0) {
             Spacer(minLength: 20)
 
+            // The art gives way at the accessibility sizes, where the name and
+            // the note need the room and the blade carries no words. At 280
+            // points the note under the name was cut to one line and an
+            // ellipsis on a standard phone.
             SwordArt(
                 assetName: sword.asset,
-                width: 146,
-                height: 280,
+                width: typeSize.isAccessibilitySize ? 100 : 146,
+                height: typeSize.isAccessibilitySize ? 190 : 280,
                 solid: 0.58,
                 sheen: reduceMotion ? nil : sheen
             )
@@ -86,6 +91,7 @@ struct SwordUnlockOverlay: View {
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: 280)
             }
             .padding(.top, 26)

@@ -230,6 +230,20 @@ enum Transformation {
         let blade: Sword
 
         var id: Stop { stop }
+
+        /// The line under the blade's name, in words (prose, so counts up to
+        /// a hundred are spelled).
+        ///
+        /// The days the stop is read after, except at full potential, where
+        /// the blade is simply the last one there is and the line says what
+        /// that blade takes — "Sixty days kept" for Proven today, and whatever
+        /// the last rung asks once the ladder grows.
+        var daysLine: String {
+            let days = stop == .potential ? blade.requirement : daysKept
+            let words = FirstWeek.days(days)
+            let line = words.prefix(1).uppercased() + words.dropFirst() + " kept"
+            return stop == .now ? line + " yet" : line
+        }
     }
 
     /// Whether day `index` (nought is today) of a five-a-week projection is

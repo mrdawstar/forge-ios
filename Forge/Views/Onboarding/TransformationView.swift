@@ -28,6 +28,8 @@ struct TransformationBeat: View {
     @State private var stop: Transformation.Stop = .now
     @State private var scrollHeight: CGFloat = 0
 
+    private static let top = "top"
+
     private var frame: Transformation.Frame? {
         frames.first { $0.stop == stop } ?? frames.first
     }
@@ -48,19 +50,30 @@ struct TransformationBeat: View {
             .padding(.horizontal, 20)
             .padding(.top, 6)
 
-            ScrollView {
-                VStack(spacing: 0) {
-                    Spacer(minLength: 0)
-                    if let frame { content(frame) }
-                    Spacer(minLength: 0)
+            ScrollViewReader { reader in
+                ScrollView {
+                    VStack(spacing: 0) {
+                        Spacer(minLength: 0)
+                            .id(Self.top)
+                        if let frame { content(frame) }
+                        Spacer(minLength: 0)
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 10)
+                    .frame(maxWidth: .infinity, minHeight: scrollHeight)
                 }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 14)
-                .frame(maxWidth: .infinity, minHeight: scrollHeight)
+                .scrollIndicators(.hidden)
+                .scrollBounceBehavior(.basedOnSize)
+                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { scrollHeight = $0 }
+                // Each stop opens at its own top — its name, then its blade —
+                // which is the order it is read in and the order VoiceOver
+                // reads it. At the accessibility sizes a stop scrolls, and
+                // arriving on the next one at the previous one's offset opened
+                // it on its tiles with the name and the blade out of sight.
+                .onChange(of: stop) { _, _ in
+                    withAnimation(motion) { reader.scrollTo(Self.top, anchor: .top) }
+                }
             }
-            .scrollIndicators(.hidden)
-            .scrollBounceBehavior(.basedOnSize)
-            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { scrollHeight = $0 }
 
             ForgeButton(title: stop == .potential ? "Continue" : "Next") { next() }
                 .padding(.horizontal, 24)
@@ -83,25 +96,43 @@ struct TransformationBeat: View {
 
     @ViewBuilder
     private func content(_ frame: Transformation.Frame) -> some View {
-        VStack(spacing: 18) {
-            Text(frame.stop.title)
-                .font(.title2.weight(.semibold))
-                .multilineTextAlignment(.center)
-                .fixedSize(horizontal: false, vertical: true)
-                .contentTransition(.opacity)
-                .accessibilityAddTraits(.isHeader)
+        VStack(spacing: 14) {
+            // The same reservation as the footnote below: "Where you are now"
+            // wraps at the large sizes where "In 7 days" does not.
+            ZStack {
+                ForEach(Transformation.Stop.allCases) { stop in
+                    Text(stop.title)
+                        .opacity(stop == frame.stop ? 1 : 0)
+                        .accessibilityHidden(stop != frame.stop)
+                }
+            }
+            .font(.title2.weight(.semibold))
+            .multilineTextAlignment(.center)
+            .fixedSize(horizontal: false, vertical: true)
+            .accessibilityAddTraits(.isHeader)
 
             hero(frame)
 
             StatTiles(dimensions: frame.shape.dimensions)
 
-            Text(frame.stop.footnote)
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .fixedSize(horizontal: false, vertical: true)
-                .contentTransition(.opacity)
-                .padding(.horizontal, 8)
+            // Every stop's footnote is laid out and only the current one is
+            // shown, so the space under the tiles is always the tallest of
+            // the four. They run one line and two, and the content is
+            // centred, so without this the whole screen rose and fell by
+            // half a line between stops — and a line limit instead would
+            // have cut the assumption short at the accessibility sizes.
+            ZStack(alignment: .top) {
+                ForEach(Transformation.Stop.allCases) { stop in
+                    Text(stop.footnote)
+                        .opacity(stop == frame.stop ? 1 : 0)
+                        .accessibilityHidden(stop != frame.stop)
+                }
+            }
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+            .multilineTextAlignment(.center)
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.horizontal, 8)
         }
     }
 
@@ -119,6 +150,10 @@ struct TransformationBeat: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text("Overall \(frame.shape.overall), \(frame.shape.state.label)"))
 
+        // The hexagon is capped so the tiles and the footnote under them fit
+        // above the button on a 17e: the assumption is part of every number
+        // on this screen, and a footnote below the fold is an assumption
+        // nobody reads.
         if typeSize.isAccessibilitySize {
             VStack(spacing: 14) {
                 BladeStage(frame: frame, height: 150)
@@ -126,9 +161,10 @@ struct TransformationBeat: View {
             }
         } else {
             HStack(alignment: .center, spacing: 10) {
-                BladeStage(frame: frame, height: 206)
+                BladeStage(frame: frame, height: 184)
                     .frame(width: 84)
                 hexagon
+                    .frame(maxHeight: 208)
             }
         }
     }
@@ -212,31 +248,19 @@ private struct BladeStage: View {
                 .minimumScaleFactor(0.8)
                 .contentTransition(.opacity)
 
-            if let kept {
-                Text(kept)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .contentTransition(.opacity)
-            }
+            // Two lines, reserved: "Twenty-one days kept" wraps in the blade's
+            // column and "Five days kept" does not, and the content is
+            // centred, so without the reservation the screen rose and fell by
+            // a line between stops.
+            Text(frame.daysLine)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .lineLimit(2, reservesSpace: true)
+                .contentTransition(.opacity)
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(Text(
-            [frame.blade.title, kept].compactMap { $0 }.joined(separator: ". ")
-        ))
-    }
-
-    /// "Five days kept", on the two stops that are counts of days. The first is
-    /// nothing yet and the last is not a count, so both are silent.
-    private var kept: String? {
-        switch frame.stop {
-        case .week, .month:
-            let days = FirstWeek.days(frame.daysKept)
-            return days.prefix(1).uppercased() + days.dropFirst() + " kept"
-        case .now, .potential:
-            return nil
-        }
+        .accessibilityLabel(Text("\(frame.blade.title). \(frame.daysLine)"))
     }
 }
 
@@ -256,10 +280,10 @@ struct StatTiles: View {
 
     var body: some View {
         let columns = Array(
-            repeating: GridItem(.flexible(), spacing: 10),
+            repeating: GridItem(.flexible(), spacing: 8),
             count: typeSize.isAccessibilitySize ? 2 : 3
         )
-        LazyVGrid(columns: columns, spacing: 10) {
+        LazyVGrid(columns: columns, spacing: 8) {
             ForEach(dimensions) { dimension in
                 StatTile(dimension: dimension)
             }
@@ -273,7 +297,7 @@ struct StatTile: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 4) {
             Image(systemName: dimension.category.symbol)
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(dimension.category.color)
@@ -303,7 +327,8 @@ struct StatTile: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.75)
         }
-        .padding(12)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
         .frame(maxWidth: .infinity, alignment: .leading)
         .forgeCard(radius: ForgeTheme.Radius.control)
         .accessibilityElement(children: .ignore)

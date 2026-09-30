@@ -1603,8 +1603,9 @@ re-entry brings anybody back. So it counts those — anonymously, and only those
   `start()` from `ForgeApp.init`. No call site names a signal as a string or
   touches the SDK. The Swift package was already referenced by the project;
   this links its `TelemetryDeck` product into the Forge target.
-- **The events, and only these:** `app_first_open`, `onboarding_beat_view{beat}`,
-  `onboarding_focus_chosen{count}`, `onboarding_completed`,
+- **The events, and only these:** `app_first_open`, `onboarding_step{step}`
+  (was `onboarding_beat_view{beat}` until §17.1), `onboarding_focus_chosen{count}`,
+  `assessment_completed`, `onboarding_completed`,
   `first_pull_completed`, `activity_completed{method}`, `day_earned`,
   `pull_abandoned`, `challenge_accepted`, `challenge_completed`,
   `activity_added{source}`, `notification_opened{kind}`,
@@ -1612,7 +1613,7 @@ re-entry brings anybody back. So it counts those — anonymously, and only those
   `chapter_closed` — and, defined with no call site until the paywall lands,
   `paywall_view{door}`, `paywall_dismissed{door}`, `trial_started{plan}`,
   `purchase_completed{plan}`, `restore_tapped`.
-- **Every parameter is a closed value.** `beat`, `method`, `source`, `kind`,
+- **Every parameter is a closed value.** `step`, `method`, `source`, `kind`,
   `door`, `plan` are raw values of enums; `count` is a number. No case can carry
   an activity name, an identity, a chapter, a review, a quote, a chosen time or
   a HealthKit reading. `TelemetryTests.payloadsAreClosed` holds the key set.
@@ -1634,8 +1635,9 @@ re-entry brings anybody back. So it counts those — anonymously, and only those
 | Event | Call site |
 |---|---|
 | `app_first_open` | `ContentView` launch pass: first run not finished, on the day of the first record. A relaunch mid-onboarding that day counts again; read unique users. |
-| `onboarding_beat_view` | `ForgeViewModel.firstRunStage` `didSet`; the opening `promise` beat from the launch pass. |
-| `onboarding_focus_chosen` | `FirstRunView.advance`, leaving *build* for *choose*. Zero for Skip. |
+| `onboarding_step` | `ForgeViewModel.firstRunStage` `didSet`, one step per beat and one per question (`ForgeTelemetry.Step`); the opening `cold_open` from the launch pass. |
+| `onboarding_focus_chosen` | `FirstRunView.advance`, leaving *build* for *drawing*. Zero for Skip. |
+| `assessment_completed` | When the seventh answer is saved: `FirstRunView.finishQuestions` and Becoming's `AssessmentSheet`. No parameters — the answers stay on the phone. |
 | `onboarding_completed` | `ForgeViewModel.finishFirstRun`. |
 | `first_pull_completed`, `day_earned`, `reentry_recovered` | `ForgeViewModel.isOut` setter, when the day goes from not earned to earned. Recovered = the `ReEntry` gap was open the moment before. Undo-and-pull again re-sends `day_earned`. |
 | `activity_completed` | `tick` (`basic`) and `keepPromise` (`honor`), only when newly done. |
@@ -1952,7 +1954,7 @@ it wins.** What it supersedes:
 - **§8 "numbers as words" is narrowed to prose:** scores, the six stats, OVR,
   prices, dates, times and Arc day counters are digits (DIRECTION §3).
 - **The §2g/§2h first run is replaced in session S1** by the transformation
-  onboarding (DIRECTION §2).
+  onboarding (DIRECTION §2). Built: §17.1.
 
 Progress on each session is recorded in §17.
 
@@ -2609,3 +2611,207 @@ Session S0. No product code changed.
   Mac (`store.status == .unavailable`), and the `AIPrepTests` that need a Pro
   entitlement fail with it. `Forge.storekit` itself is valid. To investigate
   before session S2 touches the paywall.
+
+### 17.1 Onboarding 2.0: the assessment and the transformation (2026-09-30)
+
+Session S1, branch `feat/onboarding-2`. The §2g/§2h first run is replaced by
+the one DIRECTION §2 describes. Where §2b, §2g or §2h describe the first run's
+beats, this section is right; what they say about the pieces kept below still
+holds.
+
+#### The first run, as it is now
+
+`ForgeViewModel.FirstRunStage` is `coldOpen → question(0…6) → build → drawing →
+transformation → science → plan → metaphor → doOne → pull → closing →
+finished`. `FirstRunView` holds the state (answers, plan, the four frames, the
+frozen first task) and draws the frame around the beats; the new beats are in
+`Views/Onboarding/`.
+
+| Beat | What it is |
+|---|---|
+| `coldOpen` | `BladePlate`, "Every day you keep, the blade comes loose." / "You pull it free." and **Begin**. No bar yet. |
+| `question(i)` | Seven one-tap questions (`Assessment.Question`), the caption over the first. The tap is the answer and the move on, with a light tick; only the first tap on a screen counts. A thin bar runs from the first question to the pull; back exists on the question beats only and keeps every answer. |
+| `build` | `FocusHexagon` and the six rows, uncapped, preselected once with the two lowest baselines — "Suggested from your answers." until the choice changes. **Skip** sits in the bar once nothing is chosen, and skipping still leaves a plan. |
+| `drawing` | `DrawingBeat`: the starting shape draws itself in 2.4 s, the vertices lighting in their colours with a rising haptic, and one line on time from the screen-time answer. A tap, or the VoiceOver action, skips it; Reduce Motion fades it in. |
+| `transformation` | `TransformationBeat`: the four stops, below. |
+| `science` | `ScienceBeat`: three findings as cards, each ending in the mechanic built on it, the citation small: Lally et al. (2010), Gollwitzer & Sheeran (2006), Harkin et al. (2016), three of the four papers DIRECTION allows. |
+| `plan` | `PlanBeat`: three to six activities, each with a time. A row opens `PlanEntryEditor`: a time wheel and the dimension's other starters. `// ARC-PICKER (session S3)` marks where Arcs go. |
+| `metaphor` | `PullToBegin`, unchanged. `// PAYWALL (session S2)` marks, in its `onFree`, where the paywall goes. |
+| `doOne`, `pull`, `closing` | Unchanged: the frozen `firstTask`, the handover in its own runloop turn, the first real pull. |
+
+Kept as they were: `FirstRunAmbience` (now drifting between 1 and 1.12 — below
+1 its edges showed the black of the window on the build beat), `BladePlate`,
+`PullToBegin`, `beat(...)`, `doOne`, skippable forward, VoiceOver and Reduce
+Motion throughout.
+
+#### The assessment (`Models/Assessment.swift`)
+
+- Seven questions. Six set a dimension's baseline (training → Physical,
+  planning → Discipline, screen time → Mental, reading → Intellect, friends →
+  Relationship, hours on what you're building → Ambition); sleep adjusts Mental
+  by −10, 0, +10 or +5. Baselines clamp to 5…75: nothing somebody says about
+  themselves starts them at either edge of the instrument.
+- Stored under **`forge.assessment.v1`** in the App Group: the day it was taken
+  and each answer by the option's id, never its position, so reordering options
+  cannot change an old answer. The decoder keeps what it recognises and drops
+  the rest (an unknown question, option or type); without a day there is no
+  assessment. It is stated data and never leaves the phone — telemetry gets
+  `assessment_completed` with no parameters.
+- Installs without one — every 1.0 install — see exactly what they saw before,
+  plus a card on the Becoming tab: **"Take the one-minute assessment"** opens
+  `AssessmentSheet` (the seven questions and the drawing, then back).
+
+#### The six, blended (`Models/BlendedShape.swift`)
+
+One type is where every screen gets the six and OVR: the Becoming hexagon and
+rows, the drawing and the four stops (`ForgeViewModel.blended`). Per dimension,
+with `A` the assessment day and `F` the first day anything feeding it was
+planned:
+
+- **Planned, `F` within sixty days of `A`, under 28 days of record since `F`:**
+  `shown = w × reading + (1 − w) × baseline`, `w = days / 28`.
+- **Never planned, today within sixty days of `A`:** the baseline, marked "From
+  your answers".
+- **Otherwise:** exactly `ForgeShape`.
+- **No assessment:** exactly `ForgeShape`, number for number
+  (`BlendedShapeTests` holds the equality).
+
+Decisions worth knowing:
+
+- **Today counts once something is kept in it — for every install.**
+  `ForgeShape.read` is now a pure static (`ProgressStore.forgeShape(of:)` calls
+  it, the projections call it on days in memory) and adds today to both asked
+  and kept for a dimension as soon as something in it is kept. A day in
+  progress is never a miss, so a morning can never lower a number and the first
+  thing kept raises it. Before, today was left out entirely and the hexagon sat
+  still until the next morning.
+- **The record's half of the blend has a scaled presence floor**
+  (`8 × days / 28`). The hand-over is continuous — at 28 days the blend's last
+  value and `ForgeShape`'s first are the same number — and one kept day followed
+  by silence cannot climb towards a hundred on the weight alone.
+- **The state word counts only dimensions that have a direction yet.** A blend
+  has none for its first seven days, so a first afternoon reads "Early" rather
+  than "Steady". `needsAttention` reads only dimensions on the record.
+- **What decides still reads the record.** `DayPlanner.Facts`, the challenge and
+  the AI context read `ForgeShape`: the answers draw the picture, they do not
+  steer the planner.
+- **The Proof Card shows neither the six nor OVR**, so there was nothing to
+  switch. If it ever does, it reads `blended`.
+
+Tested: a daily keeper gains three to four points a day from day one; the blend
+never drops for somebody keeping everything; the weights at 0, 14 and 28+ days;
+the sixty-day rule; equality with no assessment; today never a miss; OVR on the
+blend; the state word waiting for a direction.
+
+#### The transformation (`Models/Transformation.swift`, `Views/Onboarding/TransformationView.swift`)
+
+- **Four stops, one model:** `BlendedShape.read` over `DayRecord`s made in
+  memory (`Transformation.simulate`). *Now*: no record. *In 7 days* and *in 30
+  days*: the proposed plan, planned every day and kept five days of seven,
+  spread evenly and starting today (five and twenty-one kept). *Full
+  potential*: every dimension's first starter planned and kept for 28 days — a
+  hundred in all six — with the last blade there is.
+- **The blade comes from the days kept:** Rough, Shaped (5), Quenched (21),
+  Proven. The line under it says the days in words; at full potential, the days
+  the last blade asks for ("Sixty days kept").
+- **Footnotes:** "From your answers." / "Projected if you keep five days a week
+  of the plan you're about to see." / "All six built and kept." Nothing on the
+  screen says "will".
+- **One honest wrinkle, left true.** Five days of seven reads 71, so a planned
+  dimension answered at 75 is projected to settle at 71 by 30 days, because that
+  is what the record would show (`seventyFiveSettles`). Every lower baseline
+  only rises (`monotonicForPlanned`), and an unplanned dimension is never raised.
+- **Nothing moves between stops.** The title and the footnote are laid out for
+  all four stops at once with only the current one visible, the line under the
+  blade always takes two lines, and the scroll returns to the top on a change.
+  Numbers count (`numericText`), the polygon morphs (`SixValues`), and Reduce
+  Motion cross-fades both.
+
+#### The plan (`OnboardingPlan`)
+
+- Three to six activities, one per dimension: the chosen ones, then the lowest
+  baselines up to three. Each is its dimension's first `IdentityActivities.starters`
+  entry; a row swaps only within its dimension.
+- Times: body, discipline, head and ambition from 07:00, getting up first;
+  people, reading and anything about tomorrow (`eveningActivities`) from 19:00.
+  Laid out back to back, five minutes apart, on five-minute marks, so `untangle`
+  has nothing to say on day one.
+- **The plan is written as the day, every day, at its times**
+  (`ForgeViewModel.adoptPlan`). This replaces 1.0's `chooseStarters`, which
+  pinned the choice to today only (§2b). The beat says "Every day, at these
+  times", and a plan somebody set times for and found gone tomorrow would make
+  that sentence false.
+
+#### One palette for the six
+
+`Theme/DimensionPalette.swift`: Physical ember, Discipline Forge blue, Mental
+tide, Intellect gold, Relationship rose, Ambition violet, as
+`RitualCategory.color`. Used by `StatHexagon` (the six-colour hexagon, with
+`OverallCore` for OVR), the transformation tiles, the build rows, the Becoming
+rows and the daily challenge's tag.
+
+#### Telemetry
+
+`onboarding_beat_view{beat}` is now **`onboarding_step{step}`**: each question
+is its own step (`question_training` … `question_building`) and the pull
+rehearsal is `pull_to_begin`. **`assessment_completed`** has no parameters and
+fires from the first run and from Becoming's sheet. `onboarding_focus_chosen`
+fires on leaving *build* for *drawing*. §2p is updated. A dashboard built on
+`onboarding_beat_view` needs the new name.
+
+#### Also
+
+At the accessibility sizes, three things that cut words are fixed: the answer
+and dimension rows gave their mark and glyph column back to the name
+("Sometimes" and "Relationship" broke mid-word at AX4 on a 17 Pro), the new-blade
+overlay shrinks its art so the note reads in full, and the Becoming tab's
+"Smallest start" line wraps instead of truncating.
+
+#### Files added to `project.pbxproj`
+
+Forge target: `Models/Assessment.swift`, `Models/BlendedShape.swift`,
+`Models/Transformation.swift`, `Theme/DimensionPalette.swift`,
+`Views/Components/StatHexagon.swift`, and in a new `Views/Onboarding` group
+`AssessmentFlow.swift`, `PlanBeat.swift`, `TransformationView.swift`.
+ForgeTests: `AssessmentTests.swift`, `BlendedShapeTests.swift`,
+`TransformationTests.swift`.
+
+#### Verified
+
+- `xcodebuild test` on the iPhone 17 Pro simulator: **683 tests in 56
+  suites**. The only failures are the 16 environmental issues §17.0 lists
+  (`ForgeStoreKitTests`, and the `AIPrepTests` that need a Pro entitlement).
+- A fresh install walked end to end on the iPhone 17 Pro simulator at the
+  default text size and at AX3, every beat captured: back keeps the answers,
+  Skip, the plan editor, the first pull and handover (no black screen), the
+  closing line, the Becoming tab on day one (a blend after one kept activity),
+  and the standalone assessment from Becoming.
+- The transformation on the iPhone 17e simulator: all four stops fit with the
+  footnote above the button, and the title and tiles hold their position across
+  stops.
+- The captures are in `docs/verification/1.1-s1/`, as contact sheets: default
+  size, AX3 and the 17e.
+
+#### Not verified — on a real iPhone
+
+Haptics (the simulator has none: the answer tick, the rising sequence, the
+pull), Liquid Glass and the six-colour gradient on a real display, VoiceOver
+end to end, Reduce Motion, the plan's times in a 24-hour locale, the hexagon
+morph's frame rate on an older phone, and the first signals of `onboarding_step`
+and `assessment_completed` in TelemetryDeck's Test Mode.
+
+#### For the owner
+
+- **The 75 answer settles at 71** on the 30-day stop (above). If a number going
+  down on that stop reads wrong, change the assumption or the copy; do not
+  bend the model for the screen.
+- **The plan is daily now,** where 1.0 pinned the first choice to today only.
+- **The first science card names Arcs** ("Arcs are built around it."), as
+  the session brief asked, before session S3 builds them. Until S3 ships, the
+  first run names a feature the build does not have yet.
+- **The hosted privacy policy** needs the two phrases added to
+  `docs/launch/privacy-policy.md` (§1 and §6: the starting answers stay on the
+  phone and are never sent) before the 1.1 submission.
+- **Pre-existing, not changed here:** the do-one beat's line reads "The first
+  of your mental." (`evidenceLine`, 1.0's wording). It reads oddly for Mental
+  and Physical; worth a look when the beat is next touched.

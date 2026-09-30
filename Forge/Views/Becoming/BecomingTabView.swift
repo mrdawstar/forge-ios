@@ -922,11 +922,11 @@ private struct DimensionRow: View {
                     Spacer(minLength: 8)
 
                     if dimension.hasScore {
-                        if dimension.isFromAnswers {
-                            Text("From your answers")
-                                .font(.caption2)
-                                .foregroundStyle(.tertiary)
-                        } else {
+                        // A number made only of answers has no direction to
+                        // show, and says what it is made of under the bar
+                        // instead — beside a BUILDING mark the words had no
+                        // room and broke over two lines.
+                        if !dimension.isFromAnswers {
                             if let arrow = dimension.direction.symbol {
                                 Image(systemName: arrow)
                                     .font(.system(size: 10, weight: .bold))
@@ -963,6 +963,12 @@ private struct DimensionRow: View {
                     }
                 }
                 .frame(height: 3)
+
+                if dimension.isFromAnswers {
+                    Text("From your answers")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                }
 
                 if isInspecting {
                     VStack(alignment: .leading, spacing: 3) {
@@ -1113,12 +1119,16 @@ private struct StarterLine: View {
     let ritual: Ritual
     let add: () -> Void
 
+    @Environment(\.dynamicTypeSize) private var typeSize
+
     var body: some View {
         HStack(spacing: ForgeTheme.Space.tight) {
+            // One line where it fits. At the accessibility sizes one line was
+            // "Smallest start: Look…", which names nothing; there it wraps.
             Text("Smallest start: \(ritual.label)")
                 .font(.caption)
                 .foregroundStyle(.secondary)
-                .lineLimit(1)
+                .lineLimit(typeSize.isAccessibilitySize ? 3 : 1)
                 .minimumScaleFactor(0.85)
 
             Spacer(minLength: 8)

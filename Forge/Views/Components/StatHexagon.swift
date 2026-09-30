@@ -246,9 +246,19 @@ struct OverallCore: View {
             Text(state.label.uppercased())
                 .font(.system(size: max(9, size * 0.22), weight: .semibold))
                 .kerning(1.6)
-                .foregroundStyle(ForgeTheme.cream.opacity(0.7))
+                .foregroundStyle(ForgeTheme.cream.opacity(0.75))
                 .contentTransition(.opacity)
                 .padding(.top, 2)
+        }
+        // A pool of the room's dark behind the number. The polygon is drawn
+        // through the middle of the instrument, and without it an edge or a
+        // vertex ran straight through the state word — the one small line of
+        // type on the screen, crossed out by the shape it describes.
+        .background {
+            Circle()
+                .fill(ForgeTheme.bg.opacity(0.72))
+                .frame(width: size * 2.4, height: size * 2.4)
+                .blur(radius: size * 0.3)
         }
         .animation(reduceMotion ? .easeInOut(duration: 0.25) : .smooth(duration: 0.6), value: overall)
         .animation(.easeInOut(duration: 0.25), value: state)

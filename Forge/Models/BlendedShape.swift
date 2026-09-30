@@ -127,19 +127,27 @@ struct BlendedShape: Equatable, Sendable {
     }
 
     /// The word under the number. With no assessment it is the record's,
-    /// exactly; otherwise it is read the same way over the six shown here.
+    /// exactly; otherwise it is read the same way over the six shown here —
+    /// **counting only dimensions that have a direction yet.**
+    ///
+    /// That last part is the difference from `ForgeShape.state`, and it
+    /// matters on the day an assessment is taken: two dimensions just started
+    /// have a number and no direction, and counting them made the hexagon say
+    /// "Steady" on somebody's first afternoon. Nothing about a first afternoon
+    /// is steady; it is early, and the word says so until a week of record
+    /// gives two dimensions a direction.
     var state: ForgeShape.Direction {
         guard hasAssessment else { return record.state }
-        let measured = dimensions.filter {
+        let directed = dimensions.filter {
             switch $0.source {
             case .answers: false
-            case .blend: true
-            case .record: $0.record.isMeasured
+            case .blend: $0.direction != .unknown
+            case .record: $0.record.isMeasured && $0.direction != .unknown
             }
         }
-        guard measured.count >= 2 else { return .unknown }
-        let rising = measured.count { $0.direction == .rising }
-        let slipping = measured.count { $0.direction == .slipping }
+        guard directed.count >= 2 else { return .unknown }
+        let rising = directed.count { $0.direction == .rising }
+        let slipping = directed.count { $0.direction == .slipping }
         if rising > slipping { return .rising }
         if slipping > rising { return .slipping }
         return .steady

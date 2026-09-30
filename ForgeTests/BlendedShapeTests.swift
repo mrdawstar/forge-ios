@@ -368,6 +368,27 @@ struct BlendedShapeTests {
         #expect(dropping.direction == .slipping, "an answer of 75 and nothing kept")
     }
 
+    @Test("The word is Early until two dimensions have a direction")
+    func theWordWaitsForADirection() {
+        // Day one: two dimensions started and kept today, no direction yet.
+        var records: [ForgeDay: DayRecord] = [:]
+        records[start] = record(start, planned: ["water", "lookup"], done: ["water", "lookup"])
+        let activities = ["water", "lookup"].map(activity)
+        let dayOne = BlendedShape.read(records, today: start, activities: activities, assessment: assessment())
+        #expect(dayOne.dimension(.physical)?.source == .blend(days: 1))
+        #expect(dayOne.state == .unknown, "a first afternoon is early, not steady")
+
+        // A fortnight of both, kept: both rising from their answers.
+        var fortnight: [ForgeDay: DayRecord] = [:]
+        for index in 0..<14 {
+            let day = start.adding(days: index)
+            fortnight[day] = record(day, planned: ["water", "lookup"], done: ["water", "lookup"])
+        }
+        let later = BlendedShape.read(fortnight, today: start.adding(days: 14),
+                                      activities: activities, assessment: assessment())
+        #expect(later.state == .rising)
+    }
+
     @Test("Only a dimension the record alone speaks for is named as needing attention")
     func needsAttentionIsAboutTheRecord() {
         // Physical and intellect have both been planned for forty days, so both

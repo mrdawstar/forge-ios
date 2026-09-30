@@ -106,7 +106,7 @@ struct FirstRunView: View {
 
             VStack(spacing: 0) {
                 if let progress = barProgress {
-                    OnboardingTopBar(progress: progress, onBack: backAction)
+                    OnboardingTopBar(progress: progress, onBack: backAction, onSkip: skipAction)
                         .transition(.opacity)
                 }
 
@@ -185,6 +185,21 @@ struct FirstRunView: View {
         return {
             vm.firstRunStage = index > 0 ? .question(index - 1) : .coldOpen
         }
+    }
+
+    /// Skip, on the build beat, once nothing is chosen.
+    ///
+    /// Skipping is a way past the question, not an answer to it, so it is a
+    /// quiet word in the corner rather than the capsule — the capsule is the
+    /// one primary action on every beat, and a cream "Skip for now" under six
+    /// rows made declining look like the thing the screen wanted. It lives in
+    /// the bar rather than in a row of its own because the row cost the list
+    /// its last two dimensions on a standard phone — which, with the
+    /// suggestion preselected from the lowest answers, were often the two it
+    /// had just chosen.
+    private var skipAction: (() -> Void)? {
+        guard vm.firstRunStage == .build, vm.focus.isEmpty else { return nil }
+        return { leaveBuild() }
     }
 
     /// One beat: something to read, centred, with its action pinned beneath it.
@@ -356,68 +371,60 @@ struct FirstRunView: View {
     /// always was.
     private var build: some View {
         VStack(spacing: 0) {
-            // Skipping is a way past the question, not an answer to it, so it
-            // is a quiet text button in the corner rather than the capsule —
-            // the capsule is the one primary action on every beat, and a cream
-            // "Skip for now" under six rows made declining look like the thing
-            // the screen wanted. The row keeps its height once somebody has
-            // chosen, so nothing below it moves when the button goes.
-            HStack {
-                Spacer()
-                Button("Skip for now") {
-                    leaveBuild()
-                }
-                .font(.subheadline.weight(.medium))
-                .foregroundStyle(.secondary)
-                .buttonStyle(.plain)
-                .opacity(vm.focus.isEmpty ? 1 : 0)
-                .disabled(!vm.focus.isEmpty)
-                .accessibilityHidden(!vm.focus.isEmpty)
-            }
-            .frame(height: 32)
-            .padding(.horizontal, 24)
-
-            VStack(spacing: 8) {
-                Text("What do you want to build?")
-                    .font(.title.weight(.semibold))
-                    .fixedSize(horizontal: false, vertical: true)
-                // Two lines, reserved. The subtitle changes on the first change
-                // of choice, and the sentences do not wrap to the same number of
-                // lines on every phone — so on a narrow one the whole screen
-                // below it, hexagon and all, jumped by a line's height at the
-                // exact moment somebody's finger came off a row.
-                Text(buildSubtitle)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .contentTransition(.opacity)
-                    .lineLimit(2, reservesSpace: true)
-            }
-            .multilineTextAlignment(.center)
-            .padding(.horizontal, 32)
-            .padding(.bottom, 12)
-
-            if !typeSize.isAccessibilitySize {
-                FocusHexagon(chosen: vm.focus)
-                    .frame(height: 150)
-                    .padding(.bottom, 10)
-            }
-
+            // One scroll area for the question, the polygon and the six, with
+            // the button pinned under it. At the standard sizes all of it fits
+            // on a 17e — the six rows are the answer, and the two the answers
+            // suggested are as often the last two as not — and at the
+            // accessibility sizes the whole question scrolls rather than the
+            // rows scrolling under a heading that no longer fits.
             ScrollView {
-                VStack(spacing: 8) {
-                    ForEach(RitualCategory.dimensions, id: \.self) { dimension in
-                        DimensionChoiceRow(
-                            dimension: dimension,
-                            isChosen: vm.focus.contains(dimension),
-                            isDimmed: false
-                        ) {
-                            toggle(dimension)
+                VStack(spacing: 0) {
+                    VStack(spacing: 8) {
+                        Text("What do you want to build?")
+                            .font(.title2.weight(.semibold))
+                            .fixedSize(horizontal: false, vertical: true)
+                            .accessibilityAddTraits(.isHeader)
+                        // Two lines, reserved. The subtitle changes on the first
+                        // change of choice, and the sentences do not wrap to the
+                        // same number of lines on every phone — so on a narrow
+                        // one everything below it, hexagon and all, jumped by a
+                        // line's height at the exact moment somebody's finger
+                        // came off a row.
+                        Text(buildSubtitle)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .contentTransition(.opacity)
+                            .lineLimit(2, reservesSpace: true)
+                    }
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 28)
+                    .padding(.top, 8)
+                    .padding(.bottom, 12)
+
+                    if !typeSize.isAccessibilitySize {
+                        FocusHexagon(chosen: vm.focus)
+                            .frame(height: 116)
+                            .padding(.bottom, 10)
+                    }
+
+                    VStack(spacing: 6) {
+                        ForEach(RitualCategory.dimensions, id: \.self) { dimension in
+                            DimensionChoiceRow(
+                                dimension: dimension,
+                                isChosen: vm.focus.contains(dimension),
+                                isDimmed: false,
+                                minHeight: 56
+                            ) {
+                                toggle(dimension)
+                            }
                         }
                     }
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 8)
                 }
-                .padding(.horizontal, 20)
-                .padding(.bottom, 8)
             }
             .scrollIndicators(.hidden)
+            .scrollBounceBehavior(.basedOnSize)
 
             ForgeButton(title: "Continue") {
                 leaveBuild()
@@ -427,7 +434,6 @@ struct FirstRunView: View {
             .padding(.top, 12)
             .padding(.bottom, 12)
         }
-        .padding(.top, 4)
         .padding(.bottom, 20)
         // **Not on the whole beat.** It was, and a `withAnimation` covering a
         // `ScrollView` animates the scroll view's own layout: choosing a row
@@ -806,7 +812,12 @@ struct FirstRunAmbience: View {
                 startRadius: 0,
                 endRadius: 540
             )
-            .scaleEffect(drift ? 1.10 : 0.94)
+            // Never below one. It breathed between 0.94 and 1.10, and at the
+            // small end the warm layer no longer covered the screen: the room's
+            // black showed as a hard strip along the top and the left, where
+            // the light is strongest — a frame drawn round every beat for half
+            // of each cycle. Growing from full size keeps the same breath.
+            .scaleEffect(drift ? 1.12 : 1)
             .opacity(drift ? 1 : 0.78)
 
             RadialGradient(
@@ -1052,11 +1063,19 @@ struct DimensionChoiceRow: View {
     let dimension: RitualCategory
     let isChosen: Bool
     let isDimmed: Bool
+    /// 62 by default. The first run's build beat sets it a little lower so
+    /// all six fit above the button on a 17e; the meaning still has its line.
+    var minHeight: CGFloat = 62
     let action: () -> Void
+
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 14) {
+            // At the accessibility sizes the glyph's column and the mark give
+            // the name back the width it needs: left at their standard size
+            // they hyphenated "Relationship" on a standard phone.
+            HStack(spacing: typeSize.isAccessibilitySize ? 10 : 14) {
                 // The dimension's own colour, never the accent. The row already
                 // carries the accent twice — the tint behind it and the mark on
                 // the right — and a third would be the screen shouting one word;
@@ -1067,7 +1086,7 @@ struct DimensionChoiceRow: View {
                     .font(.system(size: 18, weight: .medium))
                     .symbolRenderingMode(.hierarchical)
                     .foregroundStyle(dimension.color.opacity(isChosen ? 1 : 0.55))
-                    .frame(width: 40, height: 40)
+                    .frame(width: typeSize.isAccessibilitySize ? 26 : 40, height: 40)
                     .accessibilityHidden(true)
 
                 VStack(alignment: .leading, spacing: 2) {
@@ -1091,10 +1110,11 @@ struct DimensionChoiceRow: View {
                         AnyShapeStyle(ForgeTheme.accent)
                     )
                     .contentTransition(.symbolEffect(.replace))
+                    .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
             }
             .padding(.horizontal, 14)
-            .padding(.vertical, 10)
-            .frame(minHeight: 62)
+            .padding(.vertical, 8)
+            .frame(minHeight: minHeight)
             .contentShape(.rect)
         }
         .buttonStyle(.plain)
