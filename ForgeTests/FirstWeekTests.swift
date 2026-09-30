@@ -264,8 +264,9 @@ struct ProofCardTests {
         #expect(PracticeArtifact.dayWords(1) == "One day kept")
         #expect(PracticeArtifact.dayWords(2) == "Two days kept")
         #expect(PracticeArtifact.dayWords(42) == "Forty-two days kept")
+        // "Twenty-one days kept" is right; only a bare "one days" is wrong.
         for count in 0...120 {
-            #expect(!PracticeArtifact.dayWords(count).lowercased().contains("one days"))
+            #expect(!PracticeArtifact.dayWords(count).lowercased().hasPrefix("one days"))
         }
     }
 
