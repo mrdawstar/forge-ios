@@ -7,7 +7,12 @@
 
 ## ⚠️ Status: read this first
 
-**Forge is feature-complete for 1.0 and has no submission blockers left.**
+**Release 1.1 is in progress (from 2026-09-29).** Read **§2t** and **§17**
+first, then [docs/DIRECTION_1_1.md](DIRECTION_1_1.md), which wins wherever it
+disagrees with this file. 1.1 is built in eight sessions (S0–S7); each one adds a
+dated subsection to §17. The 1.0 status below is kept as history.
+
+**Forge was feature-complete for 1.0 and had no submission blockers left.**
 Last verified against the codebase: **2026-09-15**. Read **§2n** first — it is
 the removal of the account, and it is the largest change to what the app *is*
 since the archetypes went. Then **§2m**, which is one Info.plist key and the
@@ -1932,6 +1937,25 @@ sheet never opens on its own. `ProofCardTests.proofCardDoors` reads the source
 and fails if `ProofCardButton` is placed anywhere else or anything other than
 `PracticeArtifact.swift` can open a share sheet.
 
+### 2t. The 1.1 direction (2026-09-29)
+
+The owner fixed the direction of 1.1 in
+[docs/DIRECTION_1_1.md](DIRECTION_1_1.md). **Where it disagrees with this file,
+it wins.** What it supersedes:
+
+- **§5 #1 is amended, not dropped:** nothing that has already happened is sold
+  back, and the record stays readable forever; the ongoing practice is what is sold.
+- **§5 #8 is retired:** the three doors go; new installs meet a hard paywall with
+  a free week after onboarding (DIRECTION §1). Founders (1.0 / 1.0.1 installs)
+  keep everything but AI free.
+- **§6 is replaced in session S2** (plans, prices, trial, founders, lapsed state).
+- **§8 "numbers as words" is narrowed to prose:** scores, the six stats, OVR,
+  prices, dates, times and Arc day counters are digits (DIRECTION §3).
+- **The §2g/§2h first run is replaced in session S1** by the transformation
+  onboarding (DIRECTION §2).
+
+Progress on each session is recorded in §17.
+
 ## 3. The core loop (as built)
 
 ```
@@ -2551,3 +2575,37 @@ ForgeLink}` and `Models/ForgeDay.swift` — it does **not** see `Ritual.swift`,
 - **`highPriorityGesture` inside a `ScrollView` cancels the scroll.** If a
   gesture has to coexist with scrolling, it is `simultaneousGesture` and the
   arbitration is yours to write.
+
+## 17. Release 1.1
+
+Built in eight sessions, S0 to S7, against
+[docs/DIRECTION_1_1.md](DIRECTION_1_1.md). Each session adds a dated
+subsection here describing what changed in behaviour, what was verified, and
+what was not.
+
+### 17.0 Direction (2026-09-29)
+
+Session S0. No product code changed.
+
+- Merged `feat/first-week` (§2s) and `docs/launch-kit` (`docs/launch/*`) into
+  main. `FirstWeekTests` "Days are said in words" was corrected on the way: it
+  rejected "twenty-one days kept" as if it were "one days".
+- Added `docs/DIRECTION_1_1.md` and §2t, which lists what it supersedes.
+- Rewrote the repository's `CLAUDE.md` as the single copy of the working rules
+  (the copy in the parent folder, outside git, now only points here). It
+  corrects the old claim of synchronized groups: the project is
+  `objectVersion = 56` and a new file needs four `project.pbxproj` entries (§15).
+- **Stale on purpose, to fix when it is rebuilt:** §3 and §4 still mention
+  HealthKit (the "HealthKit auto-settle" step of the core loop). HealthKit was
+  removed before 1.0 and returns in session S5 (DIRECTION §8), read-only.
+- **For the owner before progression is built — DIRECTION §6 does not fit the
+  ladder as it is.** `Ladder` already has thirteen rungs up to 1000 days, among
+  them `oneeighty` "Patina" (180) and `year` "Honed" (365). "Honed (90 days
+  kept) and Enduring (180)" would rename or collide with existing rungs, which
+  the same section forbids ("existing rung ids and requirements never change").
+  Decide the names and thresholds before the session that builds §6.
+- **Known test failures on main before and after this session (environmental):**
+  the `ForgeStoreKitTests` suite gets no products from `SKTestSession` on this
+  Mac (`store.status == .unavailable`), and the `AIPrepTests` that need a Pro
+  entitlement fail with it. `Forge.storekit` itself is valid. To investigate
+  before session S2 touches the paywall.
