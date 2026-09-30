@@ -1,6 +1,7 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
-/// One image, worth showing somebody.
+/// The Proof Card: one image, worth showing somebody.
 ///
 /// # Why this exists
 ///
@@ -10,83 +11,118 @@ import SwiftUI
 /// **one artifact, at two moments that actually mean something, that the user
 /// has to go and get.**
 ///
-/// The two moments are a blade earned and a chapter closed. Both are rare, both
-/// are real, and both are the only times somebody would want to say anything out
-/// loud about a private practice.
+/// # Exactly two doors
 ///
-/// # The rules
+/// **A blade earned** (`SwordUnlockOverlay`, once its celebration has staged
+/// its actions) and **a chapter closed** (`ChapterCloseView`, once "Close this
+/// chapter" has been pressed). Both carry one quiet third action, *Save the
+/// proof*, and nothing else in the app offers to share anything: no prompt at
+/// launch, no reminder, no notification, nothing in the daily loop, and the
+/// share sheet only ever opens because somebody pressed the button.
+/// `FirstWeekTests.proofCardDoors` reads the source and fails if a third door
+/// appears.
 ///
-/// - **Never automatic.** Nothing is posted, nothing is offered unprompted, and
-///   there is no "share your progress!" anywhere. The image is made when the
-///   share button is pressed and not before.
-/// - **No app furniture.** No logo lockup, no download badge, no watermark, no
-///   "sent from". If somebody shares this it is because it is a good picture of
-///   their own practice, and an advert stapled to it would make it a worse one
-///   *and* stop them sharing it.
-/// - **Nothing on it that is not theirs.** The blade, the count, the identity in
-///   their own words, and the date. No streak — a streak on a shared image is a
-///   number somebody has to defend next month.
-/// - **Spelled, not scored.** `ForgeCount.spelled` for the same reason the rest
-///   of the app uses it: "Two hundred days" is a fact about a person, "200" is a
-///   scoreboard.
+/// # What is on it
+///
+/// The sword in the stone, the days kept **in words**, the date, and
+/// `forgebetter.app` — small, at the foot, the one line of address a stranger
+/// would need to find what they are looking at. No congratulation, no streak (a
+/// streak on a shared image is a number somebody has to defend next month), no
+/// achievement, no handle, no marketing line. Nothing the person wrote.
+///
+/// # Two formats
+///
+/// 1080 × 1920 for a story, 1080 × 1080 for everywhere else. Rendered when the
+/// share sheet asks for the file, not before — see `ProofCardFile`.
 struct PracticeArtifact: View {
 
-    /// What this image is about.
-    enum Occasion: Equatable {
+    /// What this image marks. A quiet line under the count, never a headline.
+    enum Occasion: Equatable, Sendable {
         /// A blade came out of the stone.
-        case blade(name: String, asset: String, state: BladeState)
-        /// Six weeks closed.
-        case chapter(name: String)
+        case blade(name: String)
+        /// A chapter closed.
+        case chapter
+
+        var line: String {
+            switch self {
+            case .blade(let name): name.uppercased()
+            case .chapter: "CHAPTER CLOSED"
+            }
+        }
+    }
+
+    /// The two shapes the card is made in.
+    enum Format: String, CaseIterable, Identifiable, Sendable {
+        /// 1080 × 1920 — a story, a phone's own screen.
+        case portrait
+        /// 1080 × 1080 — every other surface, without re-cropping.
+        case square
+
+        var id: String { rawValue }
+
+        var size: CGSize {
+            switch self {
+            case .portrait: CGSize(width: 1080, height: 1920)
+            case .square: CGSize(width: 1080, height: 1080)
+            }
+        }
+
+        var label: String {
+            switch self {
+            case .portrait: "Portrait · 1080 × 1920"
+            case .square: "Square · 1080 × 1080"
+            }
+        }
     }
 
     let occasion: Occasion
     let daysKept: Int
-    /// The user's own sentence, if they have written one. Nil is ordinary.
-    let identity: String?
     let date: Date
+    var format: Format = .square
 
-    /// A square, because it is the one shape every surface accepts without
-    /// re-cropping — a portrait card is cut in half by half the places somebody
-    /// would put it.
-    static let size = CGSize(width: 1080, height: 1080)
+    /// The one address on the card.
+    static let site = "forgebetter.app"
 
     var body: some View {
+        let size = format.size
         ZStack {
-            // The room, not a gradient off a brand palette. This is the same
-            // near-black the app is drawn in, lit from the upper left like
-            // every sprite in it.
-            Rectangle()
-                .fill(ForgeTheme.bg)
-
-            RadialGradient(
-                colors: [Color.white.opacity(0.14), .clear],
-                center: UnitPoint(x: 0.2, y: 0.08),
-                startRadius: 0,
-                endRadius: 900
-            )
+            // The room, not a gradient off a brand palette: the near-black the
+            // app is drawn in.
+            Rectangle().fill(ForgeTheme.bg)
 
             VStack(spacing: 0) {
-                Spacer(minLength: 0)
-
-                subject
+                // The sword in the stone — the same plate the paywall uses,
+                // faded into the black at its foot.
+                Image("hero")
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: size.width, height: size.height * (format == .portrait ? 0.62 : 0.56))
+                    .clipped()
+                    .mask(
+                        LinearGradient(
+                            stops: [
+                                .init(color: .black, location: 0),
+                                .init(color: .black, location: 0.7),
+                                .init(color: .clear, location: 1),
+                            ],
+                            startPoint: .top, endPoint: .bottom
+                        )
+                    )
 
                 Spacer(minLength: 0)
 
                 VStack(spacing: 22) {
-                    Text(count)
+                    Text(Self.dayWords(daysKept))
                         .font(.system(size: 84, weight: .semibold))
                         .foregroundStyle(ForgeTheme.cream)
                         .multilineTextAlignment(.center)
                         .minimumScaleFactor(0.5)
                         .lineLimit(2)
 
-                    if let identity {
-                        Text(identity)
-                            .font(.system(size: 34, weight: .regular))
-                            .foregroundStyle(.white.opacity(0.62))
-                            .multilineTextAlignment(.center)
-                            .lineLimit(2)
-                    }
+                    Text(occasion.line)
+                        .font(.system(size: 22, weight: .semibold))
+                        .tracking(6)
+                        .foregroundStyle(.white.opacity(0.45))
 
                     Text(Self.dateFormat.string(from: date).uppercased())
                         .font(.system(size: 22, weight: .medium))
@@ -94,130 +130,105 @@ struct PracticeArtifact: View {
                         .foregroundStyle(.white.opacity(0.34))
                 }
                 .padding(.horizontal, 90)
-                .padding(.bottom, 96)
+
+                Spacer(minLength: 0)
+
+                Text(Self.site)
+                    .font(.system(size: 20, weight: .medium))
+                    .tracking(2)
+                    .foregroundStyle(.white.opacity(0.28))
+                    .padding(.bottom, format == .portrait ? 120 : 60)
             }
         }
-        .frame(width: Self.size.width, height: Self.size.height)
+        .frame(width: size.width, height: size.height)
         .environment(\.colorScheme, .dark)
     }
 
-    @ViewBuilder
-    private var subject: some View {
-        switch occasion {
-        case let .blade(name, asset, state):
-            VStack(spacing: 28) {
-                Image(asset)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(height: 470)
-                    // The blade at the age the practice has made it, so a shared
-                    // image of a four-hundred-day blade is not the same picture
-                    // as a shared image of a sixty-day one. See `BladeState`.
-                    .bladeState(state)
-
-                Text(name.uppercased())
-                    .font(.system(size: 24, weight: .semibold))
-                    .tracking(6)
-                    .foregroundStyle(.white.opacity(0.5))
-            }
-            .padding(.top, 96)
-
-        case let .chapter(name):
-            VStack(spacing: 24) {
-                Text("CHAPTER CLOSED")
-                    .font(.system(size: 22, weight: .semibold))
-                    .tracking(6)
-                    .foregroundStyle(.white.opacity(0.4))
-
-                Text(name)
-                    .font(.system(size: 62, weight: .semibold))
-                    .foregroundStyle(ForgeTheme.cream)
-                    .multilineTextAlignment(.center)
-                    .lineLimit(3)
-                    .minimumScaleFactor(0.6)
-            }
-            .padding(.top, 150)
-            .padding(.horizontal, 90)
+    /// "No days kept", "One day kept", "Forty-two days kept". Spelled, like
+    /// every count Forge says out loud, and never "one days".
+    static func dayWords(_ count: Int) -> String {
+        switch count {
+        case ..<1: "No days kept"
+        case 1: "One day kept"
+        default: "\(ForgeCount.spelled(count)) days kept"
         }
-    }
-
-    private var count: String {
-        daysKept == 1 ? "One day kept" : "\(ForgeCount.spelled(daysKept)) days kept"
     }
 
     private static let dateFormat: DateFormatter = {
         let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US")
         formatter.setLocalizedDateFormatFromTemplate("d MMMM yyyy")
         return formatter
     }()
 }
 
-// MARK: - Making the file
+// MARK: - The file
 
-extension PracticeArtifact {
+/// The card as something `ShareLink` can carry, rendered only when the share
+/// sheet asks for it — so pressing *Save the proof* costs nothing until the
+/// person picks where it goes, and nothing is ever rendered in the daily loop.
+///
+/// `ImageRenderer` on the main actor, at a fixed scale of one: a share image
+/// should be the same 1080-wide picture from every phone.
+struct ProofCardFile: Transferable, Sendable {
+    let occasion: PracticeArtifact.Occasion
+    let daysKept: Int
+    let date: Date
+    let format: PracticeArtifact.Format
 
-    /// Render it, and hand back something `ShareLink` can carry.
-    ///
-    /// `ImageRenderer` on the main actor, at a fixed scale rather than the
-    /// screen's: a share image should be the same picture from an iPhone SE and
-    /// an iPad Pro, and letting the device decide would make one of them post a
-    /// blurry one.
-    ///
-    /// Rendered when the screen that offers it appears, which is a blade
-    /// celebration or a chapter close and therefore a handful of times a year —
-    /// not on every launch, and never anywhere in the daily loop.
+    enum RenderError: Error { case failed }
+
+    static var transferRepresentation: some TransferRepresentation {
+        DataRepresentation(exportedContentType: .png) { file in
+            try await file.png()
+        }
+        .suggestedFileName("Forge proof.png")
+    }
+
     @MainActor
-    func rendered() -> Image? {
-        let renderer = ImageRenderer(content: self)
+    func png() throws -> Data {
+        let renderer = ImageRenderer(
+            content: PracticeArtifact(occasion: occasion, daysKept: daysKept, date: date, format: format)
+        )
         renderer.scale = 1
         renderer.isOpaque = true
-        guard let cgImage = renderer.cgImage else { return nil }
-        return Image(decorative: cgImage, scale: 1)
+        guard let data = renderer.uiImage?.pngData() else { throw RenderError.failed }
+        return data
     }
 }
 
-/// A share button that renders on demand and quietly does nothing if it cannot.
-///
-/// Nothing about failing to render is worth telling somebody about — the image
-/// is a nicety, and an error alert over a private practice would be the app
-/// making its own problem into the user's.
-struct ArtifactShareButton: View {
-    let artifact: PracticeArtifact
-    var title: String = "Save or share"
+// MARK: - The button
 
-    @State private var image: Image?
+/// *Save the proof*: a quiet third action, offering the two formats.
+///
+/// Used in exactly two places — see `PracticeArtifact`. It never opens itself;
+/// the share sheet appears only after somebody picks a format.
+struct ProofCardButton: View {
+    let occasion: PracticeArtifact.Occasion
+    let daysKept: Int
+    var date: Date = .now
+
+    static let title = "Save the proof"
 
     var body: some View {
-        Group {
-            if let image {
+        Menu {
+            ForEach(PracticeArtifact.Format.allCases) { format in
                 ShareLink(
-                    item: image,
-                    preview: SharePreview("Forge", image: image)
+                    item: ProofCardFile(occasion: occasion, daysKept: daysKept, date: date, format: format),
+                    preview: SharePreview(PracticeArtifact.dayWords(daysKept), image: Image("hero"))
                 ) {
-                    label
+                    Text(format.label)
                 }
-            } else {
-                // Nothing at all rather than a disabled button. The render takes
-                // a frame or two and a control that arrives greyed out and then
-                // wakes up is worse than one that simply appears.
-                Color.clear.frame(height: 44)
             }
+        } label: {
+            Label(Self.title, systemImage: "square.and.arrow.down")
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity)
+                .frame(minHeight: 44)
+                .contentShape(.rect)
         }
         .buttonStyle(.plain)
-        // On appear, not on tap: the first press should open the share sheet
-        // rather than start the work. This screen is seen a handful of times a
-        // year, so the cost is nothing and it is never paid in the daily loop.
-        .task { image = artifact.rendered() }
-        .accessibilityLabel(title)
         .accessibilityHint("Makes an image of this you can save or send")
-    }
-
-    private var label: some View {
-        Label(title, systemImage: "square.and.arrow.up")
-            .font(.subheadline.weight(.medium))
-            .foregroundStyle(.secondary)
-            .frame(maxWidth: .infinity)
-            .frame(minHeight: 44)
-            .contentShape(.rect)
     }
 }

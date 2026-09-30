@@ -268,11 +268,21 @@ struct BecomingTabView: View {
     /// because a hexagon with numbers on it is a chart until somebody is told
     /// what feeds it, and the whole claim of this feature is that it is fed by
     /// what you actually did.
+    ///
+    /// # The first week
+    ///
+    /// Until the record has a week behind it *and* enough to read, the hero is
+    /// the first-week contract instead (`FirstWeek`): when the shape will draw
+    /// itself, and how many of the seven have been kept. It gives way to the
+    /// polygon on its own the first time both are true — nothing is stored to
+    /// decide that.
     @ViewBuilder
     private var hero: some View {
         let shape = forge.shape
         VStack(spacing: ForgeTheme.Space.row) {
-            if shape.isReadable {
+            if let contract = forge.firstWeek {
+                FirstWeekCard(contract: contract)
+            } else {
                 ForgeShapeView(shape: shape, highlighted: inspecting)
                     .padding(.horizontal, 8)
                     .padding(.top, 4)
@@ -283,36 +293,9 @@ struct BecomingTabView: View {
                     .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.horizontal, 12)
-            } else {
-                early
             }
         }
         .frame(maxWidth: .infinity)
-    }
-
-    /// Before there is a shape to draw.
-    ///
-    /// It explains the mechanism rather than apologising for the absence, and it
-    /// states the one thing somebody needs in order to make it appear. An empty
-    /// hexagon drawn on three days of history would be the app's first
-    /// impression of a person being "you are nothing yet", which is both untrue
-    /// and the exact opposite of what this feature is for.
-    private var early: some View {
-        VStack(alignment: .leading, spacing: ForgeTheme.Space.tight) {
-            Text("Your shape is forming.")
-                .font(.title3.weight(.semibold))
-
-            // The six glyphs used to sit under this in their own row. They are
-            // the list a few points below now, named and scored, so drawing them
-            // again here was the same six twice on one screen.
-            Text("Every activity belongs to one of six parts of you. Keep them, and those parts get stronger — miss them, and they fade. A few more days and the shape appears here.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(ForgeTheme.Space.row)
-        .forgeCard(radius: ForgeTheme.Radius.card)
     }
 
     // MARK: - 1b. The six, inspectable
@@ -353,12 +336,18 @@ struct BecomingTabView: View {
         VStack(alignment: .leading, spacing: ForgeTheme.Space.row) {
             SectionHeading("The Six", detail: "Every activity builds one of them")
 
+            let starters = forge.starters
             VStack(spacing: 1) {
                 ForEach(forge.shape.dimensions) { dimension in
                     DimensionRow(
                         dimension: dimension,
                         isChosen: forge.focus.contains(dimension.category),
-                        isInspecting: inspecting == dimension.category
+                        isInspecting: inspecting == dimension.category,
+                        starter: starters[dimension.category],
+                        onAdd: { ritual in
+                            ForgeHaptics.shared.ritualVerified()
+                            BecomingOffer.add(ritual, to: forge)
+                        }
                     ) {
                         ForgeHaptics.shared.tap()
                         withAnimation(.forgeSelection) {
@@ -389,8 +378,10 @@ struct BecomingTabView: View {
     /// calm product becomes a nagging one.
     @ViewBuilder
     private var nextStep: some View {
-        let shape = forge.shape
-        if shape.isReadable, let suggestion {
+        // Waits with the shape: during the first week the contract is the
+        // reading, and naming a weakest side before the shape is drawn would
+        // be a verdict on a week that has not happened yet.
+        if forge.firstWeek == nil, let suggestion {
             Button {
                 ForgeHaptics.shared.tap()
                 withAnimation(.forgeSelection) {
@@ -441,15 +432,12 @@ struct BecomingTabView: View {
     /// Two cases, in order. A dimension nothing is filed under is the stronger
     /// offer — it is a whole part of somebody's life the practice does not touch
     /// — and it is offered before a merely weaker one.
+    ///
+    /// A dimension nothing is filed under no longer gets this row: it carries
+    /// its own starter in The Six (`BecomingStarter`), one tap from being on
+    /// the day. Offering it here as well would be the same suggestion twice.
     private var suggestion: (category: RitualCategory, headline: String, detail: String)? {
         let shape = forge.shape
-        if let untouched = shape.untouched {
-            return (
-                untouched.category,
-                "Nothing is building \(untouched.category.label.lowercased()) yet",
-                untouched.category.meaning
-            )
-        }
         if let weak = shape.needsAttention {
             return (
                 weak.category,
@@ -485,8 +473,7 @@ struct BecomingTabView: View {
                         ForEach(options) { ritual in
                             SuggestionRow(ritual: ritual) {
                                 ForgeHaptics.shared.ritualVerified()
-                                forge.addRitual(ritual.id)
-                                ForgeTelemetry.send(.activityAdded(.becoming))
+                                BecomingOffer.add(ritual, to: forge)
                                 // Closes on its own. The offer was answered, and
                                 // a list that stays open with one row now
                                 // greyed out is a list asking whether you would
@@ -887,9 +874,28 @@ private struct DimensionRow: View {
     /// listed twice — see `BecomingTabView.focusRow`.
     let isChosen: Bool
     let isInspecting: Bool
+    /// The smallest library activity that would start this dimension, when
+    /// nothing is filed under it. See `BecomingStarter`.
+    var starter: Ritual? = nil
+    var onAdd: (Ritual) -> Void = { _ in }
     let action: () -> Void
 
+    /// The row, and under it — outside the row's own button, so the two taps
+    /// cannot be confused — the starter for an empty dimension.
     var body: some View {
+        VStack(spacing: 0) {
+            row
+            if let starter {
+                StarterLine(ritual: starter) { onAdd(starter) }
+                    .padding(.horizontal, ForgeTheme.Space.row)
+                    .padding(.bottom, ForgeTheme.Space.inner)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(.regularMaterial)
+            }
+        }
+    }
+
+    private var row: some View {
         Button(action: action) {
             VStack(alignment: .leading, spacing: 8) {
                 HStack(spacing: ForgeTheme.Space.inner) {
@@ -938,8 +944,10 @@ private struct DimensionRow: View {
                             .monospacedDigit()
                             .foregroundStyle(ForgeTheme.accent)
                             .frame(minWidth: 26, alignment: .trailing)
-                    } else {
-                        Text(dimension.hasActivities ? "No days yet" : "Nothing here")
+                    } else if dimension.hasActivities {
+                        // Something is filed here and its first day has not
+                        // come round. Waiting, not missing.
+                        Text("Starting")
                             .font(.caption)
                             .foregroundStyle(.tertiary)
                     }
@@ -1000,6 +1008,73 @@ private struct DimensionRow: View {
         let asked = ForgeCount.spelled(askedDays)
         let days = askedDays == 1 ? "day" : "days"
         return "Kept on \(kept) of the \(asked) \(days) it was asked for, these four weeks."
+    }
+}
+
+// MARK: - The first week
+
+/// The first-week contract: one sentence and a bar. See `FirstWeek`.
+///
+/// No congratulation and no pressure — a count and a day, the register of the
+/// rest of the tab. The bar is time toward the draw day in the opening week,
+/// and the last seven's kept days after it.
+private struct FirstWeekCard: View {
+    let contract: FirstWeek
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: ForgeTheme.Space.row) {
+            Text(contract.sentence)
+                .font(.title3.weight(.semibold))
+                .fixedSize(horizontal: false, vertical: true)
+
+            GeometryReader { proxy in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(ForgeTheme.separator)
+                    if contract.progress > 0 {
+                        Capsule()
+                            .fill(ForgeTheme.accent.opacity(0.85))
+                            .frame(width: max(4, proxy.size.width * contract.progress))
+                    }
+                }
+            }
+            .frame(height: 4)
+            .animation(.smooth(duration: 0.4), value: contract.progress)
+
+            Text("Every activity builds one of six parts of you. The shape is drawn from what you actually keep.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(ForgeTheme.Space.row)
+        .forgeCard(radius: ForgeTheme.Radius.card)
+        .accessibilityElement(children: .combine)
+        .accessibilityValue(Text("\(Int((contract.progress * 100).rounded())) per cent of the way"))
+    }
+}
+
+/// A dimension's starter, restrained: one line and one button, inside its row.
+/// Nothing is added until the button is pressed.
+private struct StarterLine: View {
+    let ritual: Ritual
+    let add: () -> Void
+
+    var body: some View {
+        HStack(spacing: ForgeTheme.Space.tight) {
+            Text("Smallest start: \(ritual.label)")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.85)
+
+            Spacer(minLength: 8)
+
+            Button("Add", action: add)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(ForgeTheme.accent)
+                .buttonStyle(.borderless)
+                .accessibilityLabel(Text("Add \(ritual.label) to your day"))
+        }
     }
 }
 

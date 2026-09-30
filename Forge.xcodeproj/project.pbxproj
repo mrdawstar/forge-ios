@@ -117,6 +117,8 @@
 		A1F0RGE0AISHET0BUILD1 /* PlanSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1F0RGE0AISHET0FILE01 /* PlanSheet.swift */; };
 		F0A1B2C3D4E5F60718293A02 /* PaywallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0A1B2C3D4E5F60718293A01 /* PaywallView.swift */; };
 		F0A1B2C3D4E5F60718293B02 /* AIConsent.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0A1B2C3D4E5F60718293B01 /* AIConsent.swift */; };
+		F0A1B2C3D4E5F60718293C02 /* FirstWeek.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0A1B2C3D4E5F60718293C01 /* FirstWeek.swift */; };
+		F0A1B2C3D4E5F60718293C04 /* FirstWeekTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0A1B2C3D4E5F60718293C03 /* FirstWeekTests.swift */; };
 		F0A1B2C3D4E5F60718293B04 /* AIPrepTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0A1B2C3D4E5F60718293B03 /* AIPrepTests.swift */; };
 		F0A1B2C3D4E5F60718293A04 /* PremiumTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0A1B2C3D4E5F60718293A03 /* PremiumTests.swift */; };
 		A1F0RGE0ANALYT0BUILD1 /* Analytics.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1F0RGE0ANALYT0FILE01 /* Analytics.swift */; };
@@ -301,6 +303,8 @@
 		A1F0RGE0AISHET0FILE01 /* PlanSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanSheet.swift; sourceTree = "<group>"; };
 		F0A1B2C3D4E5F60718293A01 /* PaywallView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaywallView.swift; sourceTree = "<group>"; };
 		F0A1B2C3D4E5F60718293B01 /* AIConsent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIConsent.swift; sourceTree = "<group>"; };
+		F0A1B2C3D4E5F60718293C01 /* FirstWeek.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirstWeek.swift; sourceTree = "<group>"; };
+		F0A1B2C3D4E5F60718293C03 /* FirstWeekTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirstWeekTests.swift; sourceTree = "<group>"; };
 		F0A1B2C3D4E5F60718293B03 /* AIPrepTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIPrepTests.swift; sourceTree = "<group>"; };
 		F0A1B2C3D4E5F60718293A03 /* PremiumTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PremiumTests.swift; sourceTree = "<group>"; };
 		A1F0RGE0ANALYT0FILE01 /* Analytics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Analytics.swift; sourceTree = "<group>"; };
@@ -447,6 +451,7 @@
 				7A1C40E2B1F04C6EA9D33002 /* NotificationPlanTests.swift */,
 				F0A1B2C3D4E5F60718293A03 /* PremiumTests.swift */,
 				F0A1B2C3D4E5F60718293B03 /* AIPrepTests.swift */,
+				F0A1B2C3D4E5F60718293C03 /* FirstWeekTests.swift */,
 			);
 			path = ForgeTests;
 			sourceTree = "<group>";
@@ -631,6 +636,7 @@
 				A1F0RGE0AIPLAN0FILE01 /* SchedulePlan.swift */,
 				A1F0RGE0DCHAL00FILE01 /* DailyChallenge.swift */,
 				91E128D20D3D4228A273A5BB /* Premium.swift */,
+				F0A1B2C3D4E5F60718293C01 /* FirstWeek.swift */,
 				D21CCC1C893E4475965BC71B /* DayCommitment.swift */,
 				B9D1FE286C7143B99A03519A /* DaySummary.swift */,
 				E25C23AD80B4EBB095803BBD /* Milestone.swift */,
@@ -827,6 +833,7 @@
 			files = (
 				F0A1B2C3D4E5F60718293A04 /* PremiumTests.swift in Sources */,
 				F0A1B2C3D4E5F60718293B04 /* AIPrepTests.swift in Sources */,
+				F0A1B2C3D4E5F60718293C04 /* FirstWeekTests.swift in Sources */,
 				2B27CDCBBC114CDB9B4CC596 /* AccessibilityTests.swift in Sources */,
 				1971B3C4770241629406251F /* ModelTrustTests.swift in Sources */,
 				7A1C40E2B1F04C6EA9D34602 /* BackendRegressionTests.swift in Sources */,
@@ -902,6 +909,7 @@
 				A1F0RGE0AISHET0BUILD1 /* PlanSheet.swift in Sources */,
 				F0A1B2C3D4E5F60718293A02 /* PaywallView.swift in Sources */,
 				F0A1B2C3D4E5F60718293B02 /* AIConsent.swift in Sources */,
+				F0A1B2C3D4E5F60718293C02 /* FirstWeek.swift in Sources */,
 				A1F0RGE0CSHEET0BUILD1 /* DailyChallengeSheet.swift in Sources */,
 				A1F0RGE0WEEKP00BUILD1 /* WeekPlannerView.swift in Sources */,
 				A1F0RGE0PTOOL00BUILD1 /* ForgeControlBar.swift in Sources */,

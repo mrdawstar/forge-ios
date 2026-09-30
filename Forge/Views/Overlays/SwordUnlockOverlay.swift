@@ -11,6 +11,8 @@ struct SwordUnlockOverlay: View {
     let sword: Sword
     /// Name of the blade currently carried, for the decline action.
     let currentName: String
+    /// Days kept, for the Proof Card. Read off the record by the caller.
+    var daysKept: Int = 0
     var onEquip: () -> Void
     var onKeep: () -> Void
 
@@ -96,6 +98,13 @@ struct SwordUnlockOverlay: View {
                 ForgeButton(title: "Carry it") { onEquip() }
 
                 ForgeButton(title: "Keep \(currentName)", style: .secondary) { onKeep() }
+
+                // The Proof Card: a quiet third action, arriving with the other
+                // two once the celebration has staged — never over the pull and
+                // never before the blade has landed. It does not close the
+                // overlay and opens nothing until a format is picked.
+                ProofCardButton(occasion: .blade(name: sword.title), daysKept: daysKept)
+                    .allowsHitTesting(actionsIn)
             }
             .padding(.horizontal, 28)
             .padding(.bottom, 36)

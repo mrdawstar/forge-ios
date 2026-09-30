@@ -820,6 +820,7 @@ struct ContentView: View {
             SwordUnlockOverlay(
                 sword: earned,
                 currentName: swords.equipped.name,
+                daysKept: swords.daysKept,
                 onEquip: {
                     ForgeHaptics.shared.tap()
                     swords.equip(earned.id)
