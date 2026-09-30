@@ -805,28 +805,59 @@ extension ProgressStore {
     ///
     /// Takes the activities rather than reaching for them, so this stays a pure
     /// function of the record and the day — testable without a view model, the
-    /// same shape as every other reading in this file.
+    /// same shape as every other reading in this file. The arithmetic itself is
+    /// `ForgeShape.read`, which takes the record as a value: the onboarding's
+    /// projections run it over days that have not happened (`Transformation`),
+    /// and a second copy of the scoring for them would be a second answer.
     func forgeShape(of activities: [Ritual]) -> ForgeShape {
-        let last = currentDay.adding(days: -1)
-        let windowStart = currentDay.adding(days: -ForgeShape.window)
-        let midpoint = currentDay.adding(days: -ForgeShape.half)
+        ForgeShape.read(byDay, today: currentDay, activities: activities)
+    }
+}
+
+extension ForgeShape {
+
+    /// Every activity's contribution to one dimension, by id. Only the
+    /// activities that contribute to it at all.
+    typealias Weights = [String: Double]
+
+    /// The Shape of a record, read on a given day.
+    ///
+    /// # Today
+    ///
+    /// **A day in progress is never a miss.** The window is the last
+    /// twenty-eight *finished* days, and today joins it only for the
+    /// dimensions something has already been kept in — and then only with
+    /// what has been kept, asked and kept alike. So a completion can only ever
+    /// raise a score, an unfinished morning can never lower one, and the
+    /// hexagon moves the moment somebody keeps something rather than the
+    /// morning after. Once the day is over it is read like every other day:
+    /// what it asked for against what it got.
+    ///
+    /// It used to leave today out altogether, which was honest and inert — the
+    /// one number that is supposed to move with what you do sat still until
+    /// four the next morning.
+    static func read(
+        _ byDay: [ForgeDay: DayRecord], today: ForgeDay, activities: [Ritual]
+    ) -> ForgeShape {
+        let last = today.adding(days: -1)
+        let windowStart = today.adding(days: -window)
+        let midpoint = today.adding(days: -half)
+        let todays = byDay[today]
 
         // Every activity's contribution to every dimension, resolved once
         // rather than per dimension per day.
-        let weights = activities.reduce(into: [String: [RitualCategory: Double]]()) {
-            $0[$1.id] = $1.dimensionWeights
-        }
+        let everything = allWeights(of: activities)
 
         let dimensions = RitualCategory.dimensions.map { category in
-            let contributing = weights.filter { $0.value[category] != nil }
-            let weightFor = contributing.mapValues { $0[category] ?? 0 }
+            let weightFor = weights(everything, for: category)
+            let settled = settledToday(weightFor, in: todays)
 
-            let asked = creditedDays(weightFor, from: windowStart, to: last, planned: true)
-            let kept = creditedDays(weightFor, from: windowStart, to: last, planned: false)
+            let asked = creditedDays(byDay, weightFor, from: windowStart, to: last, planned: true) + settled
+            let kept = creditedDays(byDay, weightFor, from: windowStart, to: last, planned: false) + settled
 
-            return ForgeShape.Dimension(
+            return Dimension(
                 category: category,
-                score: ForgeShape.score(kept: kept, asked: asked),
+                score: score(kept: kept, asked: asked),
                 asked: asked,
                 kept: kept,
                 // The count somebody would recognise: activities *filed* here,
@@ -835,18 +866,31 @@ extension ProgressStore {
                 // heading would be the app arguing with its own editor.
                 activityCount: activities.count { $0.category == category },
                 direction: direction(
-                    weightFor, midpoint: midpoint, last: last, start: windowStart
+                    byDay, weightFor, midpoint: midpoint, last: last, start: windowStart
                 )
             )
         }
         return ForgeShape(dimensions: dimensions)
     }
 
-    /// Which way one dimension has moved across the two halves of the window.
-    ///
-    /// Both halves have to have been asked for before this says anything. A
-    /// dimension taken up nine days ago has an empty first half, and calling
-    /// that "rising" would be reporting the moment it was created as progress.
+    static func allWeights(of activities: [Ritual]) -> [String: [RitualCategory: Double]] {
+        activities.reduce(into: [:]) { $0[$1.id] = $1.dimensionWeights }
+    }
+
+    static func weights(
+        _ all: [String: [RitualCategory: Double]], for category: RitualCategory
+    ) -> Weights {
+        all.filter { $0.value[category] != nil }.mapValues { $0[category] ?? 0 }
+    }
+
+    /// What today has already kept in a dimension: the strongest contribution
+    /// among what is done, or nought. See the note on `read` for why this is
+    /// counted as both asked and kept.
+    static func settledToday(_ weights: Weights, in record: DayRecord?) -> Double {
+        guard let record, !weights.isEmpty else { return 0 }
+        return record.completedIDs.compactMap { weights[$0] }.max() ?? 0
+    }
+
     /// Weighted days in a window: for each day, the **strongest** contribution
     /// any qualifying activity made to this dimension.
     ///
@@ -855,10 +899,11 @@ extension ProgressStore {
     /// — the exact exploit the whole model is built to refuse — so a day is
     /// worth at most one, and worth less when the only thing feeding the
     /// dimension that day was a secondary.
-    private func creditedDays(
-        _ weights: [String: Double], from first: ForgeDay, to last: ForgeDay, planned: Bool
+    static func creditedDays(
+        _ byDay: [ForgeDay: DayRecord],
+        _ weights: Weights, from first: ForgeDay, to last: ForgeDay, planned: Bool
     ) -> Double {
-        guard !weights.isEmpty else { return 0 }
+        guard !weights.isEmpty, first <= last else { return 0 }
         return byDay.values.reduce(into: 0.0) { total, record in
             guard record.day >= first, record.day <= last else { return }
             let ids = planned ? Set(record.plannedIDs) : record.completedIDs
@@ -867,44 +912,74 @@ extension ProgressStore {
         }
     }
 
-    private func direction(
-        _ weights: [String: Double], midpoint: ForgeDay, last: ForgeDay, start: ForgeDay
-    ) -> ForgeShape.Direction {
+    /// The first day on or before `last` that planned anything feeding this
+    /// dimension — the day the dimension started being part of the record.
+    static func firstPlanned(
+        _ byDay: [ForgeDay: DayRecord], _ weights: Weights, through last: ForgeDay
+    ) -> ForgeDay? {
+        guard !weights.isEmpty else { return nil }
+        return byDay.values
+            .filter { $0.day <= last && $0.plannedIDs.contains { weights[$0] != nil } }
+            .map(\.day)
+            .min()
+    }
+
+    /// Which way one dimension has moved across the two halves of the window.
+    ///
+    /// Both halves have to have been asked for before this says anything. A
+    /// dimension taken up nine days ago has an empty first half, and calling
+    /// that "rising" would be reporting the moment it was created as progress.
+    /// Finished days only: a fortnight is not a fortnight until it is over, and
+    /// today is still being lived.
+    private static func direction(
+        _ byDay: [ForgeDay: DayRecord],
+        _ weights: Weights, midpoint: ForgeDay, last: ForgeDay, start: ForgeDay
+    ) -> Direction {
         guard !weights.isEmpty else { return .unknown }
         let priorEnd = midpoint.adding(days: -1)
-        let recentAsked = creditedDays(weights, from: midpoint, to: last, planned: true)
-        let priorAsked = creditedDays(weights, from: start, to: priorEnd, planned: true)
+        let recentAsked = creditedDays(byDay, weights, from: midpoint, to: last, planned: true)
+        let priorAsked = creditedDays(byDay, weights, from: start, to: priorEnd, planned: true)
         guard recentAsked > 0, priorAsked > 0 else { return .unknown }
 
-        let recent = ForgeShape.score(
-            kept: creditedDays(weights, from: midpoint, to: last, planned: false),
+        let recent = score(
+            kept: creditedDays(byDay, weights, from: midpoint, to: last, planned: false),
             asked: recentAsked,
-            floor: Double(ForgeShape.presenceFloor) / 2
+            floor: Double(presenceFloor) / 2
         )
-        let prior = ForgeShape.score(
-            kept: creditedDays(weights, from: start, to: priorEnd, planned: false),
+        let prior = score(
+            kept: creditedDays(byDay, weights, from: start, to: priorEnd, planned: false),
             asked: priorAsked,
-            floor: Double(ForgeShape.presenceFloor) / 2
+            floor: Double(presenceFloor) / 2
         )
         // Eight points of noise either way is not a trend. Two kept days out of
         // fourteen moves a score by about that much, and a fortnight that
         // happened to contain one head cold should not be reported as decline.
-        if recent - prior > 8 { return .rising }
-        if prior - recent > 8 { return .slipping }
+        if recent - prior > noise { return .rising }
+        if prior - recent > noise { return .slipping }
         return .steady
     }
-}
 
-extension ForgeShape {
+    /// How far a score has to move before it is called a direction.
+    static let noise = 8
 
     /// The scoring function, in one place so the dimension and its direction
     /// cannot be computed two different ways.
     static func score(
         kept: Double, asked: Double, floor: Double = Double(ForgeShape.presenceFloor)
     ) -> Int {
+        Int(reading(kept: kept, asked: asked, floor: floor).rounded())
+    }
+
+    /// The same arithmetic before it is rounded, 0…100. The blend in
+    /// `BlendedShape` weighs this against a baseline and rounds once, at the
+    /// end — rounding twice would let the two halves of a blend disagree by a
+    /// point with the number drawn from them.
+    static func reading(
+        kept: Double, asked: Double, floor: Double = Double(ForgeShape.presenceFloor)
+    ) -> Double {
         guard asked > 0, floor > 0 else { return 0 }
         let rate = kept / asked
         let presence = min(1, asked / floor)
-        return Int((100 * rate * presence).rounded())
+        return 100 * rate * presence
     }
 }

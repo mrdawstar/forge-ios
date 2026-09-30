@@ -82,6 +82,26 @@ final class ForgeHaptics {
         transient(intensity: 0.28, sharpness: 0.7, fallback: { impactLight.impactOccurred(intensity: 0.3) })
     }
 
+    /// An assessment answer recorded — a light tick, lighter than a row being
+    /// chosen, because seven of them arrive in under a minute.
+    func answered() {
+        guard isEnabled else { return }
+        transient(intensity: 0.38, sharpness: 0.65, fallback: { impactLight.impactOccurred(intensity: 0.4) })
+    }
+
+    /// One vertex of the starting shape coming on. `step` of `count`, and each
+    /// one a little stronger than the last, so the six read as one rising
+    /// sequence under the drawing rather than six identical taps.
+    func shapeRising(step: Int, of count: Int) {
+        guard isEnabled else { return }
+        let progress = count > 1 ? Float(step) / Float(count - 1) : 1
+        transient(
+            intensity: 0.25 + 0.55 * progress,
+            sharpness: 0.35 + 0.35 * progress,
+            fallback: { impactLight.impactOccurred(intensity: CGFloat(0.3 + 0.6 * progress)) }
+        )
+    }
+
     /// Ritual verified — 14ms.
     func ritualVerified() {
         guard isEnabled else { return }

@@ -44,9 +44,10 @@ unclear, contact us at [CONTACT EMAIL].
 ## 1. Your Forge record
 
 Everything you put into Forge — the activities you keep and their schedules,
-the days you completed and earned, rest days, chapters and their names and
-intentions, weekly review answers, the statements you wrote about who you are
-becoming, milestones you set, and your settings — is stored **on your device**,
+the days you completed and earned, rest days, your answers to Forge's seven
+starting questions, chapters and their names and intentions,
+weekly review answers, the statements you wrote about who you are becoming,
+milestones you set, and your settings — is stored **on your device**,
 in storage shared only between the Forge app and its own widgets.
 
 We do not operate a server that stores your record, and there is no way to
@@ -106,9 +107,10 @@ and display and accessibility settings. Events are associated with an
 **anonymised identifier** that is hashed on your device and again by
 TelemetryDeck, and cannot be used by us to identify you.
 
-**What is never sent:** activity names, anything you type (review answers,
-chapter names, identity statements, requests to Plan), health data, your
-location, your contacts, or your Apple Account details.
+**What is never sent:** activity names, your answers to the starting
+questions, anything you type (review answers, chapter names, identity
+statements, requests to Plan), health data, your location, your contacts, or
+your Apple Account details.
 
 **What it is used for:** understanding which parts of Forge are used and where
 people get stuck — product analytics only. It is not used for advertising and

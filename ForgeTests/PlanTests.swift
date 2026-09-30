@@ -485,7 +485,8 @@ struct DayCountTests {
         let vm = makeViewModel()
         let today = vm.progress.currentDay.weekday
         let other = today == 7 ? 1 : today + 1
-        vm.chooseStarters(["water", "bed", "teeth"])
+        vm.activeRitualIDs = ["water", "bed", "teeth"]
+        vm.pinToTodayOnly(["water", "bed", "teeth"])
         // Two days, so `removeFromDay` takes it off today rather than out of
         // the week — the path that keeps the completion.
         vm.setWeekday("bed", other, on: true)
@@ -508,7 +509,8 @@ struct DayCountTests {
         let vm = makeViewModel()
         let today = vm.progress.currentDay.weekday
         let other = today == 7 ? 1 : today + 1
-        vm.chooseStarters(["water", "bed", "teeth"])
+        vm.activeRitualIDs = ["water", "bed", "teeth"]
+        vm.pinToTodayOnly(["water", "bed", "teeth"])
         vm.setWeekday("water", other, on: true)
         vm.keepPromise("water")
         vm.removeFromDay("water", weekday: today)
@@ -761,8 +763,9 @@ struct TelemetryTests {
     /// One of every event, with a value in each slot.
     private let every: [ForgeTelemetry.Event] = [
         .appFirstOpen,
-        .onboardingBeatView(.doOne),
+        .onboardingStep(.doOne),
         .onboardingFocusChosen(count: 2),
+        .assessmentCompleted,
         .onboardingCompleted,
         .firstPullCompleted,
         .activityCompleted(.honor),
@@ -787,8 +790,8 @@ struct TelemetryTests {
     @Test("The event names are exactly the agreed list")
     func names() {
         #expect(every.map(\.name) == [
-            "app_first_open", "onboarding_beat_view", "onboarding_focus_chosen",
-            "onboarding_completed", "first_pull_completed", "activity_completed",
+            "app_first_open", "onboarding_step", "onboarding_focus_chosen",
+            "assessment_completed", "onboarding_completed", "first_pull_completed", "activity_completed",
             "day_earned", "pull_abandoned", "challenge_accepted",
             "challenge_completed", "activity_added", "notification_opened",
             "weekly_review_completed", "reentry_shown", "reentry_recovered",
@@ -803,14 +806,18 @@ struct TelemetryTests {
     @Test("Every payload carries only closed values and the install's age")
     func payloadsAreClosed() {
         let allowed: Set<String> = [
-            "beat", "count", "method", "source", "kind", "door", "plan", "days_since_install",
+            "step", "count", "method", "source", "kind", "door", "plan", "days_since_install",
         ]
         for event in every {
             let payload = ForgeTelemetry.payload(for: event, daysSinceInstall: 3)
             #expect(Set(payload.keys).isSubset(of: allowed), Comment(rawValue: event.name))
             #expect(payload["days_since_install"] == "3", Comment(rawValue: event.name))
         }
-        #expect(ForgeTelemetry.Event.onboardingBeatView(.doOne).parameters == ["beat": "do_one"])
+        #expect(ForgeTelemetry.Event.onboardingStep(.doOne).parameters == ["step": "do_one"])
+        #expect(ForgeTelemetry.Event.onboardingStep(.questionScreenTime).parameters == ["step": "question_screen_time"])
+        // The answers never travel: the event that says they were given
+        // carries nothing but the install's age.
+        #expect(ForgeTelemetry.Event.assessmentCompleted.parameters.isEmpty)
         #expect(ForgeTelemetry.Event.activityCompleted(.basic).parameters == ["method": "basic"])
         #expect(ForgeTelemetry.Event.notificationOpened(.review).parameters == ["kind": "review"])
         #expect(ForgeTelemetry.Event.purchaseCompleted(.annual).parameters == ["plan": "annual"])
@@ -823,12 +830,23 @@ struct TelemetryTests {
         #expect(ForgeTelemetry.payload(for: .dayEarned, daysSinceInstall: -4)["days_since_install"] == "0")
     }
 
-    @Test("Every first-run beat before the end is named, and the end is not")
-    func beats() {
-        #expect(ForgeTelemetry.Beat(.promise) == .promise)
-        #expect(ForgeTelemetry.Beat(.doOne) == .doOne)
-        #expect(ForgeTelemetry.Beat(.closing) == .closing)
-        #expect(ForgeTelemetry.Beat(.finished) == nil)
+    @Test("Every first-run step before the end is named, one per question, and the end is not")
+    func steps() {
+        #expect(ForgeTelemetry.Step(.coldOpen) == .coldOpen)
+        #expect(ForgeTelemetry.Step(.question(0)) == .questionTraining)
+        #expect(ForgeTelemetry.Step(.question(6)) == .questionBuilding)
+        #expect(ForgeTelemetry.Step(.question(7)) == nil, "there is no eighth question")
+        #expect(ForgeTelemetry.Step(.build) == .build)
+        #expect(ForgeTelemetry.Step(.metaphor) == .pullToBegin)
+        #expect(ForgeTelemetry.Step(.doOne) == .doOne)
+        #expect(ForgeTelemetry.Step(.closing) == .closing)
+        #expect(ForgeTelemetry.Step(.finished) == nil)
+
+        let questions = (0..<Assessment.Question.allCases.count).compactMap {
+            ForgeTelemetry.Step(.question($0))
+        }
+        #expect(Set(questions).count == Assessment.Question.allCases.count, "each question is its own step")
+        #expect(questions.allSatisfy { $0.rawValue.hasPrefix("question_") })
     }
 
     /// Derived from the record, so nothing new is stored to know it.

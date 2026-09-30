@@ -74,6 +74,24 @@ final class ForgeViewModel {
     /// eight, and nothing anywhere is withheld.
     var focus: Set<RitualCategory> = [] { didSet { persist() } }
 
+    /// What somebody said about themselves in the seven questions, and when.
+    ///
+    /// **Stated data, like `focus`**, and kept for the same reason: no record
+    /// can infer how much somebody trained before they installed the app. Only
+    /// the answers and the day are stored (`Assessment.key`); every starting
+    /// number is derived from them on read, and `blended` is where they meet
+    /// the record.
+    ///
+    /// **Nil is ordinary.** Every 1.0 install has none until they take it from
+    /// the Becoming tab, and every reader falls back to the record alone —
+    /// `BlendedShape` with no assessment is `ForgeShape`, number for number.
+    var assessment: Assessment? {
+        didSet {
+            guard isLoaded, assessment != oldValue else { return }
+            Assessment.write(assessment, to: ForgeShared.defaults)
+        }
+    }
+
     /// The activity waiting on an "I kept my promise" — honor activities get a
     /// moment of their own rather than a checkbox.
     var honorRitualID: String? = nil
@@ -122,13 +140,13 @@ final class ForgeViewModel {
     /// How far into the first run somebody is.
     ///
     /// Held in memory only. Quitting halfway starts it again, which is the right
-    /// trade for a ninety-second sequence — resuming into the middle of it would
+    /// trade for a two-minute sequence — resuming into the middle of it would
     /// drop somebody on a screen with no idea how they got there.
-    var firstRunStage: FirstRunStage = .promise {
+    var firstRunStage: FirstRunStage = .coldOpen {
         didSet {
             guard firstRunStage != oldValue, !hasCompletedFirstRun,
-                  let beat = ForgeTelemetry.Beat(firstRunStage) else { return }
-            ForgeTelemetry.send(.onboardingBeatView(beat))
+                  let step = ForgeTelemetry.Step(firstRunStage) else { return }
+            ForgeTelemetry.send(.onboardingStep(step))
         }
     }
 
@@ -139,39 +157,36 @@ final class ForgeViewModel {
     /// app; the pull itself happens on the real home screen, where every pull
     /// after it will.
     ///
-    /// Straight through, with no branch. There used to be one: `shape` offered
-    /// an archetype's whole routine, and taking it skipped `choose` because
-    /// somebody who had just accepted a day should not be asked to build a
-    /// second one. The archetypes are gone and so is the branch — everybody
-    /// answers one question, is offered activities aimed at the answer, and
-    /// picks what is real.
-    enum FirstRunStage {
-        /// What Forge is, in one sentence.
-        case promise
-        /// **What they want to build**, as one to three of the six dimensions.
-        /// Skippable, and skipping it costs nothing.
+    /// Straight through, with no branch, and one screen per beat (§17.1). The
+    /// 1.0 sequence — promise, build, choose, metaphor — was replaced in 1.1 by
+    /// one that shows somebody where they are and where the same arithmetic
+    /// says they would be, before it asks them to do anything (DIRECTION_1_1
+    /// §2).
+    enum FirstRunStage: Equatable {
+        /// The sword in the stone, and what keeping a day does to it.
+        case coldOpen
+        /// One of the seven questions, by index into
+        /// `Assessment.Question.allCases`. One screen each, one tap each.
+        case question(Int)
+        /// **What they want to build**, as any number of the six. Preselected
+        /// from the two lowest answers, skippable, and skipping costs nothing.
         ///
-        /// This was `who` — "Who are you becoming?", answered with identity
-        /// statements. The argument for it was that an identity is the one
-        /// thing the record cannot infer, and that argument is still true; what
-        /// it missed is that a stranger in their first thirty seconds cannot
-        /// answer it. "Someone who reads" is a sentence people arrive at after
-        /// months of a practice, not before their first day of one, and asking
-        /// for it up front got a shrug and a Skip from most of them — after
-        /// which the whole sequence fell back to the shipped eight and the
-        /// question had cost a screen and bought nothing.
-        ///
-        /// **What do you want to build** is answerable by anybody, immediately,
-        /// by pointing. It also has somewhere to go: the six are the same six
-        /// the Shape scores, so the answer is legible for the rest of the
-        /// product — the first run's offer is drawn from it, `DayPlanner` reads
-        /// it against the record, and the Becoming tab can finally say *you
-        /// chose this one, and it is the lowest*. See `ForgeViewModel.focus`.
+        /// This was `who` — "Who are you becoming?" — before 1.0 shipped, and
+        /// the argument for replacing it still holds: a stranger cannot answer
+        /// an identity question in their first minute, and anybody can point at
+        /// the parts of themselves they want stronger. See `ForgeViewModel.focus`.
         case build
-        /// Choosing what to actually do, from activities aimed at what they
-        /// just picked. Each row says which part of them it builds.
-        case choose
-        /// The blade is who you are becoming. One screen, three lines.
+        /// The starting shape drawing itself from the answers, about two and a
+        /// half seconds, tap to skip.
+        case drawing
+        /// Now, in seven days, in thirty, and at full potential: the six, OVR
+        /// and the blade each stage earns. See `Transformation`.
+        case transformation
+        /// Three cited findings, each with the part of Forge it explains.
+        case science
+        /// The proposed day, with a time on every activity. Writes the day.
+        case plan
+        /// The blade, pulled once with nothing at stake.
         case metaphor
         /// The one thing they go and do now.
         case doOne
@@ -184,8 +199,11 @@ final class ForgeViewModel {
 
     var isFirstRunCovering: Bool {
         switch firstRunStage {
-        case .promise, .build, .choose, .metaphor, .doOne: !hasCompletedFirstRun
-        default: false
+        case .coldOpen, .question, .build, .drawing, .transformation, .science,
+             .plan, .metaphor, .doOne:
+            !hasCompletedFirstRun
+        case .pull, .closing, .finished:
+            false
         }
     }
 
@@ -286,6 +304,10 @@ final class ForgeViewModel {
         if let saved = defaults.stringArray(forKey: Key.focus) {
             focus = Set(saved.compactMap(RitualCategory.init(migrating:)).filter { $0 != .all })
         }
+        // Tolerant all the way down (`Assessment.init(from:)`): an answer this
+        // version cannot read is dropped on its own, and only a record with no
+        // day at all reads as no assessment.
+        assessment = Assessment.read(from: defaults)
         // Custom activities have to be in hand before the order is read, or
         // every custom id in it would fail to resolve and be dropped.
         if let saved = defaults.stringArray(forKey: Key.active) {
@@ -717,39 +739,40 @@ final class ForgeViewModel {
 
     // MARK: - First run
 
-    /// Replace the day with the three they chose — and put them on **today**.
+    /// Replace the day with the plan somebody just read — every activity on it
+    /// **every day, at the time on its row**.
     ///
     /// Not appended to the defaults: the defaults are our guess, and they have
-    /// just made a better one.
+    /// just read a better one.
     ///
-    /// Pinned to the day they were chosen on, and that is the important half.
-    /// Every library activity ships as `.daily`, so choosing three used to be
-    /// somebody agreeing — in their first thirty seconds, before they had seen
-    /// the app — to do those three every day forever, with the only sign of it a
-    /// repeat picker three screens away. It is the same commitment the composer
-    /// refuses to make on anybody's behalf (see `ActivityComposer.Mode.create`),
-    /// and the first run had no business making it either. So the first day is a
-    /// day, repeating is chosen later, and the closing beat says so out loud.
-    /// `identities` is what the three are evidence for, if anything was named.
-    /// Tagging here rather than afterwards is the difference between onboarding
-    /// that asks who somebody is becoming and onboarding that *uses* the answer:
-    /// without it the sequence would write three identities and three untagged
-    /// activities, and every reading of evidence would report zero forever.
-    /// Empty is the ordinary case for anybody who skipped the question, and it
-    /// tags nothing.
-    func chooseStarters(_ ids: [String], identities: [Identity] = []) {
-        let weekday = progress.currentDay.weekday
+    /// # Why every day now, when the 1.0 first run pinned its three to today
+    ///
+    /// The 1.0 choosing screen was a list of eight rows with nothing on it about
+    /// repetition, and taking three used to be somebody agreeing — in their
+    /// first thirty seconds — to do them every day forever, with the only sign
+    /// of it a repeat picker three screens away. Pinning them to the day was
+    /// the honest answer to *that* screen.
+    ///
+    /// This screen says it. The plan is shown as a day with a time on every
+    /// row, under a line that says "every day", after a screen whose every
+    /// projection is printed as "if you keep five days a week of the plan
+    /// you're about to see". Writing it as one day would make that sentence
+    /// false on the second morning — the plan it projected would not exist.
+    /// Narrowing any of it later is one tap in the repeat picker (§5 #12: an
+    /// activity is a standing arrangement of weekdays and a time).
+    ///
+    /// Written through `amend`, so each is an ordinary `RitualEdit` and every
+    /// hour is the user's from the first second.
+    func adoptPlan(_ entries: [PlanEntry]) {
+        let ids = entries.map(\.ritualID).filter { ritual($0) != nil }
+        guard !ids.isEmpty else { return }
         withAnimation(.forgeRow) {
             activeRitualIDs = ids
         }
-        for id in ids {
-            let identityID = IdentityActivities.evidence(for: id, among: identities)?.id
-            amend(id) {
-                $0.repeats = .onlyToday(weekday)
-                // Only where there is one. Writing nil into the draft would
-                // count as a decision and mark every activity edited — see
-                // `RitualEdit.identityID`.
-                if let identityID { $0.identityID = identityID }
+        for entry in entries where ids.contains(entry.ritualID) {
+            amend(entry.ritualID) {
+                $0.repeats = .daily
+                $0.startMinute = entry.minute
             }
         }
         publishPlanned()
@@ -757,8 +780,8 @@ final class ForgeViewModel {
 
     /// Pin activities to the day they arrived on, and no other.
     ///
-    /// The same commitment `chooseStarters` refuses to make on anybody's behalf,
-    /// applied to the other way into a first day. A world's routine ships every
+    /// The same commitment the 1.0 first run refused to make on anybody's
+    /// behalf, applied to the other way into a first day. A world's routine ships every
     /// activity as `.daily`, so accepting one in the first ninety seconds would
     /// otherwise be a stranger agreeing to a five-activity day every day for the
     /// rest of time — a promise they have no basis to make and no idea they
@@ -965,8 +988,11 @@ final class ForgeViewModel {
     @MainActor
     func resetFirstRun(identities: IdentityStore? = nil) {
         hasCompletedFirstRun = false
-        firstRunStage = .promise
+        firstRunStage = .coldOpen
         ForgeShared.defaults.set(false, forKey: Key.firstRun)
+        // The answers go with the run they were given in: a replay is a fresh
+        // install, and a fresh install has said nothing yet.
+        assessment = nil
         activeRitualIDs = Ritual.defaultActive
         // The tags go with the identities they point at. Leaving them would
         // mean a replayed first run started with a day already claiming to be
@@ -1415,8 +1441,22 @@ final class ForgeViewModel {
     /// here either.
     var shape: ForgeShape { progress.forgeShape(of: activeRituals) }
 
+    /// The six and OVR as every screen shows them: the answers, if there are
+    /// any, handing over to the record. With no assessment it is `shape`
+    /// exactly. See `BlendedShape` for the rules.
+    var blended: BlendedShape {
+        BlendedShape.read(
+            progress.byDay,
+            today: progress.currentDay,
+            activities: activeRituals,
+            assessment: assessment
+        )
+    }
+
     /// The Becoming tab's first-week contract, or nil once the shape is drawn.
-    /// Read off the record every time; see `FirstWeek`.
+    /// Read off the record every time; see `FirstWeek`. With an assessment the
+    /// hexagon is drawn from day one and this is the progress line under it
+    /// rather than the hero in its place.
     var firstWeek: FirstWeek? { progress.firstWeek(isShapeReadable: shape.isReadable) }
 
     /// The smallest library activity for each dimension nothing is filed under.

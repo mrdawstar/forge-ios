@@ -51,8 +51,14 @@ enum ForgeTelemetry {
     /// Every signal Forge can send. **Only these.**
     enum Event: Equatable, Sendable {
         case appFirstOpen
-        case onboardingBeatView(Beat)
+        /// A first-run step came on screen. Was `onboarding_beat_view{beat}`
+        /// until 1.1 rebuilt the beats (§17.1); the old name reads the 1.0
+        /// sequence, which no longer exists.
+        case onboardingStep(Step)
         case onboardingFocusChosen(count: Int)
+        /// The seven questions were answered — in the first run, or from the
+        /// Becoming tab. **No parameters**: never an answer, never a baseline.
+        case assessmentCompleted
         case onboardingCompleted
         case firstPullCompleted
         case activityCompleted(VerificationMethod)
@@ -84,8 +90,9 @@ enum ForgeTelemetry {
         var name: String {
             switch self {
             case .appFirstOpen: "app_first_open"
-            case .onboardingBeatView: "onboarding_beat_view"
+            case .onboardingStep: "onboarding_step"
             case .onboardingFocusChosen: "onboarding_focus_chosen"
+            case .assessmentCompleted: "assessment_completed"
             case .onboardingCompleted: "onboarding_completed"
             case .firstPullCompleted: "first_pull_completed"
             case .activityCompleted: "activity_completed"
@@ -112,7 +119,7 @@ enum ForgeTelemetry {
         /// Every value is a closed-set raw value or a count.
         var parameters: [String: String] {
             switch self {
-            case .onboardingBeatView(let beat): ["beat": beat.rawValue]
+            case .onboardingStep(let step): ["step": step.rawValue]
             case .onboardingFocusChosen(let count): ["count": String(max(0, count))]
             case .activityCompleted(let method): ["method": method.rawValue]
             case .activityAdded(let source): ["source": source.rawValue]
@@ -124,22 +131,51 @@ enum ForgeTelemetry {
         }
     }
 
-    /// A first-run beat, as it is named in the data.
-    enum Beat: String, CaseIterable, Sendable {
-        case promise, build, choose, metaphor
+    /// A first-run step, as it is named in the data. One per screen, each
+    /// question its own, so the funnel shows which question somebody left on
+    /// — and never what they answered.
+    enum Step: String, CaseIterable, Sendable {
+        case coldOpen = "cold_open"
+        case questionTraining = "question_training"
+        case questionPlanning = "question_planning"
+        case questionScreenTime = "question_screen_time"
+        case questionSleep = "question_sleep"
+        case questionReading = "question_reading"
+        case questionFriends = "question_friends"
+        case questionBuilding = "question_building"
+        case build, drawing, transformation, science, plan
+        case pullToBegin = "pull_to_begin"
         case doOne = "do_one"
         case pull, closing
 
         init?(_ stage: ForgeViewModel.FirstRunStage) {
             switch stage {
-            case .promise: self = .promise
+            case .coldOpen: self = .coldOpen
+            case .question(let index):
+                guard Assessment.Question.allCases.indices.contains(index) else { return nil }
+                self.init(Assessment.Question.allCases[index])
             case .build: self = .build
-            case .choose: self = .choose
-            case .metaphor: self = .metaphor
+            case .drawing: self = .drawing
+            case .transformation: self = .transformation
+            case .science: self = .science
+            case .plan: self = .plan
+            case .metaphor: self = .pullToBegin
             case .doOne: self = .doOne
             case .pull: self = .pull
             case .closing: self = .closing
             case .finished: return nil
+            }
+        }
+
+        init(_ question: Assessment.Question) {
+            switch question {
+            case .training: self = .questionTraining
+            case .planning: self = .questionPlanning
+            case .screenTime: self = .questionScreenTime
+            case .sleep: self = .questionSleep
+            case .reading: self = .questionReading
+            case .friends: self = .questionFriends
+            case .building: self = .questionBuilding
             }
         }
     }
