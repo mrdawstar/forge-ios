@@ -479,9 +479,12 @@ struct DailyChallengeSheet: View {
 /// the sentence that says what doing it looks like.
 ///
 /// **The dimension tag is the only coloured thing on it**, and only on the card
-/// somebody is actually being offered. Six cards each glowing in the accent
-/// would turn a browser into a carousel of adverts, and the accent's one job in
-/// this app is to say which part of the interface is answering you.
+/// somebody is actually being offered. Six cards each glowing would turn a
+/// browser into a carousel of adverts. Since 1.1 it glows in its dimension's
+/// own colour (`DimensionPalette`) rather than the accent: the tag says which
+/// part of a person the challenge is aimed at, and that is what the six colours
+/// mean everywhere else — the accent's one job is to say which part of the
+/// interface is answering you.
 private struct ChallengeCard: View {
     let challenge: DailyChallenge
     /// Whether this is the challenge the day actually holds.
@@ -500,7 +503,8 @@ private struct ChallengeCard: View {
                 tag(
                     challenge.focus.label.uppercased(),
                     symbol: challenge.focus.symbol,
-                    lit: isToday
+                    lit: isToday,
+                    tint: challenge.focus.category.color
                 )
                 tag(challenge.difficulty.label.uppercased())
             }
@@ -568,7 +572,9 @@ private struct ChallengeCard: View {
         return challenge.isPersonal ? "MADE FOR YOU" : "TODAY'S CHALLENGE"
     }
 
-    private func tag(_ text: String, symbol: String? = nil, lit: Bool = false) -> some View {
+    private func tag(
+        _ text: String, symbol: String? = nil, lit: Bool = false, tint: Color? = nil
+    ) -> some View {
         HStack(spacing: 4) {
             if let symbol {
                 Image(systemName: symbol)
@@ -578,7 +584,7 @@ private struct ChallengeCard: View {
                 .font(ForgeTheme.label(9.5))
                 .kerning(1.3)
         }
-        .foregroundStyle(lit ? AnyShapeStyle(ForgeTheme.accent) : AnyShapeStyle(.secondary))
+        .foregroundStyle(lit ? AnyShapeStyle(tint ?? ForgeTheme.accent) : AnyShapeStyle(.secondary))
         .padding(.horizontal, 9)
         .frame(height: 24)
         .glassEffect(.regular, in: .capsule)

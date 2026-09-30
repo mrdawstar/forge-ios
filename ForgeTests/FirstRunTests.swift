@@ -2,20 +2,16 @@ import Foundation
 import Testing
 @testable import Forge
 
-/// The first ninety seconds, and the two things they must not get wrong.
+/// The first two minutes, and the things they must not get wrong.
 ///
-/// **Everything written is real.** The identities are real identities, the
-/// activities are today's, the completion is in the history and the blade is a
-/// blade. There is no tutorial state to clean up, which means every one of these
-/// is checking the actual product rather than a rehearsal of it.
+/// **Everything written is real.** The answers are the assessment, the plan is
+/// the day, the completion is in the history and the blade is a blade. There is
+/// no tutorial state to clean up, which means every one of these is checking
+/// the actual product rather than a rehearsal of it.
 ///
-/// **Skipping costs nothing.** Somebody who declines to name anybody gets the
-/// app exactly as it was before identity existed. Half of what is here exists to
-/// hold that line, because it is the half that would fail silently.
-///
-/// The suites that tested the archetype beat went with the archetypes. What is
-/// left is the sequence that survived them: name somebody, be offered evidence
-/// for them, keep one.
+/// **Skipping costs nothing.** Somebody who declines to say what they are
+/// building still gets a plan, drawn from their lowest answers, and the
+/// identity offers still fall back to exactly what the app always offered.
 @MainActor
 @Suite("The first run")
 struct FirstRunTests {
@@ -110,32 +106,111 @@ struct FirstRunTests {
         }
     }
 
-    @Test("Choosing writes real activities onto today")
-    func chosenStartersLandOnTheDay() {
+    @Test("The plan writes the real day: every activity, every day, at its time")
+    func thePlanIsTheDay() {
         let (vm, _) = makeViewModel()
-        let chosen = Array(IdentityActivities.offered(for: []).prefix(3))
+        let answers = Assessment(
+            day: vm.progress.currentDay,
+            answers: Dictionary(uniqueKeysWithValues: Assessment.Question.allCases.map { ($0, 1) })
+        )
+        let plan = OnboardingPlan.propose(focus: [.physical, .relationship], assessment: answers)
 
-        vm.chooseStarters(chosen, identities: [])
+        vm.adoptPlan(plan)
 
-        #expect(Set(vm.activeRitualIDs) == Set(chosen))
-        #expect(vm.totalActive == 3)
+        #expect(vm.activeRitualIDs == plan.map(\.ritualID))
+        #expect(vm.totalActive == plan.count)
+        #expect(Set(vm.progress.today.plannedIDs) == Set(plan.map(\.ritualID)), "today's record asks for it")
+        let tomorrow = vm.progress.currentDay.adding(days: 1).weekday
+        for entry in plan {
+            let ritual = vm.ritual(entry.ritualID)
+            #expect(ritual?.startMinute == entry.minute)
+            #expect(ritual?.repeats.isDaily == true)
+            #expect(ritual?.happens(on: tomorrow) == true, "the plan is tomorrow's too")
+        }
     }
 
-    @Test("Choosing tags what was chosen with who it is evidence for")
-    func chosenStartersCarryTheIdentity() {
-        let (vm, identities) = makeViewModel()
-        let trains = identities.add(
-            statement: IdentityPrompt.trains.statement, symbol: "figure.run"
+    @Test("The first thing asked for is the smallest thing on the plan")
+    func theFirstAskIsTheSmallestOnThePlan() {
+        let (vm, _) = makeViewModel()
+        let answers = Assessment(
+            day: vm.progress.currentDay,
+            answers: Dictionary(uniqueKeysWithValues: Assessment.Question.allCases.map { ($0, 0) })
         )
-        let named = try? #require(trains)
-        guard let named else { return }
+        let plan = OnboardingPlan.propose(focus: Set(RitualCategory.dimensions), assessment: answers)
+        vm.adoptPlan(plan)
 
-        let chosen = IdentityActivities.offered(for: [named])
-        vm.chooseStarters(Array(chosen.prefix(3)), identities: [named])
+        let smallest = plan.map(\.ritualID).min { IdentityActivities.effort(of: $0) < IdentityActivities.effort(of: $1) }
+        #expect(vm.firstRunActivity?.id == smallest)
+    }
 
-        // At least one of the three is filed as evidence for the sentence they
-        // wrote — which is the whole of what the beat is for.
-        #expect(vm.activeRituals.contains { $0.identityID == named.id })
+    @Test("Skipping what to build still leaves a plan, from the lowest answers")
+    func skippingStillPlans() {
+        var picks = Dictionary(uniqueKeysWithValues: Assessment.Question.allCases.map { ($0, 2) })
+        picks[.friends] = 0
+        let answers = Assessment(day: ForgeDay(year: 2026, month: 10, day: 1), answers: picks)
+        let plan = OnboardingPlan.propose(focus: [], assessment: answers)
+        #expect(plan.count == OnboardingPlan.minimum)
+        #expect(plan.contains { $0.dimension == .relationship }, "the lowest answer is on it")
+    }
+
+    // MARK: - The sequence
+
+    /// Everything before the pull is over the top of the app; the pull and the
+    /// closing line are on it.
+    @Test("Every beat before the pull covers the app, and the pull does not")
+    func whatCovers() {
+        let (vm, _) = makeViewModel()
+        let covering: [ForgeViewModel.FirstRunStage] = [
+            .coldOpen, .question(0), .question(6), .build, .drawing,
+            .transformation, .science, .plan, .metaphor, .doOne,
+        ]
+        for stage in covering {
+            vm.firstRunStage = stage
+            #expect(vm.isFirstRunCovering, Comment(rawValue: "\(stage) should cover"))
+        }
+        for stage in [ForgeViewModel.FirstRunStage.pull, .closing] {
+            vm.firstRunStage = stage
+            #expect(!vm.isFirstRunCovering)
+            #expect(vm.isFirstPullGranted)
+        }
+    }
+
+    @Test("A replay starts at the cold open")
+    func replayStartsCold() {
+        let (vm, _) = makeViewModel()
+        #expect(vm.firstRunStage == .coldOpen)
+    }
+
+    // MARK: - The assessment
+
+    @Test("The answers are kept, read back, and go with a replay")
+    func theAssessmentIsKept() {
+        let (vm, _) = makeViewModel()
+        #expect(vm.assessment == nil, "a replay has said nothing yet")
+
+        let answers = Assessment(
+            day: vm.progress.currentDay,
+            answers: Dictionary(uniqueKeysWithValues: Assessment.Question.allCases.map { ($0, 3) })
+        )
+        vm.assessment = answers
+        #expect(Assessment.read(from: ForgeShared.defaults) == answers)
+
+        // A fresh launch reads it back.
+        let again = ForgeViewModel(progress: vm.progress)
+        #expect(again.assessment == answers)
+        #expect(again.blended.hasAssessment)
+
+        vm.resetFirstRun()
+        #expect(vm.assessment == nil)
+        #expect(Assessment.read(from: ForgeShared.defaults) == nil)
+    }
+
+    @Test("Without an assessment the view model's six are the record's")
+    func noAssessmentMeansTheRecord() {
+        let (vm, _) = makeViewModel()
+        #expect(vm.assessment == nil)
+        #expect(vm.blended.dimensions.map(\.score) == vm.shape.dimensions.map(\.score))
+        #expect(vm.blended.overall == vm.shape.overall)
     }
 }
 
@@ -146,23 +221,70 @@ struct FirstRunTests {
 @Suite("1.0.1: first-run and first-day copy")
 struct FirstDayCopyTests {
 
-    @Test("The choose-three title is fixed, whatever was built")
-    func chooseTitleIsFixed() {
-        #expect(FirstRunCopy.chooseTitle == "Pick three for today.")
+    @Test("The cold open says the mechanic, and the questions say what they are for")
+    func openingCopy() {
+        #expect(FirstRunCopy.coldOpenTitle == "Every day you keep, the blade comes loose.")
+        #expect(FirstRunCopy.coldOpenLine == "You pull it free.")
+        #expect(FirstRunCopy.coldOpenButton == "Begin")
+        #expect(FirstRunCopy.questionsCaption
+                == "Seven questions. Your starting stats come from your answers. From tomorrow, from what you do.")
+        #expect(FirstRunCopy.suggested == "Suggested from your answers.")
+        #expect(FirstRunCopy.drawingTitle == "Drawing your starting shape.")
     }
 
-    /// A count of where somebody is, not a refusal to go on.
-    @Test(
-        "The choose-three button counts",
-        arguments: [
-            (0, "Choose 3 \u{00B7} 0 selected"),
-            (1, "Choose 3 \u{00B7} 1 selected"),
-            (2, "Choose 3 \u{00B7} 2 selected"),
-            (3, "Continue"),
+    /// Every line the new first run adds, read against the voice: no
+    /// exclamation marks, nothing that says "will", no congratulation.
+    @Test("No line of the first run exclaims, congratulates or promises")
+    func voice() {
+        var lines = [
+            FirstRunCopy.coldOpenTitle, FirstRunCopy.coldOpenLine, FirstRunCopy.questionsCaption,
+            FirstRunCopy.suggested, FirstRunCopy.drawingTitle, FirstRunCopy.scienceTitle,
+            FirstRunCopy.planTitle, FirstRunCopy.planSubtitle,
         ]
-    )
-    func chooseButtonCounts(selected: Int, title: String) {
-        #expect(FirstRunCopy.chooseButton(selected: selected) == title)
+        lines += Assessment.Question.allCases.flatMap { [$0.prompt] + $0.options.map(\.label) }
+        lines += Transformation.Stop.allCases.flatMap { [$0.title, $0.footnote] }
+        lines += FirstRunCopy.findings.flatMap { [$0.title, $0.body, $0.mechanic] }
+        lines += (0..<4).compactMap {
+            Assessment(day: ForgeDay(year: 2026, month: 1, day: 1), answers: [.screenTime: $0]).gainLine
+        }
+        for line in lines {
+            #expect(!line.contains("!"), Comment(rawValue: line))
+            #expect(!line.lowercased().contains(" will "), Comment(rawValue: line))
+            #expect(!line.lowercased().contains("congratulat"), Comment(rawValue: line))
+        }
+    }
+
+    /// DIRECTION_1_1 lists the four papers Forge may cite, and nothing else.
+    @Test("Only the listed papers are cited, and prose counts are words")
+    func science() {
+        let allowed = ["Lally, van Jaarsveld, Potts & Wardle (2010)", "Gollwitzer & Sheeran (2006)",
+                       "Harkin et al. (2016)", "Dai, Milkman & Riis (2014)"]
+        #expect(FirstRunCopy.findings.count == 3)
+        for finding in FirstRunCopy.findings {
+            #expect(allowed.contains { finding.citation.hasPrefix($0) }, Comment(rawValue: finding.citation))
+            // A number in the prose is a word up to a hundred; only a count
+            // over a hundred may be digits.
+            let numbers = finding.body.split { !$0.isNumber }.compactMap { Int($0) }
+            #expect(numbers.allSatisfy { $0 > 100 }, Comment(rawValue: finding.body))
+        }
+        #expect(FirstRunCopy.findings.map(\.mechanic) == [
+            "Arcs are built around it.",
+            "Every activity gets a time.",
+            "That's why you pull the sword.",
+        ])
+    }
+
+    @Test("The closing line promises the plan again, not a new choice")
+    func closingLine() {
+        let state = ForgeNotificationState(
+            now: .now, currentDay: ForgeDay(year: 2026, month: 10, day: 1), dayStartHour: 4,
+            wakeMinutes: 7 * 60, completedToday: 1, plannedToday: 3,
+            isTodayEarned: true, streak: 1
+        )
+        #expect(FirstRunClosingView(remaining: 0, notificationState: state, onFinish: {}).line
+                == "Tomorrow, the same plan again.")
+        #expect(FirstRunClosingView(remaining: 2, notificationState: state, focus: [.physical], onFinish: {}).line
+                == "Two more, today. Tomorrow, more physical.")
     }
 
     @Test("A chosen dimension fills the hexagon to about half, not the edge")

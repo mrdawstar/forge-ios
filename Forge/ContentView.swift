@@ -253,8 +253,8 @@ struct ContentView: View {
                 }
                 // The first beat is the one the stage starts on, so its
                 // `didSet` never fires for it.
-                if forgeVM.firstRunStage == .promise {
-                    ForgeTelemetry.send(.onboardingBeatView(.promise))
+                if forgeVM.firstRunStage == .coldOpen {
+                    ForgeTelemetry.send(.onboardingStep(.coldOpen))
                 }
             }
         }

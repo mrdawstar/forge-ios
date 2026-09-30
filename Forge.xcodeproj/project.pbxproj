@@ -7,6 +7,17 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		24BB399F2B23A83F38793928 /* TransformationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41FA1F8E3472E50381D3E4D8 /* TransformationTests.swift */; };
+		CF010ED4C197BECD0F946F54 /* BlendedShapeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35CE6FCBDC1D9F0243956A61 /* BlendedShapeTests.swift */; };
+		024CBC0C13D77FC0D3D94830 /* AssessmentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67F1AF5A513F5CACA50D43AF /* AssessmentTests.swift */; };
+		E0ABEB1F5FADE22B87157A50 /* StatHexagon.swift in Sources */ = {isa = PBXBuildFile; fileRef = D6BA1755667CB7FECBE3E4BF /* StatHexagon.swift */; };
+		070E0631598E0C50676F7A45 /* PlanBeat.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07F87DCD633D88E4053EE9DC /* PlanBeat.swift */; };
+		31E40B5B1E3B8C5994931896 /* TransformationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED0D52BBDC5A4374ABFC42B5 /* TransformationView.swift */; };
+		5A2C3310937A4DF85DBCF7BE /* AssessmentFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5260F5B71C9A2720725B1A0 /* AssessmentFlow.swift */; };
+		80346CECDABEF7203CB87268 /* DimensionPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92409771F5675D7E15CF0B07 /* DimensionPalette.swift */; };
+		CA275FFDB792E8A2E46C6BAE /* Transformation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B6A12C291AF4B5E3442B7FC /* Transformation.swift */; };
+		18767F825D4F609213D96F91 /* BlendedShape.swift in Sources */ = {isa = PBXBuildFile; fileRef = 987B37A87B33357E9EC7853D /* BlendedShape.swift */; };
+		BFA384E308FA51B61CA40E3A /* Assessment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90B91929027C134A7D6D4633 /* Assessment.swift */; };
 		04A7814E4EEC70DE7D6C41B1 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 8D562B3E40B6C9EC53F38F07 /* Assets.xcassets */; };
 		074794CBAAF35B78B920E9D2 /* DayShapeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 148AF4972472AC82CE2EC48B /* DayShapeTests.swift */; };
 		0842BB99F38DDC694230F84B /* ForgeViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A5BA2C60CB7BACB7AE29083 /* ForgeViewModel.swift */; };
@@ -196,6 +207,17 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		41FA1F8E3472E50381D3E4D8 /* TransformationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransformationTests.swift; sourceTree = "<group>"; };
+		35CE6FCBDC1D9F0243956A61 /* BlendedShapeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlendedShapeTests.swift; sourceTree = "<group>"; };
+		67F1AF5A513F5CACA50D43AF /* AssessmentTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssessmentTests.swift; sourceTree = "<group>"; };
+		D6BA1755667CB7FECBE3E4BF /* StatHexagon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatHexagon.swift; sourceTree = "<group>"; };
+		07F87DCD633D88E4053EE9DC /* PlanBeat.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanBeat.swift; sourceTree = "<group>"; };
+		ED0D52BBDC5A4374ABFC42B5 /* TransformationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransformationView.swift; sourceTree = "<group>"; };
+		F5260F5B71C9A2720725B1A0 /* AssessmentFlow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssessmentFlow.swift; sourceTree = "<group>"; };
+		92409771F5675D7E15CF0B07 /* DimensionPalette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DimensionPalette.swift; sourceTree = "<group>"; };
+		9B6A12C291AF4B5E3442B7FC /* Transformation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Transformation.swift; sourceTree = "<group>"; };
+		987B37A87B33357E9EC7853D /* BlendedShape.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlendedShape.swift; sourceTree = "<group>"; };
+		90B91929027C134A7D6D4633 /* Assessment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Assessment.swift; sourceTree = "<group>"; };
 		00BA7B6749FDE84FBBA4D985 /* DayPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DayPicker.swift; sourceTree = "<group>"; };
 		0105BDA87C194258A2491E9B /* Identity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Identity.swift; sourceTree = "<group>"; };
 		0267D67B5530DD9F353F2E18 /* ForgeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForgeApp.swift; sourceTree = "<group>"; };
@@ -372,6 +394,16 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		7AFBC7137ECD1E93577FA669 /* Onboarding */ = {
+			isa = PBXGroup;
+			children = (
+				07F87DCD633D88E4053EE9DC /* PlanBeat.swift */,
+				ED0D52BBDC5A4374ABFC42B5 /* TransformationView.swift */,
+				F5260F5B71C9A2720725B1A0 /* AssessmentFlow.swift */,
+			);
+			path = Onboarding;
+			sourceTree = "<group>";
+		};
 		1DA47B9114913D459E5D0FB7 /* Overlays */ = {
 			isa = PBXGroup;
 			children = (
@@ -425,6 +457,9 @@
 		4A04FC3BA6574F7898641826 /* ForgeTests */ = {
 			isa = PBXGroup;
 			children = (
+				41FA1F8E3472E50381D3E4D8 /* TransformationTests.swift */,
+				35CE6FCBDC1D9F0243956A61 /* BlendedShapeTests.swift */,
+				67F1AF5A513F5CACA50D43AF /* AssessmentTests.swift */,
 				235790119C32461B935CD3B3 /* AccessibilityTests.swift */,
 				70E97592BCB54B5B83ECB271 /* ModelTrustTests.swift */,
 				A1F0RGE0CTESTS0FILE01 /* ChallengeTests.swift */,
@@ -459,6 +494,7 @@
 		508B330CCDE923938D8FFB64 /* Components */ = {
 			isa = PBXGroup;
 			children = (
+				D6BA1755667CB7FECBE3E4BF /* StatHexagon.swift */,
 				00BA7B6749FDE84FBBA4D985 /* DayPicker.swift */,
 				A59DBDAC9E8F5BBC0CBDD877 /* ForgeButton.swift */,
 				F059ECB81ADA3CF5618CE923 /* GlassTabBar.swift */,
@@ -483,6 +519,7 @@
 		78EF4B0EA3FDA2A792BCF074 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				7AFBC7137ECD1E93577FA669 /* Onboarding */,
 				508B330CCDE923938D8FFB64 /* Components */,
 				3134CB39031B0B847F51B5DF /* Forge */,
 				3810F13740DC820205178A5A /* Blade */,
@@ -615,6 +652,7 @@
 		9D584A9C6A59EC0894084597 /* Theme */ = {
 			isa = PBXGroup;
 			children = (
+				92409771F5675D7E15CF0B07 /* DimensionPalette.swift */,
 				9AE28444BB71A0FCDD4D9A70 /* ForgeTheme.swift */,
 			);
 			path = Theme;
@@ -633,6 +671,9 @@
 		CA608C0B22E7B6F9B389BDDD /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				9B6A12C291AF4B5E3442B7FC /* Transformation.swift */,
+				987B37A87B33357E9EC7853D /* BlendedShape.swift */,
+				90B91929027C134A7D6D4633 /* Assessment.swift */,
 				A1F0RGE0AIPLAN0FILE01 /* SchedulePlan.swift */,
 				A1F0RGE0DCHAL00FILE01 /* DailyChallenge.swift */,
 				91E128D20D3D4228A273A5BB /* Premium.swift */,
@@ -831,6 +872,9 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				24BB399F2B23A83F38793928 /* TransformationTests.swift in Sources */,
+				CF010ED4C197BECD0F946F54 /* BlendedShapeTests.swift in Sources */,
+				024CBC0C13D77FC0D3D94830 /* AssessmentTests.swift in Sources */,
 				F0A1B2C3D4E5F60718293A04 /* PremiumTests.swift in Sources */,
 				F0A1B2C3D4E5F60718293B04 /* AIPrepTests.swift in Sources */,
 				F0A1B2C3D4E5F60718293C04 /* FirstWeekTests.swift in Sources */,
@@ -865,6 +909,14 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E0ABEB1F5FADE22B87157A50 /* StatHexagon.swift in Sources */,
+				070E0631598E0C50676F7A45 /* PlanBeat.swift in Sources */,
+				31E40B5B1E3B8C5994931896 /* TransformationView.swift in Sources */,
+				5A2C3310937A4DF85DBCF7BE /* AssessmentFlow.swift in Sources */,
+				80346CECDABEF7203CB87268 /* DimensionPalette.swift in Sources */,
+				CA275FFDB792E8A2E46C6BAE /* Transformation.swift in Sources */,
+				18767F825D4F609213D96F91 /* BlendedShape.swift in Sources */,
+				BFA384E308FA51B61CA40E3A /* Assessment.swift in Sources */,
 				9673A861037342C2B92336F1 /* AIDisclosureView.swift in Sources */,
 				55D8752497994DC29A091C05 /* AppearanceView.swift in Sources */,
 				89339609911A4CA195EACB88 /* RemoteForgeAI.swift in Sources */,

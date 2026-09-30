@@ -239,6 +239,13 @@ struct BecomingStarterTests {
             defaults: UserDefaults(suiteName: "forge.becoming.add.\(UUID().uuidString)") ?? .standard
         )
         let forge = ForgeViewModel(progress: progress)
+        // The day is set through the model's own API first. `ForgeViewModel`
+        // reads the App Group suite every test shares (§14), and a suite that
+        // had just put the whole library in the day (`CrowdedDayTests`) left
+        // nothing here to add — an order-dependent failure, not a real one.
+        forge.customRituals = []
+        forge.libraryEdits = [:]
+        forge.activeRitualIDs = Ritual.defaultActive
         let ritual = try #require(Ritual.library.first { !forge.activeRitualIDs.contains($0.id) })
 
         var sent: [ForgeTelemetry.Event] = []

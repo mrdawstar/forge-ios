@@ -58,6 +58,9 @@ struct BecomingTabView: View {
     @State private var isChoosing = false
     /// The weeks somebody has written about, if they have asked to see them.
     @State private var isReadingWeeks = false
+    /// The seven questions, taken from here by an install that has never
+    /// answered them.
+    @State private var isAssessing = false
 
 
     var body: some View {
@@ -65,6 +68,7 @@ struct BecomingTabView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: ForgeTheme.Space.section) {
                     hero
+                    assessmentOffer
                     dimensionList
                     focusRow
                     nextStep
@@ -80,6 +84,7 @@ struct BecomingTabView: View {
             .navigationTitle("Becoming")
             .sheet(isPresented: $isChoosing) { FocusEditor(forge: forge) }
             .sheet(isPresented: $isReadingWeeks) { WeeklyReviewHistory(reviews: reviews) }
+            .fullScreenCover(isPresented: $isAssessing) { AssessmentSheet(forge: forge) }
         }
     }
 
@@ -271,16 +276,38 @@ struct BecomingTabView: View {
     ///
     /// # The first week
     ///
-    /// Until the record has a week behind it *and* enough to read, the hero is
-    /// the first-week contract instead (`FirstWeek`): when the shape will draw
-    /// itself, and how many of the seven have been kept. It gives way to the
-    /// polygon on its own the first time both are true — nothing is stored to
-    /// decide that.
+    /// Without an assessment, until the record has a week behind it *and*
+    /// enough to read, the hero is the first-week contract instead
+    /// (`FirstWeek`): when the shape will draw itself, and how many of the seven
+    /// have been kept. It gives way to the polygon on its own the first time
+    /// both are true — nothing is stored to decide that.
+    ///
+    /// **With an assessment the hexagon is drawn from day one** — that is what
+    /// the answers are for (`BlendedShape`) — and the first week is the
+    /// progress line under it rather than the hero in its place.
+    ///
+    /// Every number here is `forge.blended`: with no assessment that is the
+    /// record's own `ForgeShape`, number for number.
     @ViewBuilder
     private var hero: some View {
-        let shape = forge.shape
+        let shape = forge.blended
         VStack(spacing: ForgeTheme.Space.row) {
-            if let contract = forge.firstWeek {
+            if shape.hasAssessment {
+                ForgeShapeView(shape: shape, highlighted: inspecting)
+                    .padding(.horizontal, 8)
+                    .padding(.top, 4)
+
+                if let contract = forge.firstWeek {
+                    FirstWeekLine(contract: contract)
+                }
+
+                Text("Six parts of you. Your answers started them; what you keep moves them.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, 12)
+            } else if let contract = forge.firstWeek {
                 FirstWeekCard(contract: contract)
             } else {
                 ForgeShapeView(shape: shape, highlighted: inspecting)
@@ -296,6 +323,54 @@ struct BecomingTabView: View {
             }
         }
         .frame(maxWidth: .infinity)
+    }
+
+    /// The seven questions, for an install that has never answered them —
+    /// every 1.0 install. One card, under the hero, until it is taken; it runs
+    /// the questions and the drawing and comes back here (`AssessmentSheet`).
+    ///
+    /// Nothing is withheld from somebody who never takes it: the tab reads the
+    /// record exactly as it always has.
+    @ViewBuilder
+    private var assessmentOffer: some View {
+        if forge.assessment == nil {
+            Button {
+                ForgeHaptics.shared.tap()
+                isAssessing = true
+            } label: {
+                HStack(alignment: .top, spacing: ForgeTheme.Space.inner) {
+                    Image(systemName: "hexagon")
+                        .font(.system(size: 15, weight: .medium))
+                        .symbolRenderingMode(.hierarchical)
+                        .foregroundStyle(ForgeTheme.accent)
+                        .frame(width: 30, height: 22)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Take the one-minute assessment")
+                            .font(.subheadline.weight(.medium))
+                            .foregroundStyle(.primary)
+                            .multilineTextAlignment(.leading)
+                        Text("Seven questions give each of the six a starting number. From then on, what you keep moves them.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.leading)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+
+                    Spacer(minLength: 8)
+
+                    Image(systemName: "chevron.right")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.quaternary)
+                        .padding(.top, 4)
+                }
+                .padding(ForgeTheme.Space.row)
+                .contentShape(.rect)
+            }
+            .buttonStyle(.plain)
+            .forgeInteractiveCard(radius: ForgeTheme.Radius.card)
+            .accessibilityHint(Text("Seven questions, about a minute"))
+        }
     }
 
     // MARK: - 1b. The six, inspectable
@@ -338,7 +413,7 @@ struct BecomingTabView: View {
 
             let starters = forge.starters
             VStack(spacing: 1) {
-                ForEach(forge.shape.dimensions) { dimension in
+                ForEach(forge.blended.dimensions) { dimension in
                     DimensionRow(
                         dimension: dimension,
                         isChosen: forge.focus.contains(dimension.category),
@@ -436,9 +511,13 @@ struct BecomingTabView: View {
     /// A dimension nothing is filed under no longer gets this row: it carries
     /// its own starter in The Six (`BecomingStarter`), one tap from being on
     /// the day. Offering it here as well would be the same suggestion twice.
+    ///
+    /// Read from the blend, which names a dimension only while the record
+    /// alone is speaking for it — "has had the least of you" is a claim about
+    /// days kept, and a number still partly made of answers cannot carry it.
+    /// See `BlendedShape.needsAttention`.
     private var suggestion: (category: RitualCategory, headline: String, detail: String)? {
-        let shape = forge.shape
-        if let weak = shape.needsAttention {
+        if let weak = forge.blended.needsAttention {
             return (
                 weak.category,
                 "\(weak.category.label) has had the least of you",
@@ -684,11 +763,11 @@ struct IdentityEvidenceRow: View {
 /// just latency. It animates when the *value* changes, which is the only time
 /// motion here carries information.
 struct ForgeShapeView: View {
-    let shape: ForgeShape
+    /// The six as every screen shows them. With no assessment this is the
+    /// record's own `ForgeShape`, number for number — see `BlendedShape`.
+    let shape: BlendedShape
     /// Which dimension is being inspected, if any. Drawn with its vertex lit.
     var highlighted: RitualCategory?
-
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// How much of the radius the label ring sits outside the polygon.
     private let labelInset: CGFloat = 30
@@ -696,15 +775,26 @@ struct ForgeShapeView: View {
     var body: some View {
         GeometryReader { proxy in
             let side = min(proxy.size.width, proxy.size.height)
-            let radius = side / 2 - labelInset
+            let radius = max(0, side / 2 - labelInset)
             let centre = CGPoint(x: proxy.size.width / 2, y: proxy.size.height / 2)
 
             ZStack {
-                web(centre: centre, radius: radius)
-                filled(centre: centre, radius: radius)
-                vertices(centre: centre, radius: radius)
+                // The instrument, the six colours and the vertices are the
+                // same component the first run draws its shapes with, so the
+                // hexagon somebody watched being projected is this one. It
+                // animates when a *value* changes, and only then — see the note
+                // on the type.
+                StatHexagon(
+                    values: shape.dimensions.map(\.fraction),
+                    highlighted: highlighted,
+                    showsGlyphs: false
+                ) {
+                    OverallCore(overall: shape.overall, state: shape.state)
+                }
+                .frame(width: radius * 2 + 8, height: radius * 2 + 8)
+                .position(centre)
+
                 labels(centre: centre, radius: radius)
-                core
             }
         }
         .aspectRatio(1, contentMode: .fit)
@@ -713,113 +803,24 @@ struct ForgeShapeView: View {
         .accessibilityValue(Text(spoken))
     }
 
-    // MARK: - Geometry
-
-    /// The unit position of one dimension, clockwise from the top.
-    private func point(_ index: Int, radius: CGFloat, centre: CGPoint, at fraction: Double = 1) -> CGPoint {
-        let count = Double(shape.dimensions.count)
-        let angle = (Double(index) / count) * 2 * .pi - .pi / 2
-        return CGPoint(
-            x: centre.x + cos(angle) * radius * fraction,
-            y: centre.y + sin(angle) * radius * fraction
-        )
-    }
-
-    private func polygon(radius: CGFloat, centre: CGPoint, fractions: [Double]) -> Path {
-        var path = Path()
-        for (index, fraction) in fractions.enumerated() {
-            let p = point(index, radius: radius, centre: centre, at: max(0.04, fraction))
-            if index == 0 { path.move(to: p) } else { path.addLine(to: p) }
-        }
-        path.closeSubpath()
-        return path
-    }
-
-    // MARK: - Layers
-
-    /// The instrument: the outer hexagon, two rings inside it, and a spoke to
-    /// each vertex. Quiet enough to read as engraving rather than as chrome.
-    private func web(centre: CGPoint, radius: CGFloat) -> some View {
-        let full = [Double](repeating: 1, count: shape.dimensions.count)
-        return ZStack {
-            ForEach([0.34, 0.67], id: \.self) { ring in
-                polygon(
-                    radius: radius * ring, centre: centre,
-                    fractions: full
-                )
-                .stroke(ForgeTheme.accent.opacity(0.10), lineWidth: 0.5)
-            }
-
-            ForEach(shape.dimensions.indices, id: \.self) { index in
-                Path { path in
-                    path.move(to: centre)
-                    path.addLine(to: point(index, radius: radius, centre: centre))
-                }
-                .stroke(ForgeTheme.accent.opacity(0.10), lineWidth: 0.5)
-            }
-
-            polygon(radius: radius, centre: centre, fractions: full)
-                .stroke(ForgeTheme.accent.opacity(0.28), lineWidth: 1)
-        }
-    }
-
-    /// What the record actually says.
-    private func filled(centre: CGPoint, radius: CGFloat) -> some View {
-        let fractions = shape.dimensions.map(\.fraction)
-        let path = polygon(radius: radius, centre: centre, fractions: fractions)
-
-        return ZStack {
-            path.fill(
-                RadialGradient(
-                    colors: [
-                        ForgeTheme.accent.opacity(0.42),
-                        ForgeTheme.accent.opacity(0.14),
-                    ],
-                    center: .center, startRadius: 0, endRadius: radius
-                )
-            )
-            // The bright edge is what makes the shape read as an object rather
-            // than as a stain. It carries a glow of its own, which is the only
-            // ornament on this screen and the reason the thing looks lit from
-            // inside rather than printed.
-            path
-                .stroke(ForgeTheme.accent, lineWidth: 1.5)
-                .shadow(color: ForgeTheme.accent.opacity(0.55), radius: 7)
-        }
-        .animation(reduceMotion ? nil : .smooth(duration: 0.55), value: fractions)
-    }
-
-    /// A dot at each vertex, lit when its dimension is being inspected.
-    private func vertices(centre: CGPoint, radius: CGFloat) -> some View {
-        ForEach(Array(shape.dimensions.enumerated()), id: \.element.id) { index, dimension in
-            let isLit = highlighted == dimension.category
-            Circle()
-                .fill(isLit ? ForgeTheme.accent : ForgeTheme.accent.opacity(0.55))
-                .frame(width: isLit ? 7 : 4, height: isLit ? 7 : 4)
-                .shadow(color: ForgeTheme.accent.opacity(isLit ? 0.9 : 0), radius: 6)
-                .position(
-                    point(index, radius: radius, centre: centre, at: max(0.04, dimension.fraction))
-                )
-                .animation(reduceMotion ? nil : .smooth(duration: 0.3), value: isLit)
-        }
-    }
-
-    /// The name and score outside each vertex.
+    /// The name and score outside each vertex, the score in its dimension's
+    /// colour.
     private func labels(centre: CGPoint, radius: CGFloat) -> some View {
         ForEach(Array(shape.dimensions.enumerated()), id: \.element.id) { index, dimension in
-            let anchor = point(index, radius: radius + labelInset * 0.62, centre: centre)
+            let anchor = HexagonGeometry.point(index, radius: radius + labelInset * 0.62, centre: centre)
             VStack(spacing: 1) {
                 Text(dimension.category.label)
                     .font(.system(size: 10, weight: .medium))
                     .foregroundStyle(
                         highlighted == dimension.category ? .primary : .secondary
                     )
-                Text(dimension.isMeasured ? "\(dimension.score)" : "—")
+                Text(dimension.hasScore ? "\(dimension.score)" : "\u{2014}")
                     .font(.system(size: 12, weight: .semibold))
                     .monospacedDigit()
+                    .contentTransition(.numericText(value: Double(dimension.score)))
                     .foregroundStyle(
-                        dimension.isMeasured
-                            ? AnyShapeStyle(ForgeTheme.accent)
+                        dimension.hasScore
+                            ? AnyShapeStyle(dimension.category.color)
                             : AnyShapeStyle(.tertiary)
                     )
             }
@@ -828,29 +829,12 @@ struct ForgeShapeView: View {
         }
     }
 
-    /// The overall reading, in the middle where the eye already is.
-    private var core: some View {
-        VStack(spacing: 0) {
-            Text("\(shape.overall)")
-                .font(.system(size: 46, weight: .semibold))
-                .monospacedDigit()
-                .contentTransition(.numericText())
-                .foregroundStyle(.primary)
-
-            Text(shape.state.label.uppercased())
-                .font(.system(size: 10, weight: .semibold))
-                .kerning(1.6)
-                .foregroundStyle(ForgeTheme.accent)
-                .padding(.top, 2)
-        }
-        .animation(reduceMotion ? nil : .smooth(duration: 0.4), value: shape.overall)
-    }
-
     private var spoken: String {
         let parts = shape.dimensions.map { dimension in
-            dimension.isMeasured
-                ? "\(dimension.category.label) \(dimension.score)"
-                : "\(dimension.category.label), nothing yet"
+            guard dimension.hasScore else { return "\(dimension.category.label), nothing yet" }
+            return dimension.isFromAnswers
+                ? "\(dimension.category.label) \(dimension.score), from your answers"
+                : "\(dimension.category.label) \(dimension.score)"
         }
         return "Overall \(shape.overall), \(shape.state.label). " + parts.joined(separator: ". ")
     }
@@ -868,8 +852,15 @@ struct ForgeShapeView: View {
 /// unreadable to anybody who has not been told what it is measuring against, and
 /// this one is measuring the last fortnight against the one before it — which no
 /// glyph can say.
+///
+/// **It says what the number is made of.** A number that is still only the
+/// answers reads "From your answers" where the direction would be, and opened
+/// it says how the record takes over; a blended one says how long the answers
+/// still count. The glyph, the number and the bar are the dimension's own
+/// colour (`DimensionPalette`); the accent is kept for BUILDING, which is
+/// something the person did.
 private struct DimensionRow: View {
-    let dimension: ForgeShape.Dimension
+    let dimension: BlendedShape.Dimension
     /// Whether this is one somebody said they were building. Marked rather than
     /// listed twice — see `BecomingTabView.focusRow`.
     let isChosen: Bool
@@ -879,6 +870,8 @@ private struct DimensionRow: View {
     var starter: Ritual? = nil
     var onAdd: (Ritual) -> Void = { _ in }
     let action: () -> Void
+
+    private var record: ForgeShape.Dimension { dimension.record }
 
     /// The row, and under it — outside the row's own button, so the two taps
     /// cannot be confused — the starter for an empty dimension.
@@ -902,7 +895,7 @@ private struct DimensionRow: View {
                     Image(systemName: dimension.category.symbol)
                         .font(.system(size: 13, weight: .medium))
                         .symbolRenderingMode(.hierarchical)
-                        .foregroundStyle(isChosen ? AnyShapeStyle(ForgeTheme.accent) : AnyShapeStyle(.secondary))
+                        .foregroundStyle(dimension.category.color)
                         .frame(width: 26)
                         .accessibilityHidden(true)
 
@@ -928,23 +921,29 @@ private struct DimensionRow: View {
 
                     Spacer(minLength: 8)
 
-                    if dimension.isMeasured {
-                        if let arrow = dimension.direction.symbol {
-                            Image(systemName: arrow)
-                                .font(.system(size: 10, weight: .bold))
+                    if dimension.hasScore {
+                        if dimension.isFromAnswers {
+                            Text("From your answers")
+                                .font(.caption2)
                                 .foregroundStyle(.tertiary)
-                                .accessibilityHidden(true)
+                        } else {
+                            if let arrow = dimension.direction.symbol {
+                                Image(systemName: arrow)
+                                    .font(.system(size: 10, weight: .bold))
+                                    .foregroundStyle(.tertiary)
+                                    .accessibilityHidden(true)
+                            }
+                            Text(dimension.direction.label)
+                                .font(.caption2)
+                                .foregroundStyle(.tertiary)
                         }
-                        Text(dimension.direction.label)
-                            .font(.caption2)
-                            .foregroundStyle(.tertiary)
 
                         Text("\(dimension.score)")
                             .font(.subheadline.weight(.semibold))
                             .monospacedDigit()
-                            .foregroundStyle(ForgeTheme.accent)
+                            .foregroundStyle(dimension.category.color)
                             .frame(minWidth: 26, alignment: .trailing)
-                    } else if dimension.hasActivities {
+                    } else if record.hasActivities {
                         // Something is filed here and its first day has not
                         // come round. Waiting, not missing.
                         Text("Starting")
@@ -958,7 +957,7 @@ private struct DimensionRow: View {
                         Capsule().fill(ForgeTheme.separator)
                         if dimension.fraction > 0 {
                             Capsule()
-                                .fill(ForgeTheme.accent.opacity(0.85))
+                                .fill(dimension.category.color.opacity(0.85))
                                 .frame(width: max(3, proxy.size.width * dimension.fraction))
                         }
                     }
@@ -973,7 +972,7 @@ private struct DimensionRow: View {
                         // The arithmetic, said out loud. A score somebody cannot
                         // check is a score they have to take on trust, and this
                         // app's whole position is that it does not ask for that.
-                        if dimension.isMeasured {
+                        if let workings {
                             Text(workings)
                                 .font(.caption2)
                                 .foregroundStyle(.tertiary)
@@ -993,21 +992,41 @@ private struct DimensionRow: View {
         .accessibilityLabel(Text(
             isChosen ? "\(dimension.category.label), building" : dimension.category.label
         ))
-        .accessibilityValue(Text(
-            dimension.isMeasured
-                ? "\(dimension.score). \(dimension.direction.label). \(dimension.category.meaning)"
-                : "Nothing recorded yet. \(dimension.category.meaning)"
-        ))
+        .accessibilityValue(Text(spokenValue))
+    }
+
+    private var spokenValue: String {
+        guard dimension.hasScore else {
+            return "Nothing recorded yet. \(dimension.category.meaning)"
+        }
+        let reading = dimension.isFromAnswers ? "from your answers" : dimension.direction.label
+        return "\(dimension.score). \(reading). \(dimension.category.meaning)"
+    }
+
+    /// What the number is made of, in words — nil where there is nothing to
+    /// show the working of.
+    private var workings: String? {
+        switch dimension.source {
+        case .answers:
+            return "From your answers. The first day something here is kept, the record starts to move it."
+        case .blend(let days):
+            let left = max(0, BlendedShape.blendDays - days)
+            let unit = left == 1 ? "day" : "days"
+            return "\(keptLine) Your answers still count for part of it; in \(ForgeCount.spelled(left).lowercased()) \(unit) the record alone decides."
+        case .record:
+            guard record.isMeasured else { return nil }
+            return "\(keptLine.dropLast()), these four weeks."
+        }
     }
 
     /// "Kept on eleven of the fourteen days it was asked for."
-    private var workings: String {
-        let keptDays = ForgeShape.spokenDays(dimension.kept)
-        let askedDays = ForgeShape.spokenDays(dimension.asked)
-        let kept = ForgeCount.spelled(keptDays)
-        let asked = ForgeCount.spelled(askedDays)
+    private var keptLine: String {
+        let keptDays = ForgeShape.spokenDays(record.kept)
+        let askedDays = ForgeShape.spokenDays(record.asked)
+        let kept = ForgeCount.spelled(keptDays).lowercased()
+        let asked = ForgeCount.spelled(askedDays).lowercased()
         let days = askedDays == 1 ? "day" : "days"
-        return "Kept on \(kept) of the \(asked) \(days) it was asked for, these four weeks."
+        return "Kept on \(kept) of the \(asked) \(days) it was asked for."
     }
 }
 
@@ -1048,6 +1067,41 @@ private struct FirstWeekCard: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(ForgeTheme.Space.row)
         .forgeCard(radius: ForgeTheme.Radius.card)
+        .accessibilityElement(children: .combine)
+        .accessibilityValue(Text("\(Int((contract.progress * 100).rounded())) per cent of the way"))
+    }
+}
+
+/// The first week, as a progress line under a hexagon that is already drawn —
+/// what `FirstWeekCard` becomes once there are answers to draw it from.
+///
+/// It keeps the card's count and bar and drops its promise: "your shape draws
+/// itself on Sunday" is not true of a shape that is on the screen.
+private struct FirstWeekLine: View {
+    let contract: FirstWeek
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: ForgeTheme.Space.tight) {
+            Text(contract.progressLine)
+                .font(.footnote.weight(.medium))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            GeometryReader { proxy in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(ForgeTheme.separator)
+                    if contract.progress > 0 {
+                        Capsule()
+                            .fill(ForgeTheme.cream.opacity(0.85))
+                            .frame(width: max(4, proxy.size.width * contract.progress))
+                    }
+                }
+            }
+            .frame(height: 3)
+            .animation(.smooth(duration: 0.4), value: contract.progress)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, ForgeTheme.Space.tight)
         .accessibilityElement(children: .combine)
         .accessibilityValue(Text("\(Int((contract.progress * 100).rounded())) per cent of the way"))
     }

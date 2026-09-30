@@ -1,48 +1,65 @@
 import SwiftUI
 
-/// The first ninety seconds.
+/// The first two minutes.
 ///
 /// Not a tutorial and not a walkthrough — the actual product, run once, now.
-/// Everything it writes is real: what they choose to build is what every screen
-/// afterwards reads, the activities become **today**, the one they finish goes
-/// into history, and the blade they pull earns a real blade on a real streak. The only concession is
-/// that the blade comes loose with one of three done instead of three of three,
-/// because the alternative is asking somebody to come back in eighteen hours to
-/// find out what the app does.
+/// Everything it writes is real: the answers are the assessment every screen
+/// afterwards reads, what they choose to build is the focus, the plan becomes
+/// **the day**, the one they finish goes into history, and the blade they pull
+/// earns a real blade on a real streak. The only concession is that the blade
+/// comes loose with one thing done instead of all of them, because the
+/// alternative is asking somebody to come back in eighteen hours to find out
+/// what the app does.
 ///
-/// # What it was, and why it changed
+/// # What it shows, and why it changed (1.1)
 ///
-/// It used to be four beats: a sword, choose three of a hardcoded eight, do one,
-/// pull. Fast and well made, and a stranger finished it knowing "this app makes
-/// me tick three things and drag a sword". It never said what Forge was *for*,
-/// it never explained the blade — the app's single best asset — and it never
-/// mentioned that a world existed, so the Starter Path, which is written
-/// precisely for the person in the middle of a first run, was found by almost
-/// nobody.
+/// The 1.0 sequence said what Forge was and asked somebody to pick three
+/// activities. It never showed them what the practice would do to them, which
+/// is the one thing a person deciding whether to pay for a practice wants to
+/// see. So the sequence now **shows the transformation** (DIRECTION_1_1 §2):
 ///
-/// So there are six beats now and every one of them earns its ten seconds:
-///
-/// 1. **The promise.** What Forge is, in one sentence.
-/// 2. **What you want to build.** Six parts of a person, one to three chosen.
-/// 3. **What that actually means today.** Three activities aimed at the answer.
-/// 4. **The metaphor.** The blade is what you are building.
-/// 5. **Do one now.** Unchanged. It was always the strongest beat here.
-/// 6. **The pull**, on the real home screen, then one closing line.
+/// 1. **Cold open.** The sword in the stone, and what keeping a day does to it.
+/// 2. **Seven questions**, one tap each. The answers are the starting stats.
+/// 3. **What you want to build**, preselected from the two lowest answers.
+/// 4. **The drawing.** The starting shape draws itself, two and a half seconds.
+/// 5. **The transformation.** Now, in seven days, in thirty and at full
+///    potential — the six, OVR and the blade each stage earns, every number
+///    computed by the same model the Becoming tab uses (`Transformation`).
+/// 6. **Why it works.** Three cited findings.
+/// 7. **Your plan.** An activity for each part being built, each with a time.
+///    This writes the day.
+/// 8. **The pull**, rehearsed with nothing at stake.
+/// 9. *(The paywall, in session S2.)*
+/// 10. **Do one now**, and the first pull on the real home screen. Unchanged.
 ///
 /// # Skippable forward, never destructive
 ///
-/// Every beat can be passed. Skipping the second leaves an empty focus, and
-/// `IdentityActivities.offered(forDimensions: [])` returns the shipped eight —
-/// the exact list the first run offered before any of this existed. That has to
-/// hold at every layer or "optional" is a word rather than a fact.
+/// Every beat moves forward. The questions are answered by the tap that moves
+/// on; building is skippable and skipping it still leaves a plan, drawn from
+/// the lowest answers; the drawing skips on a tap. Nothing here can strand
+/// somebody on a screen, and nothing is written that the next screen does not
+/// read.
 struct FirstRunView: View {
     @Bindable var vm: ForgeViewModel
 
-    @State private var chosen: [String] = []
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dynamicTypeSize) private var typeSize
     /// What the reading area of a beat is allowed to fill before it scrolls.
     @State private var scrollHeight: CGFloat = 0
+
+    /// The answers so far, by question. Written as the assessment when the
+    /// seventh lands, and kept here until then so going back to a question
+    /// shows what was answered.
+    @State private var answers: [Assessment.Question: Int] = [:]
+    /// Whether "what you want to build" has been given its suggestion in this
+    /// run. Once: after that the choice is theirs.
+    @State private var hasSuggested = false
+    /// The plan being proposed, from the moment the build beat is left. The
+    /// transformation projects it and the plan beat edits it, so both screens
+    /// are about the same plan.
+    @State private var plan: [PlanEntry] = []
+    /// The four stops, computed once from the plan and the answers.
+    @State private var frames: [Transformation.Frame] = []
 
     /// The one activity the `doOne` beat asks for, held still.
     ///
@@ -60,7 +77,7 @@ struct FirstRunView: View {
     /// is — see `handOverToTheBlade`.
     @State private var didKeep = false
 
-    /// How tall the blade may be on a beat that also carries words.
+    /// How tall the art may be on a beat that also carries words.
     ///
     /// It has to give way, and this is the cheap half of the fix. At the
     /// accessibility sizes two lines of title become five and the artwork is the
@@ -69,7 +86,7 @@ struct FirstRunView: View {
     /// subtitle ran underneath the button and the last line of the promise was
     /// unreadable at the sizes where reading is hardest.
     private var artHeight: CGFloat {
-        typeSize.isAccessibilitySize ? 150 : 300
+        typeSize.isAccessibilitySize ? 170 : 380
     }
 
     private var transition: AnyTransition {
@@ -81,23 +98,48 @@ struct FirstRunView: View {
             )
     }
 
+    private var questions: [Assessment.Question] { Assessment.Question.allCases }
+
     var body: some View {
         ZStack {
             FirstRunAmbience()
 
-            switch vm.firstRunStage {
-            case .promise:
-                promise.transition(transition)
-            case .build:
-                build.transition(transition)
-            case .choose:
-                choose.transition(transition)
-            case .metaphor:
-                metaphor.transition(transition)
-            case .doOne:
-                doOne.transition(transition)
-            default:
-                Color.clear
+            VStack(spacing: 0) {
+                if let progress = barProgress {
+                    OnboardingTopBar(progress: progress, onBack: backAction)
+                        .transition(.opacity)
+                }
+
+                ZStack {
+                    switch vm.firstRunStage {
+                    case .coldOpen:
+                        coldOpen.transition(transition)
+                    case .question(let index):
+                        question(index)
+                            .id(index)
+                            .transition(transition)
+                    case .build:
+                        build.transition(transition)
+                    case .drawing:
+                        drawing.transition(transition)
+                    case .transformation:
+                        TransformationBeat(frames: frames) { advance(to: .science) }
+                            .transition(transition)
+                    case .science:
+                        ScienceBeat { advance(to: .plan) }
+                            .transition(transition)
+                    case .plan:
+                        PlanBeat(entries: $plan) { commitPlan() }
+                            .transition(transition)
+                    case .metaphor:
+                        metaphor.transition(transition)
+                    case .doOne:
+                        doOne.transition(transition)
+                    default:
+                        Color.clear
+                    }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
         .animation(.spring(response: 0.5, dampingFraction: 0.9), value: vm.firstRunStage)
@@ -107,10 +149,42 @@ struct FirstRunView: View {
         ForgeHaptics.shared.tap()
         // How many of the six were chosen — zero for a skip. The count, and
         // never which ones.
-        if vm.firstRunStage == .build, stage == .choose {
+        if vm.firstRunStage == .build, stage == .drawing {
             ForgeTelemetry.send(.onboardingFocusChosen(count: vm.focus.count))
         }
         vm.firstRunStage = stage
+    }
+
+    // MARK: - The bar and the way back
+
+    /// Where the bar stands: from the first question to the pull, one step a
+    /// screen. Nil where there is no bar — the cold open, which has not started
+    /// anything yet, and the do-one beat, which is the app rather than the
+    /// sequence.
+    private var barProgress: Double? {
+        let steps = Double(questions.count + 6)
+        let position: Int
+        switch vm.firstRunStage {
+        case .question(let index): position = index + 1
+        case .build: position = questions.count + 1
+        case .drawing: position = questions.count + 2
+        case .transformation: position = questions.count + 3
+        case .science: position = questions.count + 4
+        case .plan: position = questions.count + 5
+        case .metaphor: position = questions.count + 6
+        default: return nil
+        }
+        return Double(position) / steps
+    }
+
+    /// Back, on the question beats only. The first question goes back to the
+    /// cold open; every answer already given stays given, and shows as chosen
+    /// when its question comes round again.
+    private var backAction: (() -> Void)? {
+        guard case .question(let index) = vm.firstRunStage else { return nil }
+        return {
+            vm.firstRunStage = index > 0 ? .question(index - 1) : .coldOpen
+        }
     }
 
     /// One beat: something to read, centred, with its action pinned beneath it.
@@ -158,59 +232,103 @@ struct FirstRunView: View {
         .padding(.vertical, 32)
     }
 
-    // MARK: - 1. The promise
+    // MARK: - 1. The cold open
 
-    /// The screen that has to make somebody stay.
+    /// The sword in the stone, and the whole mechanic in two sentences.
     ///
-    /// Two sentences and no verbs of persuasion. The first says what Forge is
-    /// not, which is the fastest way to be believed by somebody who has already
-    /// installed and abandoned four habit trackers; the second says what it
-    /// does, in the shape of a trade — you say what to build, Forge hands back
-    /// what you actually built. Nothing here promises an outcome, because the
-    /// app cannot deliver one and the register does not survive pretending
-    /// otherwise.
-    ///
-    /// The second line used to read "You name who you're becoming", which was
-    /// the promise the old second beat made. It is the wrong promise now and it
-    /// was also the wrong *order*: the sentence asked for the hardest thing in
-    /// the product on the screen before the first tap.
-    private var promise: some View {
+    /// It replaced a promise screen ("Forge is not a habit tracker"), which
+    /// said what Forge was by saying what it was not. This says what it does:
+    /// a day kept loosens the blade, and the person pulls it — the one act the
+    /// product is built around, stated before anything is asked.
+    private var coldOpen: some View {
         beat {
-            blade()
+            BladePlate(height: artHeight)
                 .rises(after: 0)
 
-            Text("Forge is not a habit tracker.")
+            Text(FirstRunCopy.coldOpenTitle)
                 .font(.title.weight(.semibold))
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.horizontal, 36)
-                .padding(.top, 26)
+                .padding(.top, 22)
                 .rises(after: 0.22)
 
-            Text("You choose what to build. Forge shows you what you have actually built.")
+            Text(FirstRunCopy.coldOpenLine)
                 .font(.body)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.horizontal, 40)
-                .padding(.top, 12)
+                .padding(.top, 10)
                 .rises(after: 0.42)
         } action: {
-            ForgeButton(title: "Begin") { advance(to: .build) }
+            ForgeButton(title: FirstRunCopy.coldOpenButton) { advance(to: .question(0)) }
                 .rises(after: 0.66)
         }
     }
 
-    /// The blade, faded out at the foot so it sits in the room rather than on
-    /// the screen.
-    private func blade() -> some View {
-        BladePlate(height: artHeight)
+    // MARK: - 2. Seven questions
+
+    /// One of the seven. The tap that answers is the tap that moves on.
+    private func question(_ index: Int) -> some View {
+        let question = questions[index]
+        return QuestionBeat(
+            question: question,
+            selected: answers[question],
+            isFirst: index == 0
+        ) { choice in
+            answer(choice, at: index)
+        }
     }
 
-    // MARK: - 2. What you want to build
+    /// Record the answer, let it be seen to land, and move on.
+    ///
+    /// The pause is a fifth of a second: long enough for the chosen row to
+    /// light, short enough that seven questions stay under a minute. If
+    /// somebody pressed back inside it, nothing moves — the stage is checked
+    /// against the question that was answered.
+    private func answer(_ choice: Int, at index: Int) {
+        answers[questions[index]] = choice
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(220))
+            guard vm.firstRunStage == .question(index) else { return }
+            if index + 1 < questions.count {
+                vm.firstRunStage = .question(index + 1)
+            } else {
+                finishQuestions()
+            }
+        }
+    }
 
-    /// The first real question the app asks, and the whole first run turns on
-    /// it being answerable in one tap by somebody who has never opened Forge.
+    /// The seventh answer is in: keep the assessment, suggest what to build,
+    /// and move on.
+    ///
+    /// Written now rather than at the end of the run, because it is complete
+    /// now — and a first run abandoned later still leaves somebody whose
+    /// Becoming tab can read what they said.
+    private func finishQuestions() {
+        let assessment = Assessment(day: vm.progress.currentDay, answers: answers)
+        vm.assessment = assessment
+        ForgeTelemetry.send(.assessmentCompleted)
+        if !hasSuggested {
+            hasSuggested = true
+            vm.focus = Set(assessment.suggestedFocus)
+        }
+        vm.firstRunStage = .build
+    }
+
+    // MARK: - 3. What you want to build
+
+    /// The first question the app asks that is about the future rather than
+    /// the present, and it arrives with an answer already on it.
+    ///
+    /// # The suggestion
+    ///
+    /// The two lowest answers are chosen when the beat opens, with one quiet
+    /// line saying so — "Suggested from your answers" — and one tap to change
+    /// either. It is a suggestion because it is only arithmetic: the lowest
+    /// numbers are where there is most room, which is not the same as what
+    /// somebody wants, and the line goes the moment the choice is theirs.
     ///
     /// # Why this replaced "Who are you becoming?"
     ///
@@ -218,48 +336,24 @@ struct FirstRunView: View {
     /// ask first. "Someone who reads" is a sentence a person arrives at *after*
     /// months of a practice — it is a conclusion, not a starting point — and put
     /// in front of a stranger in their first thirty seconds it mostly produced a
-    /// Skip. A question that is skipped is a question that cost a screen and
-    /// bought nothing, and the beat after it fell back to the shipped eight
-    /// regardless.
-    ///
-    /// *What do you want to build* is answerable by pointing. Nobody has to
-    /// compose a sentence about themselves to say that they would like to be
-    /// stronger and to see their friends more.
+    /// Skip. *What do you want to build* is answerable by pointing.
     ///
     /// The old objection to the dimensions was that they are **derived** — read
     /// off what somebody actually does — so asking for them up front made the
     /// app ask for something it was about to work out anyway. That objection was
     /// right about the Shape and wrong about this: the Shape says what *is*, and
-    /// this says what somebody *wanted*, and the two are different facts.
-    /// Neither can be inferred from the other, and the gap between them is the
-    /// only place in the product where advice can honestly come from — see
-    /// `ForgeViewModel.focus` and `DayPlanner.strengthen`.
-    ///
-    /// # The hexagon
-    ///
-    /// It is the same polygon the Becoming tab draws, filling as choices are
-    /// made. That is not decoration: it is the one moment in the app where the
-    /// Shape can be explained without a paragraph, because the thing somebody is
-    /// about to spend weeks filling in is drawn under their finger as they pick
-    /// what goes in it. It costs one view and it makes the second screen of the
-    /// product the most interesting one.
+    /// this says what somebody *wanted*, and the two are different facts. The
+    /// gap between them is the only place in the product where advice can
+    /// honestly come from — see `ForgeViewModel.focus` and `DayPlanner.strengthen`.
     ///
     /// # How many
     ///
-    /// **As many as somebody means.** It was capped at three, on the argument
-    /// that a person building everything is building nothing — which is a true
-    /// sentence about a *day* and a false one about a direction. Nobody wants to
-    /// be weaker in three of the six. The cap made the honest answer
-    /// unavailable, and then made somebody spend their first thirty seconds
-    /// ranking parts of their own life against a limit the app never explained.
-    ///
-    /// Nothing downstream needed it either: `DayPlanner.strengthen` reads the
-    /// weakest chosen dimension, which is well defined over six; the Shape does
-    /// not read the focus at all; and the day is still three activities, which
-    /// is where the real constraint always was. What is lost is a little of the
-    /// aim in `IdentityActivities.offered(forDimensions:)` — answered by
-    /// offering two per dimension rather than eight in total, so a wide answer
-    /// still gets an offer that looks like it.
+    /// **As many as somebody means.** It was capped at three once, on the
+    /// argument that a person building everything is building nothing — which
+    /// is a true sentence about a *day* and a false one about a direction.
+    /// Nobody wants to be weaker in three of the six. The plan it produces is
+    /// one activity per part, three to six, which is where the real constraint
+    /// always was.
     private var build: some View {
         VStack(spacing: 0) {
             // Skipping is a way past the question, not an answer to it, so it
@@ -271,7 +365,7 @@ struct FirstRunView: View {
             HStack {
                 Spacer()
                 Button("Skip for now") {
-                    advance(to: .choose)
+                    leaveBuild()
                 }
                 .font(.subheadline.weight(.medium))
                 .foregroundStyle(.secondary)
@@ -286,11 +380,12 @@ struct FirstRunView: View {
             VStack(spacing: 8) {
                 Text("What do you want to build?")
                     .font(.title.weight(.semibold))
-                // Two lines, reserved. The subtitle changes on the first choice,
-                // and the two sentences do not wrap to the same number of lines
-                // on every phone — so on a narrow one the whole screen below it,
-                // hexagon and all, jumped by a line's height at the exact moment
-                // somebody's finger came off the first row they picked.
+                    .fixedSize(horizontal: false, vertical: true)
+                // Two lines, reserved. The subtitle changes on the first change
+                // of choice, and the sentences do not wrap to the same number of
+                // lines on every phone — so on a narrow one the whole screen
+                // below it, hexagon and all, jumped by a line's height at the
+                // exact moment somebody's finger came off a row.
                 Text(buildSubtitle)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
@@ -303,7 +398,7 @@ struct FirstRunView: View {
 
             if !typeSize.isAccessibilitySize {
                 FocusHexagon(chosen: vm.focus)
-                    .frame(height: 160)
+                    .frame(height: 150)
                     .padding(.bottom, 10)
             }
 
@@ -325,15 +420,15 @@ struct FirstRunView: View {
             .scrollIndicators(.hidden)
 
             ForgeButton(title: "Continue") {
-                advance(to: .choose)
+                leaveBuild()
             }
             .disabled(vm.focus.isEmpty)
             .padding(.horizontal, 24)
             .padding(.top, 12)
             .padding(.bottom, 12)
         }
-        .padding(.top, 8)
-        .padding(.bottom, 24)
+        .padding(.top, 4)
+        .padding(.bottom, 20)
         // **Not on the whole beat.** It was, and a `withAnimation` covering a
         // `ScrollView` animates the scroll view's own layout: choosing a row
         // near the bottom of six made the list settle, which reads as the
@@ -345,11 +440,16 @@ struct FirstRunView: View {
 
     /// Says what the screen is for, and then gets out of the way.
     ///
-    /// It changes once, on the first choice, and never counts. "Two of six
-    /// chosen" would tell somebody who has finished that they are a third of
-    /// the way through something.
+    /// While the choice is still exactly the suggestion, it says where the
+    /// suggestion came from. It never counts: "two of six chosen" would tell
+    /// somebody who has finished that they are a third of the way through
+    /// something.
     private var buildSubtitle: String {
-        vm.focus.isEmpty
+        if let suggestion = vm.assessment?.suggestedFocus,
+           !suggestion.isEmpty, vm.focus == Set(suggestion) {
+            return FirstRunCopy.suggested
+        }
+        return vm.focus.isEmpty
             ? "Pick every part you mean. One is enough to start."
             : "Change it whenever you like \u{2014} nothing here is locked in."
     }
@@ -373,100 +473,46 @@ struct FirstRunView: View {
         _ = vm.focus.insert(dimension)
     }
 
-    // MARK: - 3. What that means today
-
-    /// The answer to the previous screen, in three things somebody can do
-    /// before bed.
-    ///
-    /// The eight on offer are drawn from the parts they just chose — see
-    /// `IdentityActivities.offered(forDimensions:)`, which takes them round
-    /// robin so a person who picked Physical and Relationship is not handed six
-    /// stretches and two calls. Each row says which part it builds, and that
-    /// line is the whole difference between a list of good habits and a day
-    /// that means something: "Call someone · Relationship" is a reason, and
-    /// "Call someone · The one you keep meaning to" is a specification.
-    ///
-    /// It falls all the way back to the shipped eight for anybody who skipped,
-    /// and the subtitle falls back to the activity's own — so the screen is
-    /// exactly what it always was for somebody who declined to answer.
-    private var choose: some View {
-        VStack(spacing: 0) {
-            VStack(spacing: 8) {
-                Text(FirstRunCopy.chooseTitle)
-                    .font(.title.weight(.semibold))
-                Text("Finish them to earn the day. You can change them whenever you like.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-            .multilineTextAlignment(.center)
-            .padding(.horizontal, 32)
-            .padding(.top, 16)
-            .padding(.bottom, 20)
-
-            ScrollView {
-                VStack(spacing: 8) {
-                    ForEach(offered) { ritual in
-                        StarterRow(
-                            ritual: ritual,
-                            // Only where it answers what they asked for. A row
-                            // marked "Discipline" for an activity somebody was
-                            // offered because the list needed padding is the app
-                            // claiming an aim it does not have.
-                            buildsLabel: vm.focus.contains(ritual.category)
-                                ? ritual.category.label
-                                : nil,
-                            isChosen: chosen.contains(ritual.id),
-                            isDimmed: chosen.count == 3 && !chosen.contains(ritual.id)
-                        ) {
-                            toggle(ritual.id)
-                        }
-                    }
-                }
-                .padding(.horizontal, 20)
-                .padding(.bottom, 8)
-            }
-            .scrollIndicators(.hidden)
-
-            ForgeButton(title: FirstRunCopy.chooseButton(selected: chosen.count)) {
-                // No identities, and the empty array is the whole of what that
-                // means: the tag stays nil, which is exactly what every
-                // activity on every phone is until somebody says otherwise.
-                vm.chooseStarters(chosen, identities: [])
-                advance(to: .metaphor)
-            }
-            .disabled(chosen.count != 3)
-            .padding(.horizontal, 24)
-            .padding(.top, 12)
-            .padding(.bottom, 12)
+    /// The choice is made — or skipped, which leaves the focus empty and the
+    /// plan drawn from the lowest answers alone. The plan and its projections
+    /// are worked out once, here, so the next three screens are about the same
+    /// plan.
+    private func leaveBuild() {
+        if let assessment = vm.assessment {
+            plan = OnboardingPlan.propose(focus: vm.focus, assessment: assessment)
+            frames = Transformation.frames(
+                plan: plan.compactMap(\.ritual), assessment: assessment
+            )
         }
-        .padding(.vertical, 24)
+        advance(to: .drawing)
     }
 
-    private var offered: [Ritual] {
-        IdentityActivities.offeredRituals(forDimensions: vm.focus)
-    }
+    // MARK: - 4. The drawing
 
-    private func toggle(_ id: String) {
-        if let index = chosen.firstIndex(of: id) {
-            ForgeHaptics.shared.tap()
-            withAnimation(.forgeSelection) {
-                _ = chosen.remove(at: index)
-            }
-            return
-        }
-        // Silently refuse a fourth rather than swapping one out underneath
-        // them. Three is the whole point of the screen.
-        guard chosen.count < 3 else {
-            ForgeHaptics.shared.detent()
-            return
-        }
-        ForgeHaptics.shared.detent()
-        withAnimation(.forgeSelection) {
-            chosen.append(id)
+    @ViewBuilder
+    private var drawing: some View {
+        if let assessment = vm.assessment {
+            // It moves on by itself, so no haptic of its own on the way out —
+            // the drawing has just played six.
+            DrawingBeat(assessment: assessment) { vm.firstRunStage = .transformation }
+        } else {
+            // Not reachable — the questions write the assessment before the
+            // build beat opens — and if it ever were, the drawing has nothing
+            // to draw and the next screen is the right place to be.
+            Color.clear.onAppear { vm.firstRunStage = .transformation }
         }
     }
 
-    // MARK: - 5. The sword
+    // MARK: - 7. Your plan
+
+    /// The plan becomes the day: the activities, at their times, every day.
+    /// See `ForgeViewModel.adoptPlan` for why every day.
+    private func commitPlan() {
+        vm.adoptPlan(plan)
+        advance(to: .metaphor)
+    }
+
+    // MARK: - 8. The sword
 
     /// The beat the whole app is named after, and the one that has to be felt
     /// rather than read.
@@ -490,11 +536,11 @@ struct FirstRunView: View {
     /// reward.
     ///
     /// It also fixes something that was quietly wrong. The first *real* pull
-    /// happens ninety seconds later on the home screen, on the day somebody
-    /// installs, and until now nobody had ever been shown the gesture — the app
-    /// waited until the one moment that matters and hoped. Here it is rehearsed
-    /// with nothing at stake, so the pull that banks the first day is a thing
-    /// their hands already know.
+    /// happens a minute later on the home screen, on the day somebody installs,
+    /// and until this beat existed nobody had ever been shown the gesture — the
+    /// app waited until the one moment that matters and hoped. Here it is
+    /// rehearsed with nothing at stake, so the pull that banks the first day is
+    /// a thing their hands already know.
     ///
     /// **VoiceOver gets it as an action**, not as a drag: the plate is one
     /// element, labelled, and double-tapping frees the blade. A gesture nobody
@@ -529,16 +575,20 @@ struct FirstRunView: View {
             // way far enough that five lines of title and six of subtitle still
             // fit above it.
             PullToBegin(height: typeSize.isAccessibilitySize ? 130 : 300) {
+                // PAYWALL (session S2): the hard paywall (DIRECTION_1_1 §1) is
+                // presented here — after the pull is rehearsed and before the
+                // first thing is done — and `doOne` follows it whatever the
+                // answer. For now, continue.
                 advance(to: .doOne)
             }
             .rises(after: 0.5)
 
             Spacer(minLength: 0)
         }
-        .padding(.vertical, 32)
+        .padding(.vertical, 24)
     }
 
-    // MARK: - 6. Do one now
+    // MARK: - 10. Do one now
 
     /// One thing, named as the first of something rather than as a task — and
     /// **one thing only**, from the moment the beat opens to the moment the
@@ -707,22 +757,6 @@ private extension View {
     }
 }
 
-/// The words on the "choose three" beat, kept out of the view so they can be
-/// tested.
-///
-/// The title used to change with the answer on the screen before ("Three for
-/// today: physical and mental."), and the button used to say "Pick 2 more" —
-/// which read as the app refusing to go on rather than as a count of where
-/// somebody is. The title is fixed now, and the button counts.
-enum FirstRunCopy {
-    static let chooseTitle = "Pick three for today."
-
-    /// "Choose 3 · 1 selected" until there are three, then "Continue".
-    static func chooseButton(selected: Int) -> String {
-        selected >= 3 ? "Continue" : "Choose 3 \u{00B7} \(max(0, selected)) selected"
-    }
-}
-
 private struct RiseIn: ViewModifier {
     let delay: Double
 
@@ -754,7 +788,11 @@ private struct RiseIn: ViewModifier {
 ///
 /// Two gradients and no assets. Off under Reduce Motion, where it is the same
 /// picture holding still rather than a faster version of the same drift.
-private struct FirstRunAmbience: View {
+///
+/// Internal rather than private since 1.1: the assessment taken from the
+/// Becoming tab (`AssessmentSheet`) is the same seven questions in the same
+/// room, and a second copy of the light would be a second room.
+struct FirstRunAmbience: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var drift = false
 
@@ -955,19 +993,44 @@ private struct PullToBegin: View {
 /// it, and an animation that plays *at* somebody two screens earlier would take
 /// the edge off the one that answers them.
 ///
-/// So what is left is what the promise screen always needed: the sprite, faded
-/// out at the foot so it sits in the room rather than on the glass.
+/// So what is left is what the opening screen always needed: a still picture,
+/// faded out at its edges so it sits in the room rather than on the glass.
+///
+/// **Since 1.1 it is the sword in the stone** (`hero`, the plate the paywall
+/// and the Proof Card are drawn from) rather than the bare blade sprite. The
+/// cold open says "every day you keep, the blade comes loose", and a blade on
+/// its own is not in anything it could come loose from. The picture is lit
+/// from the upper left like the rest of the room, and its black is not quite
+/// the room's, so every edge is faded into the dark rather than cut.
 private struct BladePlate: View {
     let height: CGFloat
 
     var body: some View {
-        Image("sword1")
+        Image("hero")
             .resizable()
             .aspectRatio(contentMode: .fit)
             .frame(maxHeight: height)
             .mask(
-                LinearGradient(colors: [.black, .black, .clear],
-                               startPoint: .top, endPoint: .bottom)
+                LinearGradient(
+                    stops: [
+                        .init(color: .clear, location: 0),
+                        .init(color: .black, location: 0.12),
+                        .init(color: .black, location: 0.72),
+                        .init(color: .clear, location: 1),
+                    ],
+                    startPoint: .top, endPoint: .bottom
+                )
+            )
+            .mask(
+                LinearGradient(
+                    stops: [
+                        .init(color: .clear, location: 0),
+                        .init(color: .black, location: 0.2),
+                        .init(color: .black, location: 0.8),
+                        .init(color: .clear, location: 1),
+                    ],
+                    startPoint: .leading, endPoint: .trailing
+                )
             )
             .accessibilityHidden(true)
     }
@@ -994,13 +1057,16 @@ struct DimensionChoiceRow: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: 14) {
-                // Cream when chosen rather than blue. The row already carries
-                // the accent twice — the tint behind it and the mark on the
-                // right — and a third is the screen shouting one word.
+                // The dimension's own colour, never the accent. The row already
+                // carries the accent twice — the tint behind it and the mark on
+                // the right — and a third would be the screen shouting one word;
+                // the glyph says *which* of the six this is, which is what the
+                // six colours mean everywhere (`DimensionPalette`). Dimmed until
+                // chosen, so the choice still reads at a glance.
                 Image(systemName: dimension.symbol)
                     .font(.system(size: 18, weight: .medium))
                     .symbolRenderingMode(.hierarchical)
-                    .foregroundStyle(isChosen ? AnyShapeStyle(ForgeTheme.cream) : AnyShapeStyle(.secondary))
+                    .foregroundStyle(dimension.color.opacity(isChosen ? 1 : 0.55))
                     .frame(width: 40, height: 40)
                     .accessibilityHidden(true)
 
@@ -1149,7 +1215,7 @@ struct FocusHexagon: View {
                         .symbolRenderingMode(.hierarchical)
                         .foregroundStyle(
                             isChosen
-                                ? AnyShapeStyle(ForgeTheme.cream)
+                                ? AnyShapeStyle(dimensions[index].color)
                                 : AnyShapeStyle(.tertiary)
                         )
                         .position(point(index, radius: radius + 16, centre: centre))
@@ -1178,112 +1244,6 @@ struct FocusHexagon: View {
         }
         path.closeSubpath()
         return path
-    }
-}
-
-/// One starter activity, and which part of somebody it builds.
-///
-/// # What the second line says, and why it changed
-///
-/// It used to read "Builds physical" — the dimension, in the accent, in place of
-/// the activity's own subtitle. That threw away the best sentence on the row.
-/// The library is written so that **the label is the act and the subtitle is the
-/// standard**: "Walk outside" / "Eight minutes, sky above you". Replacing the
-/// standard with a category turned a screen of concrete, doable things into a
-/// screen of filing, which is precisely the impression the first run cannot
-/// afford — a stranger deciding whether this app is worth a week is reading
-/// these eight rows and nothing else.
-///
-/// So the standard is back where it was, and the dimension is a small mark on
-/// the right, next to the choice. It answers *why am I being shown this* in a
-/// glance without spending the one line that says what the thing actually is —
-/// and it is the **glyph** rather than the word, because "RELATIONSHIP" set
-/// beside a checkmark takes a third of the row and truncates the sentence it
-/// was put there to sit beside. The word is still what VoiceOver reads.
-private struct StarterRow: View {
-    let ritual: Ritual
-    /// The dimension this answers, where it answers one they asked for. Nil for
-    /// an activity that is only here because the list needed filling, and for
-    /// everybody who skipped the question.
-    let buildsLabel: String?
-    let isChosen: Bool
-    let isDimmed: Bool
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 14) {
-                RitualGlyph(ritual: ritual, size: 20)
-                    .frame(width: 40, height: 40)
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(ritual.label)
-                        .font(.body.weight(.medium))
-                        .foregroundStyle(.primary)
-                    if !ritual.sub.isEmpty {
-                        Text(ritual.sub)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                    }
-                }
-
-                Spacer(minLength: 8)
-
-                if buildsLabel != nil {
-                    Image(systemName: ritual.category.symbol)
-                        .font(.system(size: 12, weight: .medium))
-                        .symbolRenderingMode(.hierarchical)
-                        .foregroundStyle(.tertiary)
-                        .accessibilityHidden(true)
-                }
-
-                Image(systemName: isChosen ? "checkmark.circle.fill" : "circle")
-                    .font(.title3)
-                    .symbolRenderingMode(isChosen ? .palette : .monochrome)
-                    .foregroundStyle(
-                        isChosen ? AnyShapeStyle(.white) : AnyShapeStyle(.tertiary),
-                        AnyShapeStyle(ForgeTheme.accent)
-                    )
-                    .contentTransition(.symbolEffect(.replace))
-            }
-            .padding(.horizontal, 14)
-            .frame(minHeight: 62)
-            .contentShape(.rect)
-        }
-        .buttonStyle(.plain)
-        // The same treatment the dimension rows take. Two beats of one sequence
-        // must not have two different ideas of what "chosen" looks like — see
-        // `DimensionChoiceRow`.
-        .glassEffect(
-            isChosen
-                ? .regular.tint(ForgeTheme.accent.opacity(0.12)).interactive()
-                : .regular.interactive(),
-            in: .rect(cornerRadius: ForgeTheme.Radius.control)
-        )
-        .overlay {
-            if isChosen {
-                RoundedRectangle(cornerRadius: ForgeTheme.Radius.control, style: .continuous)
-                    .strokeBorder(ForgeTheme.accent.opacity(0.55), lineWidth: 1)
-            }
-        }
-        .opacity(isDimmed ? 0.45 : 1)
-        .animation(.easeOut(duration: 0.2), value: isDimmed)
-        // The row animates itself. Its two callers used to wrap the whole
-        // screen in a `withAnimation` on the focus, which also animated the
-        // scroll view holding these — see `FirstRunView.build`. Scoped here it
-        // is the tint and the border that cross-fade and nothing moves, which
-        // is what "selecting a row" should look like at any number of rows.
-        .animation(.forgeSelection, value: isChosen)
-        .accessibilityLabel(Text(
-            [ritual.label, ritual.sub, buildsLabel.map { "Builds \($0.lowercased())" }]
-                .compactMap { $0 }
-                .filter { !$0.isEmpty }
-                .joined(separator: ". ")
-        ))
-        .accessibilityValue(Text(isChosen ? "Chosen" : "Not chosen"))
-        .accessibilityHint(Text(isChosen ? "Double tap to remove" : "Double tap to choose"))
-        .accessibilityAddTraits(isChosen ? [.isButton, .isSelected] : .isButton)
     }
 }
 
@@ -1329,18 +1289,19 @@ struct FirstRunClosingView: View {
 
     /// The one sentence that has to correct the thing a first run gets wrong.
     ///
-    /// It used to read "Tomorrow it takes all three", which was true of a day
-    /// that repeated itself and is not true of one. The three they chose are
-    /// today's — see `ForgeViewModel.chooseStarters` — so the line says what is
-    /// left of today, and that tomorrow is a day they will plan rather than one
-    /// that arrives pre-filled.
+    /// It says what is left of today, and what tomorrow holds. In 1.0 the three
+    /// chosen activities were pinned to the day they were chosen on, so
+    /// tomorrow was a day to plan ("Tomorrow, you choose again"). Since 1.1 the
+    /// plan is every day's — see `ForgeViewModel.adoptPlan` — so tomorrow is
+    /// the same plan again, and the line says so rather than promising a
+    /// choice the app has already made with them.
     ///
     /// **The two halves are in that order on purpose.** What is left of today
     /// comes first, because the blade being out is about to make somebody think
     /// the day is over — and it is not. The panel says the same thing when they
     /// land on it; see `ForgeTabView.bankedLine`.
     var line: String {
-        let tomorrow = named.map { "Tomorrow, more \($0)." } ?? "Tomorrow, you choose again."
+        let tomorrow = named.map { "Tomorrow, more \($0)." } ?? "Tomorrow, the same plan again."
         guard remaining > 0 else { return tomorrow }
         return "\(ForgeCount.spelled(remaining)) more, today. \(tomorrow)"
     }

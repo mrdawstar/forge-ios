@@ -96,6 +96,17 @@ struct FirstWeek: Equatable, Sendable {
         return "Your shape draws itself as the days add up. The last seven: \(Self.days(kept)) kept."
     }
 
+    /// The same count as a progress line, for a Becoming tab whose hexagon is
+    /// already drawn from an assessment (`BlendedShape`). It drops the promise
+    /// — "your shape draws itself on Sunday" is not true of a shape that is on
+    /// the screen — and keeps what is: how much of the week has been kept.
+    var progressLine: String {
+        if isOpeningWeek {
+            return "Your first week: \(Self.days(kept)) kept of seven."
+        }
+        return "The last seven: \(Self.days(kept)) kept."
+    }
+
     /// "on Sunday", "tomorrow", or "next Sunday" on the day it starts.
     var when: String {
         let until = drawDay.days(since: today)

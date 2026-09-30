@@ -209,16 +209,20 @@ struct ActivityScheduleTests {
 // MARK: - What goes into the day, and on which days
 
 /// Everything that puts an activity into somebody's day, and the one promise
-/// they all now keep: **it lands on today, and on no other day until the user
+/// they all keep: **it lands on today, and on no other day until the user
 /// says so.**
 ///
 /// This is the rule that was missing rather than wrong. The composer already
 /// started a new activity on one day — see `ActivityComposer.Mode.create` — but
 /// the two doors that take an activity from the *library* did not, and the
-/// library ships everything as `.daily`. So choosing three activities in the
-/// first ninety seconds, or tapping one in the picker, was somebody agreeing to
-/// do that thing every day for the rest of time, with the only sign of it a
-/// repeat picker three screens away.
+/// library ships everything as `.daily`. So tapping one in the picker was
+/// somebody agreeing to do that thing every day for the rest of time, with the
+/// only sign of it a repeat picker three screens away.
+///
+/// **The one door that says "every day" out loud is the 1.1 first run's plan**
+/// (`ForgeViewModel.adoptPlan`): it is shown as a day with a time on every row,
+/// under the words "every day", after a screen that projects exactly that plan
+/// kept five days a week. Those tests are the first three below.
 ///
 /// The tests are here rather than in a file of their own because this is the
 /// same question `RitualRepeat` answers above, asked of the objects that write
@@ -251,39 +255,47 @@ struct OnboardingDayTests {
 
     // MARK: - The first run
 
-    @Test("The three chosen in onboarding are today's, not every day's")
-    func startersAreTodayOnly() {
-        let (vm, progress) = makeViewModel()
-        let today = progress.currentDay.weekday
-        let chosen = ["water", "bed", "read"]
-
-        vm.chooseStarters(chosen)
-
-        #expect(vm.activeRitualIDs == chosen)
-        #expect(vm.todayRitualIDs == chosen, "all three are asked for today")
-        for id in chosen {
-            let ritual = vm.ritual(id)
-            #expect(ritual?.repeats.weekdays == [today], "\(id) escaped onto other days")
-            #expect(ritual?.happens(on: otherWeekday(than: today)) == false)
+    private func plan(_ picks: [(String, Int)]) -> [PlanEntry] {
+        picks.compactMap { id, minute in
+            Ritual.find(id).map { PlanEntry(dimension: $0.category, ritualID: id, minute: minute) }
         }
     }
 
-    /// The reason the closing beat no longer says "tomorrow it takes all three".
-    @Test("Onboarding leaves the rest of the week empty")
-    func startersDoNotFillTheWeek() {
+    @Test("The plan chosen in onboarding is every day's, at the time on each row")
+    func planIsEveryDay() {
         let (vm, progress) = makeViewModel()
-        vm.chooseStarters(["water", "bed", "read"])
+        let today = progress.currentDay.weekday
+        let entries = plan([("water", 7 * 60), ("bed", 7 * 60 + 15), ("read", 20 * 60)])
+
+        vm.adoptPlan(entries)
+
+        #expect(vm.activeRitualIDs == ["water", "bed", "read"])
+        #expect(vm.todayRitualIDs == ["water", "bed", "read"], "all three are asked for today")
+        for entry in entries {
+            let ritual = vm.ritual(entry.ritualID)
+            #expect(ritual?.repeats.isDaily == true)
+            #expect(ritual?.happens(on: otherWeekday(than: today)) == true)
+            #expect(ritual?.startMinute == entry.minute)
+        }
+    }
+
+    /// The reason the closing beat now says "the same plan again" rather than
+    /// "you choose again".
+    @Test("Onboarding's plan is tomorrow's too")
+    func planFillsTheWeek() {
+        let (vm, progress) = makeViewModel()
+        vm.adoptPlan(plan([("water", 7 * 60), ("bed", 7 * 60 + 15), ("read", 20 * 60)]))
 
         let tomorrow = progress.currentDay.adding(days: 1).weekday
-        #expect(vm.rituals(onWeekday: tomorrow).isEmpty)
+        #expect(Set(vm.rituals(onWeekday: tomorrow).map(\.id)) == ["water", "bed", "read"])
     }
 
     /// An onboarding activity is not a special kind of activity. Everything the
     /// day list offers has to work on one, which is the whole of the claim.
     @Test("An activity from onboarding completes, edits and comes out again")
-    func startersBehaveLikeAnythingElse() {
+    func planActivitiesBehaveLikeAnythingElse() {
         let (vm, _) = makeViewModel()
-        vm.chooseStarters(["water", "bed", "read"])
+        vm.adoptPlan(plan([("water", 7 * 60), ("bed", 7 * 60 + 15), ("read", 20 * 60)]))
 
         vm.keepPromise("water")
         #expect(vm.isDone("water"))
@@ -296,7 +308,8 @@ struct OnboardingDayTests {
         vm.editRitual("bed", to: draft)
         #expect(vm.ritual("bed")?.label == "Square the pillows")
         #expect(vm.ritual("bed")?.minutes == 5)
-        #expect(vm.ritual("bed")?.repeats.isDaily == false, "editing must not widen it")
+        #expect(vm.ritual("bed")?.repeats.isDaily == true, "editing keeps its days")
+        #expect(vm.ritual("bed")?.startMinute == 7 * 60 + 15, "and its time")
 
         vm.removeRitual("read")
         #expect(!vm.activeRitualIDs.contains("read"))
@@ -473,7 +486,8 @@ struct OnboardingDayTests {
     @Test("A finished day is still a finished day")
     func finishedDayStillEarns() {
         let (vm, _) = makeViewModel()
-        vm.chooseStarters(["water", "bed"])
+        vm.activeRitualIDs = ["water", "bed"]
+        vm.pinToTodayOnly(["water", "bed"])
         #expect(!vm.allDone)
 
         vm.keepPromise("water")
