@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+	Debug builds for the Simulator only: CODE_SIGN_ENTITLEMENTS[sdk=iphonesimulator*].
+	Forge.entitlements plus get-task-allow, and nothing else (PremiumTests holds them together).
+
+	Simulator builds are signed ad hoc and carry no get-task-allow, and from iOS 26.3 storekitd
+	refuses a StoreKit test configuration from such an app ("com.dawid.forge is not installed for
+	development"), so every SKTestSession under `xcodebuild test` failed. See FORGE_CONTEXT §14.
+-->
+<plist version="1.0">
+<dict>
+	<key>com.apple.security.application-groups</key>
+	<array>
+		<string>group.com.dawid.forge</string>
+	</array>
+	<key>get-task-allow</key>
+	<true/>
+</dict>
+</plist>

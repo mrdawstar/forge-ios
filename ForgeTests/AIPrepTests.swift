@@ -79,6 +79,21 @@ struct AIConsentTests {
     }
 }
 
+// MARK: - The sentence every plan request sends
+
+/// A sentence the phone answers on its own: `LocalForgeAI` moves one activity
+/// to another day. So wherever a test below expects the phone to answer, it
+/// really does, with a plan of its own.
+///
+/// It was "Move read to 7" — a time, which the phone refuses by design: it
+/// moves an activity to a day, lays out hours, spreads a frequency and shifts
+/// the whole week, and says so in `ForgeAIError.notConnected`. Every test that
+/// fell back threw `.notConnected` before reaching its own assertions.
+private let movesReadToWednesday = "Move read to Wednesday"
+
+/// The phone's answer to it: Read, every day until now, on Wednesdays.
+private let readOnWednesdays = ScheduleChange.days(id: "read", name: "Read", weekdays: [4], was: [])
+
 // MARK: - Still off
 
 @Suite("AI prepared, still switched off")
@@ -110,7 +125,9 @@ struct AIStillOffTests {
         brief.activities = [ScheduledActivity(id: "read", name: "Read", startMinute: nil, minutes: 15, weekdays: [])]
         brief.week = ReviewFacts(kept: 3, asked: 7)
 
-        #expect(!(try await ai.plan(brief: brief, request: "Move read to 7").isModelWritten))
+        let plan = try await ai.plan(brief: brief, request: movesReadToWednesday)
+        #expect(!plan.isModelWritten)
+        #expect(plan.changes == [readOnWednesdays])
         #expect(!(try await ai.reading(brief: brief).isModelWritten))
         #expect(await calls.consents == 0)
         #expect(await calls.entitlements == 0)
@@ -151,7 +168,7 @@ struct FutureAIPathTests {
     "user":{"id":"8f7c0e2a-0000-4000-8000-00000000000a","app_metadata":{"provider":"anonymous"}}}
     """
 
-    private let modelPlan = #"{"summary":"Read earlier.","changes":[{"kind":"time","id":"read","minute":420}]}"#
+    private let modelPlan = #"{"summary":"Read moves to Wednesday.","changes":[{"kind":"days","id":"read","weekdays":[4]}]}"#
 
     private var brief: AIBrief {
         var brief = AIBrief()
@@ -208,8 +225,9 @@ struct FutureAIPathTests {
     @Test("Without Forge Pro, no anonymous session is created and the phone answers")
     func noSessionForFree() async throws {
         let rig = rig(consent: { true }, proof: nil)
-        let plan = try await rig.ai.plan(brief: brief, request: "Move read to 7")
+        let plan = try await rig.ai.plan(brief: brief, request: movesReadToWednesday)
         #expect(!plan.isModelWritten)
+        #expect(plan.changes == [readOnWednesdays])
         #expect(await rig.calls.tokens == 0)
         #expect(rig.auth.requests.isEmpty)
         #expect(rig.model.requests.isEmpty)
@@ -237,9 +255,10 @@ struct FutureAIPathTests {
         AIConsentStore(defaults: defaults).decline()
         let rig = rig(consent: { AIConsentStore.isAllowed(in: defaults) }, proof: "signed.jws")
 
-        let plan = try await rig.ai.plan(brief: brief, request: "Move read to 7")
+        let plan = try await rig.ai.plan(brief: brief, request: movesReadToWednesday)
         let reading = try await rig.ai.reading(brief: brief)
         #expect(!plan.isModelWritten)
+        #expect(plan.changes == [readOnWednesdays])
         #expect(!reading.isModelWritten)
         #expect(rig.model.requests.isEmpty)
         #expect(rig.auth.requests.isEmpty)
@@ -252,7 +271,7 @@ struct FutureAIPathTests {
         let rig = rig(consent: { true }, proof: "signed.jws.value", model: [.json(200, modelPlan)])
         #expect(rig.sessions.load() == nil)
 
-        let plan = try await rig.ai.plan(brief: brief, request: "Move read to 7")
+        let plan = try await rig.ai.plan(brief: brief, request: movesReadToWednesday)
         #expect(plan.isModelWritten)
 
         #expect(rig.auth.requests.count == 1)
@@ -280,11 +299,11 @@ struct FutureAIPathTests {
             model: [.json(200, modelPlan), .json(200, modelPlan)]
         )
 
-        #expect(try await rig.ai.plan(brief: brief, request: "Move read to 7").isModelWritten)
+        #expect(try await rig.ai.plan(brief: brief, request: movesReadToWednesday).isModelWritten)
         #expect(rig.model.requests.count == 1)
 
         consent.revoke()
-        #expect(!(try await rig.ai.plan(brief: brief, request: "Move read to 7").isModelWritten))
+        #expect(!(try await rig.ai.plan(brief: brief, request: movesReadToWednesday).isModelWritten))
         #expect(rig.model.requests.count == 1)
     }
 

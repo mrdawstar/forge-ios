@@ -2447,7 +2447,7 @@ xcodebuild -project Forge.xcodeproj -scheme Forge -sdk iphonesimulator \
   -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build
 ```
 
-Run the tests — **549 tests in 40 suites, all passing**:
+Run the tests — **700 tests in 56 suites, all passing** (2026-10-01, §17.0):
 
 ```bash
 xcodebuild -project Forge.xcodeproj -scheme Forge \
@@ -2474,6 +2474,17 @@ writes the real App Group suite, shared by every test in the process**, and
 `vm.resetFirstRun()` in its helper or it inherits whether an earlier test
 finished onboarding. `FirstRunTests.makeViewModel` and `DayCountTests` show the
 pattern.
+
+A fourth, from the iOS 26 Simulator: **an `SKTestSession` is refused unless
+the app hosting the tests carries `get-task-allow`** — storekitd logs "not
+installed for development" and the session reports `SKInternalErrorDomain
+Code=3`. Simulator builds are signed ad hoc without it, so Debug builds for the
+Simulator take `Forge/ForgeSimulator.entitlements`, which is
+`Forge.entitlements` plus that one key (§17.0, 2026-10-01). **A new entitlement
+goes into both files**; `PremiumTests.simulatorEntitlements` fails until they
+match. Running a single swift-testing test needs the parentheses:
+`-only-testing:'ForgeTests/ForgeStoreKitTests/annualTrial()'` — without them
+the filter matches nothing and the run "passes" with 0 tests.
 
 **Known-benign:** `AnalyticsTests` → "A period before the history began is empty
 rather than zero" can fail **only when run on a Monday**, for a calendar reason
@@ -2606,11 +2617,81 @@ Session S0. No product code changed.
   kept) and Enduring (180)" would rename or collide with existing rungs, which
   the same section forbids ("existing rung ids and requirements never change").
   Decide the names and thresholds before the session that builds §6.
-- **Known test failures on main before and after this session (environmental):**
+- *Fixed on 2026-10-01, below; neither cause was environmental in the way this
+  said, and the AIPrep failures had nothing to do with StoreKit.* **Known test
+  failures on main before and after this session (environmental):**
   the `ForgeStoreKitTests` suite gets no products from `SKTestSession` on this
   Mac (`store.status == .unavailable`), and the `AIPrepTests` that need a Pro
   entitlement fail with it. `Forge.storekit` itself is valid. To investigate
   before session S2 touches the paywall.
+
+#### The known failures, fixed (2026-10-01, branch `fix/test-baseline`)
+
+Done before S2 touched the paywall. Main at `848ca6c` reproduced **17 issues in
+697 tests** on the iPhone 17 Pro simulator: the 16 above, and one more that
+comes and goes. There were four causes, all real; no test was skipped, loosened
+or disabled.
+
+- **StoreKit (12 issues): the Simulator refused the configuration because of
+  how the app is signed.** The Simulator's own log says it in one line:
+  storekitd, `saveConfigurationData`, *"com.dawid.forge is not installed for
+  development"* — which `SKTestSession` reports as `SKInternalErrorDomain
+  Code=3` ("Error saving configuration file"). On the iOS 26.5 Simulator
+  (reported from 26.3), storekitd accepts a StoreKit test configuration only
+  from an app carrying `get-task-allow`, and Xcode 26 signs Simulator builds ad
+  hoc, without it. Running from Xcode hides this — the IDE pushes the scheme's
+  `.storekit` to the Simulator through a channel of its own — but `xcodebuild
+  test` never does, so every test session was refused and `Product.products`
+  went to the signed-out Sandbox and came back empty. **Not the cause**, each
+  checked: `Forge.storekit` (valid; `PremiumTests.storekitFile` reads it),
+  its target membership (`SKTestSession(contentsOf:)` reads it by path), the
+  filename, and the scheme (the file is on the Run action; putting it on the
+  Test action as well changed nothing, because `xcodebuild` syncs neither).
+  Confirmed by experiment, in one DerivedData: with `get-task-allow` added the
+  session saved its configuration and the products loaded; without it, refused
+  again. **Fix:**
+  `Forge/ForgeSimulator.entitlements` — `Forge.entitlements` plus
+  `get-task-allow` — used only by **Debug builds for the Simulator**
+  (`CODE_SIGN_ENTITLEMENTS[sdk=iphonesimulator*]`). Devices and Release keep
+  `Forge.entitlements`, so no archive can carry it, and
+  `PremiumTests.simulatorEntitlements` fails if the two files ever differ in
+  anything else. Apple's side: FB22237318,
+  [developer.apple.com/forums/thread/826971](https://developer.apple.com/forums/thread/826971).
+- **Once those tests could run, one found a real bug in `ForgeStore`.**
+  `Product.purchase()` hands back the verified transaction before
+  `Transaction.currentEntitlements` lists it. Measured after a trial
+  purchase: the index, `Transaction.latest(for:)` and the subscription status
+  were all still empty at 250 ms and all had it by 500 ms. `purchase` re-reads
+  the entitlement straight away, so it answered `.free` to somebody who had
+  just started a trial — on a hard paywall, a locked app after "Start my free
+  week". `ForgeStore.recentPurchase` now counts the transaction StoreKit
+  returned until the index lists it, it would have lapsed, or a refund for it
+  arrives; in memory only, gone on the next launch. The rule is
+  `ForgeStore.owned(listed:recent:now:)`, tested on its own
+  (`recentPurchaseCarries`) and through StoreKit (`annualTrial`).
+- **AIPrep (4 issues): the tests asked the phone for something it refuses by
+  design.** Each sent "Move read to 7". `LocalForgeAI` moves an activity to
+  another *day*, never a time — its doc comment, the `.notConnected` message
+  and `ChallengeTests.refusesHonestly` all say so, and it has not changed since
+  1.0 — so it threw before the tests reached their assertions. The §2r tests
+  were written on Linux and never run. They now send "Move read to Wednesday",
+  which the phone answers, and also check that the plan is the phone's own
+  (`readOnWednesdays`). The planner is unchanged.
+- **One more, intermittent: the same record could read two numbers.**
+  `TransformationTests` "The projection is deterministic" failed on this run:
+  two reads of one plan gave Mental `kept` 21.75 and 21.750000000000004.
+  `ForgeShape.creditedDays` added fractional weights in the dictionary's
+  order, which differs between two dictionaries holding the same days, and
+  floating-point addition is not associative — so a score on a half could
+  round both ways on two screens. It adds oldest day first now;
+  `WeightedDimensionTests.creditIsSummedInDayOrder` checks it bit for bit.
+
+**Verified.** `xcodebuild test`: **700 tests in 56 suites, all passing**, on
+the iPhone 17 Pro and the iPhone 17e (iOS 26.5), and again with CLAUDE.md's
+command in the default DerivedData.
+
+**Files.** `Forge/ForgeSimulator.entitlements` is in `project.pbxproj` as a file
+reference in the Forge group, and in no build phase: the build setting names it.
 
 ### 17.1 Onboarding 2.0: the assessment and the transformation (2026-09-30)
 

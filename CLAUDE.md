@@ -60,6 +60,11 @@ docs/             FORGE_CONTEXT.md, DIRECTION_1_1.md, APP_STORE.md, launch/
   first run calls `vm.resetFirstRun()` in its helper.
 - AnalyticsTests "A period before the history began..." can fail only on a Monday. The test
   is wrong, not ProgressStore; do not "fix" the store.
+- StoreKit tests (SKTestSession) need `get-task-allow` on the Simulator: Debug Simulator builds
+  use Forge/ForgeSimulator.entitlements. A new entitlement goes into it and Forge.entitlements
+  both; PremiumTests fails until they match.
+- One swift-testing test: `-only-testing:'ForgeTests/<Suite type>/<func>()'` (with the
+  parentheses, or it matches nothing and passes with 0 tests).
 
 ## Money (summary of DIRECTION_1_1.md §1)
 - Hard paywall after onboarding for new installs; no free tier for them.

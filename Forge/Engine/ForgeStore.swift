@@ -57,6 +57,20 @@ final class ForgeStore {
     /// to no product.
     private(set) var isRestoring = false
 
+    /// A purchase StoreKit has confirmed and does not list yet.
+    ///
+    /// `Product.purchase()` hands back the verified transaction a moment before
+    /// `Transaction.currentEntitlements` lists it: measured on the iOS 26.5
+    /// Simulator, a quarter of a second later the index, `Transaction.latest`
+    /// and the subscription status were all still empty, and half a second
+    /// later all three had it. Reading only the index at that moment answered
+    /// "free" to somebody who had just paid, which on a paywall is a locked app
+    /// straight after the purchase. So the transaction StoreKit returned counts
+    /// until the index lists it, and not a moment longer — see
+    /// `owned(listed:recent:now:)`. In memory only: never written down, and
+    /// gone on the next launch.
+    private var recentPurchase: RecentPurchase?
+
     /// Held so it is not deallocated out from under the app. There is no
     /// `deinit` cancelling it on purpose: one store is built at launch and lives
     /// as long as the process, so the only thing a teardown path would add is a
@@ -150,19 +164,35 @@ final class ForgeStore {
     /// revocation check is belt and braces for a refund that has been recorded
     /// but not yet dropped.
     func refreshEntitlement() async {
-        var owned: [PremiumProduct] = []
+        var listed: [PremiumProduct] = []
 
         for await result in Transaction.currentEntitlements {
             guard let transaction = try? verified(result) else { continue }
             guard transaction.revocationDate == nil else { continue }
             guard let product = PremiumProduct(id: transaction.productID) else { continue }
-            owned.append(product)
+            listed.append(product)
         }
 
+        let reading = Self.owned(listed: listed, recent: recentPurchase, now: .now)
+        recentPurchase = reading.recent
+
         // Lifetime outranks a subscription — see `PremiumEntitlement.resolve`.
-        entitlement = PremiumEntitlement.resolve(owned)
-        activePlan = PremiumEntitlement.plan(among: owned)
+        entitlement = PremiumEntitlement.resolve(reading.owned)
+        activePlan = PremiumEntitlement.plan(among: reading.owned)
         hasReadEntitlement = true
+    }
+
+    /// What is owned, given what `currentEntitlements` listed and a purchase it
+    /// may not list yet; and whether that purchase still needs carrying.
+    ///
+    /// The purchase stops counting the moment the index lists its product —
+    /// the index is the answer again — or the moment it would have expired.
+    nonisolated static func owned(
+        listed: [PremiumProduct], recent: RecentPurchase?, now: Date
+    ) -> (owned: [PremiumProduct], recent: RecentPurchase?) {
+        guard let recent, !listed.contains(recent.product) else { return (listed, nil) }
+        if let expires = recent.expirationDate, expires <= now { return (listed, nil) }
+        return (listed + [recent.product], recent)
     }
 
     /// Everything the App Store tells us after the fact: a renewal, a refund, a
@@ -172,6 +202,12 @@ final class ForgeStore {
             for await result in Transaction.updates {
                 guard let self else { return }
                 guard let transaction = try? self.verified(result) else { continue }
+                // A refund of the purchase still being carried ends the carry
+                // at once, rather than when the index next looks.
+                if transaction.revocationDate != nil,
+                   self.recentPurchase?.product.rawValue == transaction.productID {
+                    self.recentPurchase = nil
+                }
                 await transaction.finish()
                 await self.refreshEntitlement()
             }
@@ -203,8 +239,16 @@ final class ForgeStore {
             switch try await product.purchase() {
             case .success(let result):
                 let transaction = try verified(result)
+                if transaction.revocationDate == nil,
+                   let product = PremiumProduct(id: transaction.productID) {
+                    recentPurchase = RecentPurchase(
+                        product: product, expirationDate: transaction.expirationDate
+                    )
+                }
                 // Finished only after the entitlement has been re-read, so the
-                // screen is never dismissed a frame before it is true.
+                // screen is never dismissed a frame before it is true. The
+                // read counts this transaction even if the index does not list
+                // it yet — see `recentPurchase`.
                 await refreshEntitlement()
                 await transaction.finish()
                 let startedTrial = transaction.offer?.type == .introductory
@@ -316,6 +360,14 @@ final class ForgeStore {
     /// StoreKit. Never compiled into a release build.
     var debugPremium: Bool?
     #endif
+}
+
+/// A purchase StoreKit has just verified, reduced to what the entitlement needs.
+/// See `ForgeStore.recentPurchase`.
+struct RecentPurchase: Equatable, Sendable {
+    let product: PremiumProduct
+    /// Nil for lifetime, which does not lapse.
+    let expirationDate: Date?
 }
 
 /// One entitlement StoreKit vouched for, reduced to what choosing needs.
