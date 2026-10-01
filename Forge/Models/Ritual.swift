@@ -390,6 +390,39 @@ struct RitualRepeat: Codable, Equatable, Sendable {
     static func short(_ weekday: Int) -> String {
         ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][max(0, min(6, weekday - 1))]
     }
+
+    static func name(_ weekday: Int) -> String {
+        ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][
+            max(0, min(6, weekday - 1))
+        ]
+    }
+
+    /// The days at a glance, for a row with a time beside it and no room for a
+    /// sentence: "Daily", "Weekdays", "Weekends", "Sundays", "Mon · Wed · Fri".
+    /// The first run's plan reads "Mon · Wed · Fri · 18:00" off this.
+    var compactLabel: String {
+        if weekdays.isEmpty || isDaily { return "Daily" }
+        if weekdays == Self.weekdays5.weekdays { return "Weekdays" }
+        if weekdays == Self.weekends.weekdays { return "Weekends" }
+        let days = Self.mondayFirst.filter(weekdays.contains)
+        if days.count == 1 { return Self.name(days[0]) + "s" }
+        return days.map(Self.short).joined(separator: " \u{00B7} ")
+    }
+
+    /// The same, said in full, for VoiceOver: "Monday, Wednesday and Friday".
+    /// "Mon" read aloud is a syllable, not a day.
+    var spokenLabel: String {
+        if weekdays.isEmpty || isDaily { return "Every day" }
+        if weekdays == Self.weekdays5.weekdays { return "Weekdays" }
+        if weekdays == Self.weekends.weekdays { return "Weekends" }
+        let names = Self.mondayFirst.filter(weekdays.contains).map(Self.name)
+        guard let last = names.last else { return "Every day" }
+        if names.count == 1 { return last + "s" }
+        return names.dropLast().joined(separator: ", ") + " and " + last
+    }
+
+    /// Monday first, as `label` orders them.
+    private static let mondayFirst = [2, 3, 4, 5, 6, 7, 1]
 }
 
 /// Minutes since midnight, said the way a person says it.

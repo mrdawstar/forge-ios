@@ -5,13 +5,18 @@ import Testing
 /// The four stops and the plan they project.
 ///
 /// Every number the transformation screen shows is `BlendedShape.read` over
-/// days held in memory, so what is tested here is that the days are the ones
-/// the screen says they are — five of seven, spread evenly, starting today —
-/// and that the arithmetic over them behaves the way the screen implies.
+/// days held in memory, floored at the starting numbers, so what is tested
+/// here is that the days are the ones the screen says they are — each
+/// activity on its own days, five of every seven of them kept — and that the
+/// arithmetic over them behaves the way the screen implies.
 @Suite("Transformation")
 struct TransformationTests {
 
     private let start = ForgeDay(year: 2026, month: 10, day: 1)
+
+    /// Seven starts, one on each weekday: a projection must not depend on the
+    /// day somebody installs on.
+    private var starts: [ForgeDay] { (0..<7).map { start.adding(days: $0) } }
 
     private func assessment(_ picks: [Assessment.Question: Int]) -> Assessment {
         Assessment(day: start, answers: picks)
@@ -36,16 +41,16 @@ struct TransformationTests {
 
     // MARK: - The days behind the stops
 
-    @Test("Five of seven, twenty-one of thirty, and today is kept")
+    @Test("Five of seven, twenty-one of thirty, and the last before a stop is kept")
     func keptDays() {
         #expect(Transformation.keptDays(in: 0) == 0)
         #expect(Transformation.keptDays(in: 1) == 1)
         #expect(Transformation.keptDays(in: 7) == 5)
         #expect(Transformation.keptDays(in: 14) == 10)
         #expect(Transformation.keptDays(in: 30) == 21)
-        #expect(Transformation.isKept(day: 0), "the first run keeps today")
-        #expect((0..<7).count(where: Transformation.isKept(day:)) == 5)
-        #expect((0..<30).count(where: Transformation.isKept(day:)) == 21)
+        #expect(Transformation.isKept(occurrence: 0))
+        #expect((0..<7).count(where: Transformation.isKept(occurrence:)) == 5)
+        #expect((0..<30).count(where: Transformation.isKept(occurrence:)) == 21)
     }
 
     @Test("Each stop has the blade its days have earned")
@@ -103,30 +108,35 @@ struct TransformationTests {
 
     // MARK: - What moves and what does not
 
-    @Test("A planned dimension never goes down across the stops, from any answer the plan can lift")
+    /// It used to skip every baseline above seventy-one, because the plan kept
+    /// five days in seven settles there and the projection followed it down.
+    /// With the floor there is nothing to skip: from any answer, on any start
+    /// day, no dimension and no OVR goes down from one stop to the next.
+    @Test("Nothing goes down across the stops, from any answer, on any start day")
     func monotonicForPlanned() {
-        let focuses: [Set<RitualCategory>] = [[], [.physical], [.mental, .relationship, .ambition], Set(RitualCategory.dimensions)]
-        for index in 0..<4 {
-            for sleep in 0..<4 {
-                let answers = uniform(index, sleep: sleep)
-                for focus in focuses {
-                    let plan = OnboardingPlan.propose(focus: focus, assessment: answers)
-                    let all = Transformation.frames(plan: plan.compactMap(\.ritual), assessment: answers)
-                    for dimension in RitualCategory.dimensions where isPlanned(dimension, in: plan) {
-                        let baseline = answers.baseline(for: dimension) ?? 0
-                        // Five days of seven reads 71. An answer already above
-                        // that is left to settle where the plan would put it —
-                        // see `seventyFiveSettles`.
-                        guard Double(baseline) <= 100.0 * 5 / 7 else { continue }
-                        let scores = all.map { $0.shape.dimension(dimension)!.score }
-                        #expect(
-                            scores == scores.sorted(),
-                            Comment(rawValue: "\(dimension.label) from \(baseline): \(scores)")
-                        )
-                    }
-                    let overall = all.map(\.shape.overall)
-                    if index < 3 {
-                        #expect(overall == overall.sorted(), Comment(rawValue: "OVR \(overall)"))
+        let focuses: [Set<RitualCategory>] = [
+            [], [.physical], [.mental, .relationship, .ambition], [.relationship, .ambition, .discipline],
+            Set(RitualCategory.dimensions),
+        ]
+        for start in starts {
+            for index in 0..<4 {
+                for sleep in 0..<4 {
+                    var picks = Dictionary(uniqueKeysWithValues: Assessment.Question.allCases.map { ($0, index) })
+                    picks[.sleep] = sleep
+                    let answers = Assessment(day: start, answers: picks)
+                    for focus in focuses {
+                        let plan = OnboardingPlan.propose(focus: focus, assessment: answers)
+                        let all = Transformation.frames(plan: plan.compactMap(\.ritual), assessment: answers)
+                        for dimension in RitualCategory.dimensions {
+                            let scores = all.map { $0.shape.dimension(dimension)!.score }
+                            #expect(
+                                scores == scores.sorted(),
+                                Comment(rawValue: "\(dimension.label) from \(answers.baseline(for: dimension) ?? 0), starting \(start): \(scores)")
+                            )
+                        }
+                        let overall = all.map(\.shape.overall)
+                        #expect(overall == overall.sorted(), Comment(rawValue: "OVR \(overall), starting \(start)"))
+                        #expect(!all.contains { $0.shape.state == .slipping }, "a projection never reads Slipping")
                     }
                 }
             }
@@ -149,19 +159,220 @@ struct TransformationTests {
         }
     }
 
-    /// The one place the projection is allowed to show a number going down,
-    /// and why: an answer of seventy-five is above what five days a week reads,
-    /// so the plan kept five days a week settles it at seventy-one. The
-    /// projection says what the record would say.
-    @Test("A top answer settles at the rate the plan is kept at")
-    func seventyFiveSettles() {
+    // MARK: - The floor (the 75 → 71 regression)
+
+    /// **The regression, as it was found on a phone.** Every question answered
+    /// with its strongest option: Intellect 65, Relationship 70, the other four
+    /// 75. The suggestion is the two lowest, and the plan takes the next lowest
+    /// — Discipline, by the app's order — so it is Read, Call someone and Wake
+    /// up. Five days in seven reads seventy-one, and "In 30 days" showed
+    /// Discipline and Mental at 71 under a starting 75, and OVR 72 under a
+    /// starting 73: the screen that shows what the plan does, going down for
+    /// keeping the plan.
+    @Test("The strongest answers are never projected below themselves")
+    func seventyFiveIsTheFloor() {
+        var picks = Dictionary(uniqueKeysWithValues: Assessment.Question.allCases.map { ($0, 3) })
+        picks[.sleep] = 2
+        for start in starts {
+            let answers = Assessment(day: start, answers: picks)
+            #expect(answers.baseline(for: .discipline) == 75)
+            #expect(answers.baseline(for: .mental) == 75)
+            let plan = OnboardingPlan.propose(focus: Set(answers.suggestedFocus), assessment: answers)
+            #expect(Set(plan.map(\.ritualID)) == ["read", "call", "wake"])
+
+            let all = Transformation.frames(plan: plan.compactMap(\.ritual), assessment: answers)
+            for dimension in RitualCategory.dimensions {
+                let baseline = answers.baseline(for: dimension) ?? 0
+                for frame in all {
+                    #expect(
+                        frame.shape.dimension(dimension)!.score >= baseline,
+                        Comment(rawValue: "\(dimension.label) \(frame.stop.title): \(frame.shape.dimension(dimension)!.score) under \(baseline)")
+                    )
+                }
+            }
+            let month = all[2].shape
+            #expect(month.dimension(.discipline)?.score == 75, "held, not 71")
+            #expect(month.dimension(.mental)?.score == 75, "held, not 71")
+            #expect(month.overall >= all[0].shape.overall, "OVR does not go down either")
+            #expect(all[3].shape.overall == 100)
+        }
+    }
+
+    /// The floor is a rule about a projection, and nothing else: the model
+    /// underneath still reads what the record would read, and the Becoming
+    /// tab reads the model.
+    @Test("The floor lives in the projection, not in the Shape")
+    func theModelIsUntouched() {
         let answers = uniform(3, sleep: 1)
         let plan = OnboardingPlan.propose(focus: [.physical], assessment: answers)
-        let all = Transformation.frames(plan: plan.compactMap(\.ritual), assessment: answers)
-        let physical = all.map { $0.shape.dimension(.physical)!.score }
-        #expect(physical[0] == 75)
-        #expect(physical[2] == 71)
-        #expect(physical[3] == 100)
+        let rituals = plan.compactMap(\.ritual)
+        let records = Transformation.simulate(rituals, from: start, days: 30, kept: Transformation.isKept(occurrence:))
+        let model = BlendedShape.read(records, today: start.adding(days: 30), activities: rituals, assessment: answers)
+        #expect(model.dimension(.physical)?.score == 71, "what five kept days in seven reads, as it always did")
+
+        let projected = Transformation.frame(.month, plan: rituals, assessment: answers)
+        #expect(projected.shape.dimension(.physical)?.score == 75)
+        #expect(Transformation.floored(model, at: answers).dimension(.physical)?.score == 75)
+    }
+
+    /// Lifted to the start and no further, and an unplanned dimension — at its
+    /// start already — not at all.
+    @Test("The floor never raises anything past where it started")
+    func theFloorOnlyHolds() {
+        for index in 0..<4 {
+            let answers = uniform(index)
+            let plan = OnboardingPlan.propose(focus: [.physical], assessment: answers)
+            let rituals = plan.compactMap(\.ritual)
+            for days in [7, 30] {
+                let records = Transformation.simulate(rituals, from: start, days: days, kept: Transformation.isKept(occurrence:))
+                let model = BlendedShape.read(records, today: start.adding(days: days), activities: rituals, assessment: answers)
+                let floored = Transformation.floored(model, at: answers)
+                for (before, after) in zip(model.dimensions, floored.dimensions) {
+                    let baseline = answers.baseline(for: before.category) ?? 0
+                    #expect(after.score == max(before.score, baseline))
+                }
+            }
+        }
+    }
+
+    // MARK: - The plan's own days
+
+    @Test("Every activity is proposed on the days it would be kept on")
+    func cadences() {
+        for id in ["workout", "run", "lift"] {
+            #expect(OnboardingPlan.cadence(for: id) == RitualRepeat(weekdays: [2, 4, 6]), "training, Mon Wed Fri")
+        }
+        for id in ["hardest", "focus", "study"] {
+            #expect(OnboardingPlan.cadence(for: id) == .weekdays5, "the work block, weekdays")
+        }
+        for id in ["read", "walk", "wake", "breathe", "water", "journal"] {
+            #expect(OnboardingPlan.cadence(for: id).isDaily, "a daily thing, daily")
+        }
+        #expect(OnboardingPlan.cadence(for: "call").weekdays.count == 2)
+        #expect(OnboardingPlan.cadence(for: "meal") == .weekends)
+        #expect(OnboardingPlan.cadence(for: "letter").weekdays.count == 1, "occasional things once a week")
+        for ritual in Ritual.library {
+            #expect(!OnboardingPlan.cadence(for: ritual.id).weekdays.isEmpty)
+        }
+        #expect(Set(OnboardingPlan.cadences.keys).isSubset(of: Set(Ritual.library.map(\.id))),
+                "no cadence for an activity that does not exist")
+    }
+
+    /// The Shape counts a dimension fully present from about twice a week, and
+    /// anything less made the first weeks of the blend read higher than the
+    /// record later does. See `OnboardingPlan.cadences`.
+    @Test("Nothing a proposal can hold is less than twice a week")
+    func proposalsAreAtLeastTwiceAWeek() {
+        for dimension in RitualCategory.dimensions {
+            guard let first = OnboardingPlan.starter(for: dimension) else {
+                Issue.record("no starter for \(dimension)")
+                continue
+            }
+            #expect(OnboardingPlan.cadence(for: first.id).weekdays.count >= 2, Comment(rawValue: first.id))
+        }
+    }
+
+    /// The first run's "do one now" is today's, and a day with nothing on it
+    /// can be neither kept nor counted. Every proposal has something on every
+    /// day of the week, whatever was answered and chosen.
+    @Test("Every proposed week has something on every day, today included")
+    func everyDayHasSomething() {
+        let focuses: [Set<RitualCategory>] = [
+            [], [.relationship], [.ambition], [.relationship, .ambition], [.relationship, .ambition, .physical],
+            Set(RitualCategory.dimensions),
+        ]
+        for index in 0..<4 {
+            for sleep in 0..<4 {
+                for focus in focuses {
+                    let plan = OnboardingPlan.propose(focus: focus, assessment: uniform(index, sleep: sleep))
+                    for weekday in 1...7 {
+                        #expect(plan.contains { $0.happens(on: weekday) },
+                                Comment(rawValue: "nothing on weekday \(weekday) for \(plan.map(\.ritualID))"))
+                    }
+                }
+            }
+        }
+    }
+
+    @Test("A day an activity is not on plans nothing of it, and is not a miss")
+    func restDaysAreNotMisses() {
+        // Monday 5 October 2026.
+        let monday = ForgeDay(year: 2026, month: 10, day: 5)
+        var workout = Ritual.find("workout")!
+        workout.repeats = RitualRepeat(weekdays: [2, 4, 6])
+        let read = Ritual.find("read")!
+        let records = Transformation.simulate([workout, read], from: monday, days: 30, kept: Transformation.isKept(occurrence:))
+
+        for (day, record) in records {
+            #expect(record.plannedIDs.contains("workout") == [2, 4, 6].contains(day.weekday))
+            #expect(record.plannedIDs.contains("read"))
+        }
+        // Read over its own days, training asks for its twelve in the window
+        // and not for twenty-eight — the other sixteen were never asked.
+        let shape = ForgeShape.read(records, today: monday.adding(days: 30), activities: [workout, read])
+        let physical = shape.dimensions.first { $0.category == .physical }!
+        #expect(physical.asked == 12)
+        #expect(physical.kept == Double(Transformation.keptDays(in: 12)))
+    }
+
+    /// Twenty-eight days hold four of every weekday, and the kept pattern is
+    /// laid back from the end of the stop, so the record under the thirty-day
+    /// stop reads each activity the same whichever day the plan starts on: the
+    /// work block five of seven over its twenty weekdays, the call over its
+    /// eight, reading over its twenty-eight.
+    ///
+    /// Read off the record rather than off the stop, because the stop is a
+    /// blend: an activity first planned on day three still carries a
+    /// twenty-eighth of its answer at day thirty, which is the blend being
+    /// right, not the pattern depending on the calendar.
+    @Test("The record under thirty days is the same from any start day")
+    func sameFromAnyDay() {
+        var picks = Dictionary(uniqueKeysWithValues: Assessment.Question.allCases.map { ($0, 0) })
+        picks[.sleep] = 1
+        let planned: [RitualCategory] = [.relationship, .ambition, .intellect]
+        let readings = starts.map { start -> [Int] in
+            let answers = Assessment(day: start, answers: picks)
+            let plan = OnboardingPlan.propose(focus: Set(planned), assessment: answers)
+            #expect(Set(plan.map(\.ritualID)) == ["call", "hardest", "read"])
+            let rituals = plan.compactMap(\.ritual)
+            let records = Transformation.simulate(rituals, from: start, days: 30, kept: Transformation.isKept(occurrence:))
+            let shape = ForgeShape.read(records, today: start.adding(days: 30), activities: rituals)
+            return planned.map { dimension in shape.dimensions.first { $0.category == dimension }!.score }
+        }
+        #expect(Set(readings.map(\.description)).count == 1, Comment(rawValue: "\(readings)"))
+        #expect(readings.first == [75, 70, 71], "six of eight calls, fourteen of twenty weekdays, twenty of twenty-eight days")
+    }
+
+    /// The first week can round a dimension a point above where thirty days
+    /// settle it — an activity missed on a day another one feeding it was kept
+    /// — and the seven-day stop is held to the thirty-day one rather than
+    /// showing a number that then goes down.
+    @Test("Seven days never reads above thirty")
+    func theFirstWeekIsCapped() {
+        var picks = Dictionary(uniqueKeysWithValues: Assessment.Question.allCases.map { ($0, 3) })
+        picks[.sleep] = 2
+        for start in starts {
+            let answers = Assessment(day: start, answers: picks)
+            for focus in [Set<RitualCategory>(), [.ambition], [.relationship, .ambition, .discipline]] {
+                let rituals = OnboardingPlan.propose(focus: focus, assessment: answers).compactMap(\.ritual)
+                let week = Transformation.frame(.week, plan: rituals, assessment: answers).shape
+                let month = Transformation.frame(.month, plan: rituals, assessment: answers).shape
+                for (early, late) in zip(week.dimensions, month.dimensions) {
+                    #expect(early.score <= late.score, Comment(rawValue: "\(early.category.label) starting \(start)"))
+                }
+            }
+        }
+    }
+
+    /// The blade counts days the plan asks for anything on, and only those.
+    @Test("Days kept are five of every seven days the plan asks for anything on")
+    func daysKeptFollowThePlan() {
+        let monday = ForgeDay(year: 2026, month: 10, day: 5)
+        var workout = Ritual.find("workout")!
+        workout.repeats = RitualRepeat(weekdays: [2, 4, 6])
+        #expect(Transformation.daysKept([workout], from: monday, days: 7) == Transformation.keptDays(in: 3))
+        #expect(Transformation.daysKept([workout, Ritual.find("read")!], from: monday, days: 7) == 5)
+        #expect(Transformation.daysKept([workout, Ritual.find("read")!], from: monday, days: 30) == 21)
     }
 
     // MARK: - The plan

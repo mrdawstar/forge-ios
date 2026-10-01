@@ -2,7 +2,8 @@ import Foundation
 
 // MARK: - The proposed plan
 
-/// One activity on the first run's plan, and the hour it is proposed for.
+/// One activity on the first run's plan, the days it is proposed for, and the
+/// hour.
 ///
 /// One per dimension, which is why the dimension is the identity: the plan is
 /// "something for each part you are building", and swapping a row swaps the
@@ -12,9 +13,28 @@ struct PlanEntry: Identifiable, Equatable, Sendable {
     var ritualID: String
     /// Minutes since midnight.
     var minute: Int
+    /// The days of the week, as the repeat picker writes them. See
+    /// `OnboardingPlan.cadence(for:)` for what each activity is proposed on.
+    var repeats: RitualRepeat = .daily
 
     var id: RitualCategory { dimension }
-    var ritual: Ritual? { Ritual.find(ritualID) }
+
+    /// The library activity, carrying this row's days and time — so the
+    /// projection and the rows read the same arrangement the day is written
+    /// with, rather than the library's every-day default.
+    var ritual: Ritual? {
+        guard var ritual = Ritual.find(ritualID) else { return nil }
+        ritual.repeats = repeats
+        ritual.startMinute = minute
+        return ritual
+    }
+
+    func happens(on weekday: Int) -> Bool { repeats.includes(weekday) }
+
+    /// "Mon · Wed · Fri · 18:00", "Daily · 21:30".
+    var schedule: String {
+        "\(repeats.compactLabel) \u{00B7} \(ClockMinute.label(minute))"
+    }
 }
 
 /// What the first run proposes somebody actually does, before they have done
@@ -31,10 +51,12 @@ struct PlanEntry: Identifiable, Equatable, Sendable {
 ///
 /// # When
 ///
-/// Each gets a proposed hour, morning or evening by what it is — see
+/// Each gets **the days it would actually be kept on** — see `cadence(for:)` —
+/// and a proposed hour, morning or evening by what it is — see
 /// `isEvening(_:)` — laid out one after another so two activities never start
 /// on top of each other and Plan's `untangle` has nothing to say on day one.
-/// Every hour is a proposal: the row is one tap from a time picker.
+/// The days and the hour are proposals: the row is one tap from the repeat
+/// picker and a time wheel.
 ///
 /// This is the whole of an if-then plan, which is the second of the three
 /// findings the first run cites: deciding *when* is most of what makes a thing
@@ -81,8 +103,90 @@ enum OnboardingPlan {
         }
         let minutes = proposedMinutes(for: rituals)
         return rituals
-            .map { PlanEntry(dimension: $0.category, ritualID: $0.id, minute: minutes[$0.id] ?? morningStart) }
+            .map {
+                PlanEntry(
+                    dimension: $0.category, ritualID: $0.id,
+                    minute: minutes[$0.id] ?? morningStart,
+                    repeats: cadence(for: $0.id)
+                )
+            }
             .sorted { $0.minute < $1.minute }
+    }
+
+    // MARK: - How often
+
+    /// The days an activity is proposed for.
+    ///
+    /// # Why the plan is no longer everything every day
+    ///
+    /// It was, and it was not a plan anybody keeps: nobody trains seven days a
+    /// week, does deep work on a Sunday by default, or calls the same person
+    /// every night. A plan that asks for those is abandoned in its first week
+    /// by somebody who was told it was *the* plan. So each activity is proposed
+    /// on the week it would actually be kept in:
+    ///
+    /// - **Training** — Monday, Wednesday, Friday. A body gets stronger on the
+    ///   days between.
+    /// - **Practice that is not daily** — learning, writing, explaining it out
+    ///   loud, the craft — Tuesday, Thursday, Saturday, off the training days.
+    /// - **The work block** — hardest thing first, deep work, study — weekdays.
+    /// - **Time with people** — a call, twice a week, Wednesday and Sunday; a
+    ///   meal or an hour without the phone, at weekends, when people are free.
+    /// - **Once a week**, and only ever by a swap in the plan's editor — a
+    ///   letter, helping someone, making the plan, the numbers, the avoided
+    ///   message, asking for something, shipping — one day, the one it most
+    ///   belongs to.
+    /// - **Everything else** — the small things a day is made of, and reading —
+    ///   every day. So is anything this table does not name.
+    ///
+    /// # Nothing proposed is less than twice a week
+    ///
+    /// The six first starters — the only activities a proposal is made of —
+    /// are daily, weekdays, or twice a week. The Shape counts a dimension as
+    /// fully present from eight days in twenty-eight (`ForgeShape.presenceFloor`,
+    /// "roughly twice a week — the least that can honestly be called a part of
+    /// somebody's life"), so a once-a-week call would cap Relationship at half
+    /// of what it was kept at, and `BlendedShape`'s first weeks, which scale
+    /// that floor, would read a lone kept call as more than the record later
+    /// does: the projection read higher at seven days than at thirty.
+    /// Proposed at twice a week, the plan is what the Shape can read in full.
+    ///
+    /// # Nothing new is stored
+    ///
+    /// These are `RitualRepeat` values, the weekday set every activity in Forge
+    /// already has (§5 #12), and `ForgeViewModel.adoptPlan` writes them through
+    /// the same `RitualEdit.repeats` the repeat picker writes. A day the plan
+    /// has nothing on is not a miss — nothing is planned on it (§5 #11).
+    ///
+    /// # Every proposal has something on every day
+    ///
+    /// Four of the six dimensions' first starters are daily and a plan covers at
+    /// least three dimensions, so every proposed week has something on each day
+    /// — and so on today, which the first run's "do one now" needs.
+    /// `TransformationTests` holds it for every weekday and every answer.
+    static let cadences: [String: RitualRepeat] = [
+        "workout": training, "run": training, "lift": training,
+        "learn": practice, "write": practice, "teach": practice, "craft": practice,
+        "hardest": .weekdays5, "focus": .weekdays5, "study": .weekdays5,
+        "call": RitualRepeat(weekdays: [4, 1]),
+        "meal": .weekends, "present": .weekends,
+        "letter": weekly(1), "help": weekly(7), "arrange": weekly(5),
+        "numbers": weekly(2), "reach": weekly(2), "askfor": weekly(4), "ship": weekly(6),
+        // Before they ask twice.
+        "plants": RitualRepeat(weekdays: [4, 1]),
+    ]
+
+    /// Monday, Wednesday, Friday.
+    private static let training = RitualRepeat(weekdays: [2, 4, 6])
+    /// Tuesday, Thursday, Saturday.
+    private static let practice = RitualRepeat(weekdays: [3, 5, 7])
+
+    private static func weekly(_ weekday: Int) -> RitualRepeat {
+        RitualRepeat(weekdays: [weekday])
+    }
+
+    static func cadence(for ritualID: String) -> RitualRepeat {
+        cadences[ritualID] ?? .daily
     }
 
     /// Activities whose nature is the end of a day, whatever they are filed
@@ -156,23 +260,21 @@ enum OnboardingPlan {
 /// does not show it now.
 ///
 /// - **Where you are now:** no record. The six baselines.
-/// - **In 7 days** and **in 30 days:** the proposed plan, planned every day and
-///   kept five days of seven, spread evenly and starting with today. The
-///   assumption is printed under both, word for word.
+/// - **In 7 days** and **in 30 days:** the proposed plan **on its own days** —
+///   training on its three, reading on its seven — with five of every seven of
+///   each activity's planned days kept, spread evenly and laid back from the
+///   end of the stop (`isKept(occurrence:)`). A day an activity is not planned
+///   on is neither kept nor missed (§5 #11). The assumption is printed under both, word for word; no
+///   dimension is projected below its starting number (`floored`), and none
+///   reads higher at seven days than at thirty (`capped`), so nothing on the
+///   screen goes down for keeping the plan.
 /// - **Full potential:** every dimension planned every day and kept for
 ///   twenty-eight days — a hundred in each, which is the edge of the instrument
 ///   rather than a target (see `ForgeShapeView`), and said as "all six built
-///   and kept".
+///   and kept". It is not the plan, so it does not take the plan's days.
 ///
 /// These are projections and never promises (§5 #4): nothing on the screen says
 /// "will".
-///
-/// # One honest wrinkle
-///
-/// Five days of seven is a reading of seventy-one. A planned dimension whose
-/// baseline is already above that — the top answer, 75 — is projected to settle
-/// at the rate the plan is kept at, a few points lower, because that is what
-/// the record would show. It is left true rather than smoothed over.
 enum Transformation {
 
     /// Days kept per week under the printed assumption.
@@ -203,10 +305,13 @@ enum Transformation {
         }
 
         /// The assumption, printed under the stop. Never "will".
+        ///
+        /// "Days on the plan" rather than "days a week": the plan has its own
+        /// days now, and a rest day is not a day anybody failed to keep.
         var footnote: String {
             switch self {
             case .now: "From your answers."
-            case .week, .month: "Projected if you keep five days a week of the plan you're about to see."
+            case .week, .month: "Projected if you keep five of every seven days on the plan you're about to see."
             case .potential: "All six built and kept."
             }
         }
@@ -246,20 +351,47 @@ enum Transformation {
         }
     }
 
-    /// Whether day `index` (nought is today) of a five-a-week projection is
-    /// kept.
+    /// Whether an activity's planned day is kept under the printed assumption,
+    /// by `index`: how many of its planned days come after it before the stop
+    /// (nought is its last).
     ///
-    /// Spread as evenly as the week allows and starting with a kept day —
-    /// today is the day somebody keeps their first thing in the first run —
-    /// so the count over any number of days is `keptDays(in:)`: five of seven,
-    /// twenty-one of thirty.
-    static func isKept(day index: Int) -> Bool {
+    /// **Counted per activity, over the days it is planned on**, never over the
+    /// calendar: training on three days a week is projected over its three,
+    /// reading over its seven, and a day an activity is not on is not a day it
+    /// could miss. Spread as evenly as the pattern allows, so any run of
+    /// planned days holds `keptDays(in:)` of them: five of seven, twenty-one of
+    /// thirty.
+    ///
+    /// **Counted back from the end of the stop**, because a stop is read over
+    /// its last twenty-eight days (`ForgeShape.window`) and twenty-eight days
+    /// hold exactly four of every weekday. Laid from the end, the window holds
+    /// the same kept count whatever weekday the plan started on; laid from the
+    /// start, the days that fell before the window decided it — a weekday
+    /// block read 75 from a Monday install and 70 from a Friday one.
+    ///
+    /// It used to be counted over calendar days, which was the same thing
+    /// while every activity was planned every day. With a weekly plan it is
+    /// not: which three days training fell on decided whether it was kept two
+    /// times in three or three in three.
+    static func isKept(occurrence index: Int) -> Bool {
         keptDays(in: index + 1) > keptDays(in: index)
     }
 
     static func keptDays(in days: Int) -> Int {
         guard days > 0 else { return 0 }
         return (keptPerWeek * days + 2) / 7
+    }
+
+    /// Days kept by the end of a stop: five of every seven days the plan asks
+    /// for anything on. A day it asks for nothing on can be neither kept nor
+    /// missed, so it counts neither way. With something every day — which is
+    /// every proposal — it is five of seven calendar days, as it always was.
+    static func daysKept(_ plan: [Ritual], from start: ForgeDay, days: Int) -> Int {
+        let asking = (0..<max(0, days)).count { index in
+            let weekday = start.adding(days: index).weekday
+            return plan.contains { $0.happens(on: weekday) }
+        }
+        return keptDays(in: asking)
     }
 
     /// The blade a count of days kept has earned. Full potential is the last
@@ -285,15 +417,15 @@ enum Transformation {
             )
 
         case .week, .month:
-            let records = simulate(plan, from: start, days: stop.days, kept: isKept(day:))
+            let kept = daysKept(plan, from: start, days: stop.days)
+            let shape = projected(stop, plan: plan, assessment: assessment)
             return Frame(
                 stop: stop,
-                shape: BlendedShape.read(
-                    records, today: start.adding(days: stop.days),
-                    activities: plan, assessment: assessment
-                ),
-                daysKept: keptDays(in: stop.days),
-                blade: blade(forDaysKept: keptDays(in: stop.days))
+                shape: stop == .week
+                    ? capped(shape, by: projected(.month, plan: plan, assessment: assessment))
+                    : shape,
+                daysKept: kept,
+                blade: blade(forDaysKept: kept)
             )
 
         case .potential:
@@ -312,26 +444,138 @@ enum Transformation {
     }
 
     /// Days that have not happened, written the way `ProgressStore` would have
-    /// written them: the plan planned every day, all of it done and the blade
-    /// pulled on a kept day, nothing done on the others.
+    /// written them.
+    ///
+    /// Each day plans what the plan has **on that weekday** — the same
+    /// `RitualRepeat.includes` the day list filters by, so a Tuesday asks for
+    /// nothing that is only on Mondays — and each activity is done on the
+    /// planned days `kept` says, counted for that activity alone and back from
+    /// the end of the stop (see `isKept(occurrence:)`). A day with all of it
+    /// done is earned; a day with nothing planned is not written, the way an
+    /// empty day never is.
     static func simulate(
         _ plan: [Ritual], from start: ForgeDay, days: Int, kept: (Int) -> Bool
     ) -> [ForgeDay: DayRecord] {
-        let ids = plan.map(\.id)
+        let span = (0..<max(0, days)).map { start.adding(days: $0) }
+        // How many of each activity's planned days are still to come.
+        var remaining: [String: Int] = [:]
+        for day in span {
+            for ritual in plan where ritual.happens(on: day.weekday) {
+                remaining[ritual.id, default: 0] += 1
+            }
+        }
         var records: [ForgeDay: DayRecord] = [:]
-        for index in 0..<max(0, days) {
-            let day = start.adding(days: index)
-            let isKept = kept(index)
+        for day in span {
+            let asked = plan.filter { $0.happens(on: day.weekday) }
+            guard !asked.isEmpty else { continue }
             let at = day.startOfDay().addingTimeInterval(12 * 3600)
+            var done: [Ritual] = []
+            for ritual in asked {
+                let after = remaining[ritual.id, default: 1] - 1
+                remaining[ritual.id] = after
+                if kept(after) { done.append(ritual) }
+            }
             records[day] = DayRecord(
                 day: day,
-                completions: isKept
-                    ? ids.map { DayRecord.Completion(ritualID: $0, method: .honor, at: at) }
-                    : [],
-                plannedIDs: ids,
-                extractedAt: isKept ? at : nil
+                completions: done.map { DayRecord.Completion(ritualID: $0.id, method: .honor, at: at) },
+                plannedIDs: asked.map(\.id),
+                extractedAt: done.count == asked.count ? at : nil
             )
         }
         return records
+    }
+
+    // MARK: - The floor under a projection, and the ceiling on the first week
+
+    /// A stop's six as the model reads them over days that have not happened,
+    /// floored at where the answers put them.
+    private static func projected(_ stop: Stop, plan: [Ritual], assessment: Assessment) -> BlendedShape {
+        let records = simulate(plan, from: assessment.day, days: stop.days, kept: isKept(occurrence:))
+        let read = BlendedShape.read(
+            records, today: assessment.day.adding(days: stop.days),
+            activities: plan, assessment: assessment
+        )
+        return floored(read, at: assessment)
+    }
+
+    /// No dimension reads higher at seven days than at thirty.
+    ///
+    /// # Why
+    ///
+    /// Each activity is kept on its own days, five of every seven of them, so
+    /// in a first week the days one activity is missed can happen to be days
+    /// another — feeding the same dimension a third of a day — is kept. Over
+    /// seven days that rounds a dimension a point or two above where thirty
+    /// days settle it, and the screen showed 77 at seven days and 76 at
+    /// thirty: a number going down for keeping the plan, the same wrong picture
+    /// `floored` fixes, from a different rounding. The projection holds one
+    /// rate throughout, so the earlier stop is held to the later one — never
+    /// the later lifted to the earlier, which would show thirty days of the
+    /// plan reading more than they do.
+    static func capped(_ shape: BlendedShape, by later: BlendedShape) -> BlendedShape {
+        BlendedShape(
+            dimensions: zip(shape.dimensions, later.dimensions).map { dimension, then in
+                guard dimension.hasScore, then.hasScore, dimension.score > then.score else { return dimension }
+                return BlendedShape.Dimension(
+                    record: dimension.record,
+                    baseline: dimension.baseline,
+                    source: dimension.source,
+                    score: then.score,
+                    direction: dimension.direction
+                )
+            },
+            record: shape.record,
+            hasAssessment: shape.hasAssessment
+        )
+    }
+
+    /// No dimension is projected below where the answers put it:
+    /// `shown = max(baseline, projected)`, each of the six, at the seven- and
+    /// thirty-day stops.
+    ///
+    /// # Why
+    ///
+    /// Five kept days in seven reads seventy-one, and an answer can start a
+    /// dimension at seventy-five. So the strongest answer, projected over the
+    /// plan kept exactly as the footnote assumes, came out at 71 on the
+    /// thirty-day stop — a number going down on the screen that shows what the
+    /// plan does, for keeping the plan. Nothing anybody did produced it: it was
+    /// the printed assumption sitting below a starting number, and a projection
+    /// has no record in it for the number to be honest about. A dimension that
+    /// is already strong now stays where it is while the weaker ones rise,
+    /// which is the true picture of that plan.
+    ///
+    /// # What it does not do
+    ///
+    /// - **It never raises anything past its start.** A dimension below its
+    ///   baseline is lifted *to* the baseline; an unplanned one is at its
+    ///   baseline already, so it cannot move.
+    /// - **It does not touch `BlendedShape` or `ForgeShape`.** This is a rule
+    ///   about days that have not happened. The Becoming tab still reads the
+    ///   record, and somebody who answered 75 and keeps five days in seven
+    ///   sees about 71 once the record speaks for them — because that is what
+    ///   they did.
+    /// - **A floored dimension is not slipping.** It is held at its start, so
+    ///   whatever its two simulated fortnights rounded to, it reads as steady.
+    ///
+    /// OVR follows by itself: it is the mean of the six shown.
+    static func floored(_ shape: BlendedShape, at assessment: Assessment) -> BlendedShape {
+        BlendedShape(
+            dimensions: shape.dimensions.map { dimension in
+                guard dimension.hasScore,
+                      let baseline = assessment.baseline(for: dimension.category),
+                      dimension.score < baseline
+                else { return dimension }
+                return BlendedShape.Dimension(
+                    record: dimension.record,
+                    baseline: dimension.baseline,
+                    source: dimension.source,
+                    score: baseline,
+                    direction: dimension.direction == .slipping ? .steady : dimension.direction
+                )
+            },
+            record: shape.record,
+            hasAssessment: shape.hasAssessment
+        )
     }
 }

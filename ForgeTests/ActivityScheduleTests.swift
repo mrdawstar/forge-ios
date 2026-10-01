@@ -176,6 +176,23 @@ struct ActivityScheduleTests {
         #expect(RitualRepeat(weekdays: [1, 2]).label == "Mon, Sun")
     }
 
+    /// The first run's plan rows: "Mon · Wed · Fri · 18:00", "Daily · 21:30".
+    @Test("A week reads at a glance, and in full for VoiceOver")
+    func compactAndSpokenLabels() {
+        #expect(RitualRepeat.daily.compactLabel == "Daily")
+        #expect(RitualRepeat(weekdays: []).compactLabel == "Daily", "no days is every day")
+        #expect(RitualRepeat.weekdays5.compactLabel == "Weekdays")
+        #expect(RitualRepeat.weekends.compactLabel == "Weekends")
+        #expect(RitualRepeat(weekdays: [1]).compactLabel == "Sundays")
+        #expect(RitualRepeat(weekdays: [6, 2, 4]).compactLabel == "Mon \u{00B7} Wed \u{00B7} Fri")
+        #expect(RitualRepeat(weekdays: [4, 1]).compactLabel == "Wed \u{00B7} Sun")
+
+        #expect(RitualRepeat.daily.spokenLabel == "Every day")
+        #expect(RitualRepeat(weekdays: [1]).spokenLabel == "Sundays")
+        #expect(RitualRepeat(weekdays: [6, 2, 4]).spokenLabel == "Monday, Wednesday and Friday")
+        #expect(RitualRepeat(weekdays: [4, 1]).spokenLabel == "Wednesday and Sunday")
+    }
+
     // MARK: - How long it says it is
 
     @Test("Durations are spelled the way a person says them")
@@ -219,10 +236,11 @@ struct ActivityScheduleTests {
 /// somebody agreeing to do that thing every day for the rest of time, with the
 /// only sign of it a repeat picker three screens away.
 ///
-/// **The one door that says "every day" out loud is the 1.1 first run's plan**
-/// (`ForgeViewModel.adoptPlan`): it is shown as a day with a time on every row,
-/// under the words "every day", after a screen that projects exactly that plan
-/// kept five days a week. Those tests are the first three below.
+/// **The one door that says its days out loud is the 1.1 first run's plan**
+/// (`ForgeViewModel.adoptPlan`): every row reads its days and its time —
+/// "Mon · Wed · Fri · 18:00" — after a screen that projects exactly that
+/// week, and each is written on those days. Those tests are the first three
+/// below.
 ///
 /// The tests are here rather than in a file of their own because this is the
 /// same question `RitualRepeat` answers above, asked of the objects that write
@@ -261,7 +279,7 @@ struct OnboardingDayTests {
         }
     }
 
-    @Test("The plan chosen in onboarding is every day's, at the time on each row")
+    @Test("A daily row in onboarding's plan is written every day, at its time")
     func planIsEveryDay() {
         let (vm, progress) = makeViewModel()
         let today = progress.currentDay.weekday
@@ -277,6 +295,47 @@ struct OnboardingDayTests {
             #expect(ritual?.happens(on: otherWeekday(than: today)) == true)
             #expect(ritual?.startMinute == entry.minute)
         }
+    }
+
+    /// The other half: a row with days of its own is written on exactly those
+    /// days, through the same `RitualEdit.repeats` the repeat picker writes.
+    @Test("A row with its own days is written on those days and no others")
+    func planKeepsEachRowsDays() {
+        let (vm, progress) = makeViewModel()
+        let today = progress.currentDay.weekday
+        let other = otherWeekday(than: today)
+        var entries = plan([("read", 20 * 60), ("workout", 18 * 60)])
+        entries[1].repeats = RitualRepeat(weekdays: [other])
+
+        vm.adoptPlan(entries)
+
+        #expect(vm.ritual("workout")?.repeats == RitualRepeat(weekdays: [other]))
+        #expect(vm.ritual("workout")?.startMinute == 18 * 60)
+        #expect(vm.todayRitualIDs == ["read"], "the workout is not asked for on a day it is not on")
+        #expect(Set(vm.rituals(onWeekday: other).map(\.id)) == ["read", "workout"])
+        #expect(vm.libraryEdits["workout"]?.repeats == RitualRepeat(weekdays: [other]),
+                "stored as an ordinary edit, nothing new")
+    }
+
+    /// The closing line names what somebody chose that tomorrow has something
+    /// for — "Tomorrow, more physical." — and nothing tomorrow does not ask for.
+    @Test("The closing line promises only what is on tomorrow")
+    func closingNamesTomorrowsOwn() {
+        let (vm, progress) = makeViewModel()
+        let tomorrow = progress.currentDay.adding(days: 1).weekday
+        vm.focus = [.physical, .relationship]
+
+        var entries = plan([("walk", 7 * 60), ("call", 19 * 60)])
+        entries[1].repeats = RitualRepeat(weekdays: [otherWeekday(than: tomorrow)])
+        vm.adoptPlan(entries)
+        #expect(vm.focusTomorrow == [.physical], "the call is not tomorrow's")
+
+        entries[1].repeats = RitualRepeat(weekdays: [tomorrow])
+        vm.adoptPlan(entries)
+        #expect(vm.focusTomorrow == [.relationship, .physical], "in the app's order")
+
+        vm.focus = []
+        #expect(vm.focusTomorrow.isEmpty)
     }
 
     /// The reason the closing beat now says "the same plan again" rather than

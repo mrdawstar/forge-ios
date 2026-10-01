@@ -22,40 +22,129 @@ enum FirstRunCopy {
 
     static let drawingTitle = "Drawing your starting shape."
 
+    static let scienceOverline = "The research"
     static let scienceTitle = "Why it works"
+    static let sources = "Sources"
 
     static let planTitle = "Your plan"
-    static let planSubtitle = "Every day, at these times. Tap one to swap it or change its time."
+    static let planSubtitle = "On these days, at these times. Tap one to change it."
+    /// Under the plan when an edit has left nothing on today. The next two
+    /// beats — do one now, the first pull — are today's.
+    static let planNothingToday = "Nothing here is on today. Add today to one of them to begin now."
 
-    /// Three findings, each ending on the part of Forge it explains. Only the
-    /// papers DIRECTION_1_1 lists may be cited, paraphrased and never
-    /// overstated — `FirstRunTests` holds the list.
+    /// The line under the one thing the first run asks for, when it builds a
+    /// part somebody chose: "The first one for Physical."
+    ///
+    /// It read "The first of your physical.", which borrows the dimension's name
+    /// as if it were a noun ("your mental", "your relationship") and is not a
+    /// thing anybody says. The six are names of stats everywhere else in the
+    /// app, capitalised on every tile, so the line uses the name.
+    static func evidence(for dimension: RitualCategory) -> String {
+        "The first one for \(dimension.label)."
+    }
+
+    /// Three findings, each read in the order the screen is: a figure from the
+    /// paper, the principle in one line, the part of Forge built on it, and who
+    /// found it. The fuller finding and the full reference are one tap further,
+    /// under Sources.
+    ///
+    /// Only the papers DIRECTION_1_1 lists may be cited, paraphrased and never
+    /// overstated, and every figure is the paper's own — `FirstRunTests` holds
+    /// all of it. The figures are digits because they are figures, the way a
+    /// score is; everything read as a sentence spells its counts.
     static let findings: [Finding] = [
         Finding(
-            title: "Sixty-six days",
-            body: "In one study, new daily habits took a median of sixty-six days to become automatic. Missing one day along the way did not materially affect the process.",
+            figure: "66",
+            unit: "Median days",
+            principle: "Repetition makes a new habit automatic.",
             mechanic: "Arcs are built around it.",
+            source: "Lally et al., 2010",
+            detail: "In one study, new daily habits took a median of sixty-six days to become automatic. Missing one day along the way did not materially affect the process.",
             citation: "Lally, van Jaarsveld, Potts & Wardle (2010). European Journal of Social Psychology 40(6), 998–1009."
         ),
         Finding(
-            title: "Decide when",
-            body: "Across ninety-four studies, if-then plans \u{2014} deciding in advance when and where to act \u{2014} had a medium-to-large effect on reaching goals.",
-            mechanic: "Every activity gets a time.",
+            figure: "94",
+            unit: "Studies",
+            principle: "Deciding when and where raises follow-through.",
+            mechanic: "Every activity gets a day and a time.",
+            source: "Gollwitzer & Sheeran, 2006",
+            detail: "Across ninety-four studies, if-then plans \u{2014} deciding in advance when and where to act \u{2014} had a medium-to-large effect on reaching goals.",
             citation: "Gollwitzer & Sheeran (2006). Advances in Experimental Social Psychology 38, 69–119."
         ),
         Finding(
-            title: "Keep a record",
-            body: "Across 138 studies, monitoring progress improved goal attainment, more so when the progress was physically recorded or made public.",
+            figure: "138",
+            unit: "Studies",
+            principle: "Recording progress helps you reach goals.",
             mechanic: "That's why you pull the sword.",
+            source: "Harkin et al., 2016",
+            detail: "Across 138 studies, monitoring progress improved goal attainment, more so when the progress was physically recorded or made public.",
             citation: "Harkin et al. (2016). Psychological Bulletin 142(2), 198–229."
         ),
     ]
 
     struct Finding: Equatable, Sendable {
-        let title: String
-        let body: String
+        /// The number the row is read from, as it appears in the paper.
+        let figure: String
+        /// What the figure counts.
+        let unit: String
+        /// The finding, as one plain claim.
+        let principle: String
+        /// The part of Forge built on it.
         let mechanic: String
+        /// Author and year, on the row.
+        let source: String
+        /// The finding in full, under Sources.
+        let detail: String
+        /// The full reference, under Sources.
         let citation: String
+    }
+}
+
+// MARK: - Answering
+
+/// How an answer moves the questions on — the same in the first run and in the
+/// assessment taken from Becoming, so answering feels one way everywhere.
+///
+/// # What it replaced
+///
+/// A fifth of a second held on the chosen row, then half a second of soft
+/// spring in which the old question faded out *under* the new one fading in:
+/// two half-transparent questions on the screen at once, seven times in a row.
+/// Off a recording, a tap took about 0.8 s to settle and the middle of it was
+/// the muddiest frame in the sequence — the moment somebody wonders whether the
+/// app is waiting for something.
+///
+/// # What it is
+///
+/// The chosen row lights at once, with its tick (both unchanged), and holds for
+/// 140 ms so the choice is seen to land. Then the next question pushes in from
+/// the side the sequence is going, while the old one leaves the other way in
+/// 140 ms — the two are moving apart for the few frames they share, so neither
+/// is ever read through the other. Tap to rest is about half a second, and the
+/// new question is readable well before that. Back reverses the direction.
+///
+/// Under Reduce Motion nothing travels: the old question is gone in a tenth of
+/// a second and the new one fades in.
+enum AnswerMotion {
+    /// How long the chosen row is held before the next question.
+    static let hold: Duration = .milliseconds(140)
+
+    private static let shift: CGFloat = 28
+
+    static func transition(forward: Bool, reduceMotion: Bool) -> AnyTransition {
+        guard !reduceMotion else {
+            return .asymmetric(
+                insertion: .opacity.animation(.easeOut(duration: 0.22).delay(0.05)),
+                removal: .opacity.animation(.easeIn(duration: 0.1))
+            )
+        }
+        let offset = forward ? shift : -shift
+        return .asymmetric(
+            insertion: .opacity.combined(with: .offset(x: offset))
+                .animation(.smooth(duration: 0.34).delay(0.04)),
+            removal: .opacity.combined(with: .offset(x: -offset))
+                .animation(.easeIn(duration: 0.14))
+        )
     }
 }
 
@@ -281,14 +370,25 @@ private struct AnswerRow: View {
 
 // MARK: - The shape drawing itself
 
-/// The starting shape, drawn from the answers: about two and a half seconds,
-/// and a tap anywhere skips it.
+/// The starting shape, drawn from the answers: three seconds, and a tap
+/// anywhere skips it.
 ///
 /// The polygon grows out of the centre to the six baselines while the vertices
 /// come on one at a time in their own colours, each with a haptic a little
 /// stronger than the last. It is the one moment the sequence spends on showing
 /// rather than telling, and it is short because it is only a transition: the
 /// numbers themselves are on the next screen.
+///
+/// # The timing
+///
+/// It was 2.4 s, and the finished shape was on screen for about half a second
+/// of it: the last vertex lit at 1.65 s, the polygon came to rest at 1.9 s,
+/// and the beat left at 2.4 — so the one picture the sequence draws for
+/// somebody was gone about as soon as it was whole. The drawing is now about
+/// a tenth slower (a vertex every 330 ms, the polygon over 2.1 s), which is
+/// easier to follow without being slow, and the whole shape then rests for
+/// about a second before the beat moves on. Nothing else waits on it: a tap
+/// still skips it at any point.
 ///
 /// Under it, at most one line — a gain, chosen by the screen-time answer
 /// (`Assessment.gainLine`). Never a fear number.
@@ -307,7 +407,12 @@ struct DrawingBeat: View {
     @State private var isFinished = false
 
     /// How long the beat holds before it moves on by itself.
-    static let length: Duration = .milliseconds(2400)
+    static let length: Duration = .milliseconds(3000)
+    /// How long the polygon takes to grow to the six baselines.
+    private static let growth: Double = 2.1
+    /// Before the first vertex lights, and then between each of the rest.
+    private static let firstVertex: Duration = .milliseconds(170)
+    private static let nextVertex: Duration = .milliseconds(330)
 
     private var targets: [Double] {
         RitualCategory.dimensions.map { Double(assessment.baseline(for: $0) ?? 0) / 100 }
@@ -320,7 +425,7 @@ struct DrawingBeat: View {
             StatHexagon(
                 values: values,
                 lit: lit,
-                animation: reduceMotion ? nil : .easeOut(duration: 1.9)
+                animation: reduceMotion ? nil : .easeOut(duration: Self.growth)
             )
             .frame(maxWidth: typeSize.isAccessibilitySize ? 200 : 290)
             .padding(.horizontal, 32)
@@ -367,7 +472,7 @@ struct DrawingBeat: View {
             // are lit on a clock beside it, so the two finish together.
             values = targets
             for (step, dimension) in RitualCategory.dimensions.enumerated() {
-                try? await Task.sleep(for: .milliseconds(step == 0 ? 150 : 300))
+                try? await Task.sleep(for: step == 0 ? Self.firstVertex : Self.nextVertex)
                 guard !Task.isCancelled, !isFinished else { return }
                 lit.insert(dimension)
                 ForgeHaptics.shared.shapeRising(step: step, of: RitualCategory.dimensions.count)
@@ -408,6 +513,8 @@ struct AssessmentSheet: View {
     @State private var index = 0
     @State private var answers: [Assessment.Question: Int] = [:]
     @State private var taken: Assessment?
+    /// Which way the questions are going, for `AnswerMotion`.
+    @State private var forward = true
 
     private let questions = Assessment.Question.allCases
 
@@ -440,10 +547,7 @@ struct AssessmentSheet: View {
                             answer(choice)
                         }
                         .id(index)
-                        .transition(reduceMotion ? .opacity : .asymmetric(
-                            insertion: .opacity.combined(with: .offset(x: 24)),
-                            removal: .opacity
-                        ))
+                        .transition(AnswerMotion.transition(forward: forward, reduceMotion: reduceMotion))
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -458,17 +562,26 @@ struct AssessmentSheet: View {
             dismiss()
             return
         }
-        withAnimation(.smooth(duration: 0.35)) { index -= 1 }
+        // The direction first, and the move a turn later, so the question
+        // leaving has been drawn with the transition that sends it right.
+        forward = false
+        DispatchQueue.main.async {
+            withAnimation(.smooth(duration: 0.3)) { index -= 1 }
+        }
     }
 
     private func answer(_ choice: Int) {
         let question = questions[index]
         answers[question] = choice
+        forward = true
+        let answered = index
         Task { @MainActor in
             // Long enough to see the answer land, short enough not to wait.
-            try? await Task.sleep(for: .milliseconds(220))
+            try? await Task.sleep(for: AnswerMotion.hold)
+            // Back inside the hold wins, as it does in the first run.
+            guard index == answered, taken == nil else { return }
             if index + 1 < questions.count {
-                withAnimation(.smooth(duration: 0.35)) { index += 1 }
+                withAnimation(.smooth(duration: 0.3)) { index += 1 }
                 return
             }
             let assessment = Assessment(day: forge.progress.currentDay, answers: answers)
