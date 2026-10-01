@@ -779,11 +779,13 @@ struct TelemetryTests {
         .reentryShown,
         .reentryRecovered,
         .chapterClosed,
-        .paywallView(.firstBlade),
-        .paywallDismissed(.weeklyReading),
+        .paywallView(.onboarding),
+        .exitOfferView,
+        .exitOfferAccepted,
         .trialStarted(.annual),
         .purchaseCompleted(.lifetime),
         .restoreTapped,
+        .founderDetected,
         .readingFellBack,
     ]
 
@@ -795,8 +797,8 @@ struct TelemetryTests {
             "day_earned", "pull_abandoned", "challenge_accepted",
             "challenge_completed", "activity_added", "notification_opened",
             "weekly_review_completed", "reentry_shown", "reentry_recovered",
-            "chapter_closed", "paywall_view", "paywall_dismissed",
-            "trial_started", "purchase_completed", "restore_tapped",
+            "chapter_closed", "paywall_view", "exit_offer_view", "exit_offer_accepted",
+            "trial_started", "purchase_completed", "restore_tapped", "founder_detected",
             "reading_fell_back",
         ])
     }
@@ -821,6 +823,14 @@ struct TelemetryTests {
         #expect(ForgeTelemetry.Event.activityCompleted(.basic).parameters == ["method": "basic"])
         #expect(ForgeTelemetry.Event.notificationOpened(.review).parameters == ["kind": "review"])
         #expect(ForgeTelemetry.Event.purchaseCompleted(.annual).parameters == ["plan": "annual"])
+        // Forge Pro: the door, the plan by name, never a price or an id.
+        #expect(ForgeTelemetry.PaywallDoor.allCases.map(\.rawValue) == ["onboarding", "locked", "settings", "ai"])
+        #expect(ForgeTelemetry.Event.paywallView(.ai).parameters == ["door": "ai"])
+        #expect(ForgeTelemetry.Event.trialStarted(.annualOffer).parameters == ["plan": "annual_offer"])
+        #expect(ForgeTelemetry.Event.exitOfferView.parameters.isEmpty)
+        #expect(ForgeTelemetry.Event.exitOfferAccepted.parameters.isEmpty)
+        #expect(ForgeTelemetry.Event.founderDetected.parameters.isEmpty)
+        #expect(ForgeTelemetry.Event.notificationOpened(.trial).parameters == ["kind": "trial"])
         #expect(ForgeTelemetry.Event.onboardingFocusChosen(count: 0).parameters == ["count": "0"])
     }
 
@@ -838,6 +848,8 @@ struct TelemetryTests {
         #expect(ForgeTelemetry.Step(.question(7)) == nil, "there is no eighth question")
         #expect(ForgeTelemetry.Step(.build) == .build)
         #expect(ForgeTelemetry.Step(.metaphor) == .pullToBegin)
+        #expect(ForgeTelemetry.Step(.paywall) == .paywall)
+        #expect(ForgeTelemetry.Step.paywall.rawValue == "paywall")
         #expect(ForgeTelemetry.Step(.doOne) == .doOne)
         #expect(ForgeTelemetry.Step(.closing) == .closing)
         #expect(ForgeTelemetry.Step(.finished) == nil)

@@ -91,8 +91,9 @@ struct PracticeArtifact: View {
             Rectangle().fill(ForgeTheme.bg)
 
             VStack(spacing: 0) {
-                // The sword in the stone — the same plate the paywall uses,
-                // faded into the black at its foot.
+                // The sword in the stone, faded into the black at its foot.
+                // (The paywall draws `hero-plate` since 1.1, which is the same
+                // art with its empty space made true black.)
                 Image("hero")
                     .resizable()
                     .aspectRatio(contentMode: .fill)

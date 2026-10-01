@@ -26,10 +26,12 @@ import SwiftUI
 /// transaction. Going back is one tap on the swatch that was there before, and
 /// the previous choice is still on screen while the new one is being looked at.
 ///
-/// # Seven of the eight are Forge Pro
+/// # Seven of the eight go with new days
 ///
-/// Forge blue is free; the other seven carry a lock and open the paywall
-/// instead of applying. See `PremiumGate`, which is the whole rule.
+/// Forge blue is everybody's. The other seven are worn by anybody who keeps new
+/// days — a subscriber, a free week, a founder — and carry a lock for somebody
+/// lapsed, opening the paywall instead of applying. See `PremiumGate`, which
+/// is the whole rule.
 struct AppearanceView: View {
 
     /// Read straight off the singleton. See `ForgeAppearance` — this is the one
@@ -38,11 +40,12 @@ struct AppearanceView: View {
     private var appearance: ForgeAppearance { ForgeAppearance.shared }
 
     @Environment(\.dynamicTypeSize) private var typeSize
-    /// Optional so a preview without a store still draws — as the free tier.
+    /// Optional so a preview without a store still draws — unlocked, the way
+    /// an unanswered StoreKit is treated everywhere.
     @Environment(ForgeStore.self) private var store: ForgeStore?
     @State private var paywallDoor: ForgeTelemetry.PaywallDoor?
 
-    private var isPremium: Bool { store?.isPremium ?? false }
+    private var access: ProAccess { store?.access ?? .unknown }
 
     /// Four across on a normal phone, two at the accessibility sizes, where a
     /// name under a swatch needs the whole half-width to stay on one line.
@@ -67,8 +70,8 @@ struct AppearanceView: View {
                         }
                     }
 
-                    if !isPremium {
-                        Text("Forge blue is free. The other seven come with Forge Pro.")
+                    if !access.keepsNewDays {
+                        Text("Forge blue is yours. The other seven come with Forge Pro.")
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                             .fixedSize(horizontal: false, vertical: true)
@@ -172,12 +175,12 @@ struct AppearanceView: View {
     /// trying to judge.
     private func swatch(_ option: ForgeThemeAccent) -> some View {
         let isChosen = appearance.accent == option
-        let isLocked = PremiumGate.isLocked(option, isPremium: isPremium)
+        let isLocked = PremiumGate.isLocked(accent: option, for: access)
         return Button {
             guard !isChosen else { return }
             guard !isLocked else {
                 ForgeHaptics.shared.tap()
-                paywallDoor = .accent
+                paywallDoor = .locked
                 return
             }
             ForgeHaptics.shared.detent()

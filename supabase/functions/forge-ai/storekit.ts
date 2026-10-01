@@ -46,15 +46,21 @@ export const FORGE_BUNDLE_ID = "com.dawid.forge";
 
 export type ProductKind = "renewable" | "lifetime";
 
-/// `PremiumProduct` in `Forge/Models/Premium.swift`, and `Forge.storekit`.
+/// `PremiumProduct` in `Forge/Models/Premium.swift`, `Forge.storekit` and the
+/// table in `docs/APP_STORE.md` §7. `PremiumTests.productsAgree` (Swift) reads
+/// this file and fails if the four disagree.
 ///
-/// Forge Pro sells three: monthly and annual (auto-renewable, one group) and
-/// lifetime. Monthly was deliberately absent in 1.0 and was added back with
-/// Forge Pro — see `Premium.swift`. The renewable path below is not specific to
-/// a period, so the monthly id is the whole change here.
+/// Forge Pro sells four: annual, the annual offer and monthly (auto-renewable,
+/// one group) and lifetime. The offer — a lower annual price, shown once to
+/// somebody who declines the paywall — is a renewable like the other two, and
+/// the renewable path below is not specific to a price or a period, so its id
+/// is the whole change here. Founders (1.0 / 1.0.1 installs) hold none of these
+/// and stay unentitled: the AI is not part of what a founder keeps free, and
+/// the 402 path is unchanged.
 export const PREMIUM_PRODUCTS: Readonly<Record<string, ProductKind>> = {
-  "com.dawid.forge.premium.monthly": "renewable",
   "com.dawid.forge.premium.annual": "renewable",
+  "com.dawid.forge.premium.annual.offer": "renewable",
+  "com.dawid.forge.premium.monthly": "renewable",
   "com.dawid.forge.premium.lifetime": "lifetime",
 };
 

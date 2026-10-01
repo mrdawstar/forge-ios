@@ -29,7 +29,9 @@ import SwiftUI
 /// 7. **Your plan.** An activity for each part being built, each on its own
 ///    days and at a time. This writes the day.
 /// 8. **The pull**, rehearsed with nothing at stake.
-/// 9. *(The paywall, in session S2.)*
+/// 9. **Forge Pro** — seven days free, then a decision (`PaywallView`, the
+///    hard paywall). Walked straight past by anybody who already has the
+///    practice.
 /// 10. **Do one now**, and the first pull on the real home screen. Unchanged.
 ///
 /// # Skippable forward, never destructive
@@ -42,6 +44,9 @@ import SwiftUI
 struct FirstRunView: View {
     @Bindable var vm: ForgeViewModel
 
+    /// What has been bought, for the paywall beat. Optional so a preview with
+    /// no store still runs — and walks past the beat.
+    @Environment(ForgeStore.self) private var store: ForgeStore?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dynamicTypeSize) private var typeSize
     /// What the reading area of a beat is allowed to fill before it scrolls.
@@ -140,6 +145,8 @@ struct FirstRunView: View {
                         .transition(transition)
                     case .metaphor:
                         metaphor.transition(transition)
+                    case .paywall:
+                        paywall.transition(.opacity)
                     case .doOne:
                         doOne.transition(transition)
                     default:
@@ -597,17 +604,40 @@ struct FirstRunView: View {
             // way far enough that five lines of title and six of subtitle still
             // fit above it.
             PullToBegin(height: typeSize.isAccessibilitySize ? 130 : 300) {
-                // PAYWALL (session S2): the hard paywall (DIRECTION_1_1 §1) is
-                // presented here — after the pull is rehearsed and before the
-                // first thing is done — and `doOne` follows it whatever the
-                // answer. For now, continue.
-                advance(to: .doOne)
+                leaveRehearsal()
             }
             .rises(after: 0.5)
 
             Spacer(minLength: 0)
         }
         .padding(.vertical, 24)
+    }
+
+    // MARK: - 9. Forge Pro
+
+    /// The pull is rehearsed. The paywall is next — unless the practice is
+    /// already theirs, and then the first thing to do is.
+    private func leaveRehearsal() {
+        guard let store, !PremiumGate.passesOnboardingPaywall(store.access) else {
+            advance(to: .doOne)
+            return
+        }
+        advance(to: .paywall)
+    }
+
+    /// The hard paywall (DIRECTION_1_1 §1): after the pull is rehearsed and
+    /// before the first thing is done. It has no way out but a free week, a
+    /// plan, a restore, or the App Store recognising a founder — and every one
+    /// of those continues to the first thing to do. See `PaywallView`.
+    @ViewBuilder
+    private var paywall: some View {
+        if let store {
+            PaywallView(door: .onboarding, store: store) { advance(to: .doOne) }
+        } else {
+            // A preview, or a wiring mistake: nothing to sell with, so nothing
+            // is sold and the run carries on.
+            Color.clear.onAppear { vm.firstRunStage = .doOne }
+        }
     }
 
     // MARK: - 10. Do one now
@@ -1030,7 +1060,7 @@ private struct PullToBegin: View {
 ///
 /// # Why it is `hero-plate` and not `hero`, and has no masks
 ///
-/// It was `hero` — the plate the paywall and the Proof Card are drawn from —
+/// It was `hero` — the plate the Proof Card is drawn from —
 /// under two linear gradient masks, and on a phone it read as a picture in a
 /// black box. Measured, the cause was not the edges: `hero`'s background is
 /// near-black, 1 to 12 on 255, and the room behind it is not black where the

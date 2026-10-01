@@ -28,22 +28,24 @@ import SwiftUI
 /// fifty times different from doing it once. Everything else that was suggested
 /// — a score, a comparison, a mood — is still refused.
 ///
-/// # The observation is free; the Weekly Reading is Forge Pro
+/// # The observation is free; the Weekly Reading is AI
 ///
 /// The rules' sentence (`ReviewObservation`) is **free, first, and shown to
 /// everybody** — it is the record read back as arithmetic, and it is on screen
-/// before anything else can be. Below it sits the **Weekly Reading**, the Pro
-/// half (`FORGE_CONTEXT.md` §6, §2r):
+/// before anything else can be. Below it sits the **Weekly Reading**, which is
+/// AI (`FORGE_CONTEXT.md` §6, §2r), and which exists only where a model is
+/// reachable:
 ///
-/// - Without Pro: a locked, redacted row, shown once, at the first review that
-///   has an observation — door 2, `PremiumInvitation`. Tapping it opens the
-///   paywall.
-/// - With Pro, in a build where the model is reachable: "Read my week". Pressed,
-///   it asks for AI consent the first time, then asks the model; a reading that
-///   survives `ReviewObservation.validate` is shown under the observation and
+/// - In a build where the model is reachable, without the AI (a founder, or
+///   somebody lapsed): a locked, redacted row. Tapping it opens the paywall,
+///   every time — it is somebody asking, not a door (the doors went in 1.1).
+/// - In such a build, with the AI: "Read my week". Pressed, it asks for AI
+///   consent the first time, then asks the model; a reading that survives
+///   `ReviewObservation.validate` is shown under the observation and
 ///   labelled as model-written. Anything else leaves the observation standing.
-/// - With Pro, in *this* build (model switched off): nothing is added. There is
-///   no model to ask and nothing is fabricated in its place.
+/// - In *this* build (model switched off): nothing is added, for anybody.
+///   There is no model to ask, nothing is fabricated in its place, and nothing
+///   is sold that the build does not have.
 ///
 /// **Nothing is asked for on opening.** The reading used to be requested from
 /// `.task`, which would have minted an anonymous identity merely by opening a
@@ -78,19 +80,13 @@ struct WeeklyReviewView: View {
     /// Called only from "Read my week", never on opening.
     var betterReading: (() async -> PracticeReading?)?
 
-    /// Whether the Weekly Reading is theirs. **The observation above it is
-    /// free whatever this says**, as are the marks, the count, last week's line
-    /// and both questions. See `PremiumGate`.
-    var isPremium: Bool = false
+    /// Whether the AI is theirs: a subscription or a free week, not a founder.
+    /// **The observation above it is free whatever this says**, as are the
+    /// marks, the count, last week's line and both questions. See
+    /// `PremiumGate`.
+    var hasAI: Bool = false
     /// What the consent screen shows, when "Read my week" has to ask first.
     var consentBriefs: AIDisclosureBriefs? = nil
-    /// Door 2: show a locked, obscured Weekly Reading row in place of the
-    /// sentence. Decided by `PremiumInvitation` before the sheet opens, and
-    /// latched on appear so spending the door does not pull the row out from
-    /// under somebody who is looking at it.
-    var offersReading: Bool = false
-    /// The locked row has been seen; the door is spent.
-    var onReadingOffered: () -> Void = {}
 
     @State private var whatHappened = ""
     @State private var whatNext = ""
@@ -110,8 +106,6 @@ struct WeeklyReviewView: View {
     @State private var didFallBack = false
     @State private var isAskingConsent = false
     @Environment(AIConsentStore.self) private var consent: AIConsentStore?
-    /// `offersReading`, as it was when the sheet opened.
-    @State private var isOfferingReading = false
     @State private var paywallDoor: ForgeTelemetry.PaywallDoor?
 
     private enum Field { case happened, next }
@@ -157,13 +151,6 @@ struct WeeklyReviewView: View {
             whatHappened = existing?.whatHappened ?? ""
             whatNext = existing?.whatNext ?? ""
             reading = ruled
-            // Only offered when there is a reading to unlock. A first week has
-            // none, and selling an empty sentence would be selling nothing —
-            // the door stays unspent for a week that has one.
-            if !isPremium, offersReading, ruled != nil {
-                isOfferingReading = true
-                onReadingOffered()
-            }
         }
         // Opened from the locked row, on top of the review, so closing it
         // lands back on the week rather than on the home screen.
@@ -344,8 +331,7 @@ struct WeeklyReviewView: View {
     private var parts: [WeeklyReviewReading.Part] {
         WeeklyReviewReading.parts(
             hasObservation: reading != nil,
-            isPremium: isPremium,
-            isOfferingLocked: isOfferingReading,
+            hasAI: hasAI,
             canReachModel: betterReading != nil,
             hasWritten: written != nil
         )
@@ -405,7 +391,7 @@ struct WeeklyReviewView: View {
         }
     }
 
-    /// Door 2: the Weekly Reading, locked.
+    /// The Weekly Reading, locked — only ever where a model is reachable.
     ///
     /// The shape of the sentence and none of its content — a placeholder drawn
     /// redacted, never this week's reading blurred, so nothing sold is given
@@ -419,7 +405,7 @@ struct WeeklyReviewView: View {
 
             Button {
                 ForgeHaptics.shared.tap()
-                paywallDoor = PremiumInvitation.Door.weeklyReading.telemetry
+                paywallDoor = .ai
             } label: {
                 VStack(alignment: .leading, spacing: ForgeTheme.Space.tight) {
                     HStack {
@@ -435,7 +421,7 @@ struct WeeklyReviewView: View {
                         .lineSpacing(3)
                         .redacted(reason: .placeholder)
                         .accessibilityHidden(true)
-                    Text("Forge Pro reads your record back to you. Tap to see it.")
+                    Text("Forge's AI reads your week back to you, with Forge Pro.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }

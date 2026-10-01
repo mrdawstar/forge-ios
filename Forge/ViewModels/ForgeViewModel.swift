@@ -157,7 +157,8 @@ final class ForgeViewModel {
     /// app; the pull itself happens on the real home screen, where every pull
     /// after it will.
     ///
-    /// Straight through, with no branch, and one screen per beat (§17.1). The
+    /// Straight through, one screen per beat (§17.1), with one branch: the
+    /// paywall is passed by anybody who already has the practice (§17.2). The
     /// 1.0 sequence — promise, build, choose, metaphor — was replaced in 1.1 by
     /// one that shows somebody where they are and where the same arithmetic
     /// says they would be, before it asks them to do anything (DIRECTION_1_1
@@ -188,6 +189,10 @@ final class ForgeViewModel {
         case plan
         /// The blade, pulled once with nothing at stake.
         case metaphor
+        /// Forge Pro: a free week, then a decision (DIRECTION_1_1 §1). Passed
+        /// straight through by anybody who already has the practice — a
+        /// founder, a subscriber, a restore. See `PaywallView`.
+        case paywall
         /// The one thing they go and do now.
         case doOne
         /// The cover is gone and they are pulling on the real home screen.
@@ -200,7 +205,7 @@ final class ForgeViewModel {
     var isFirstRunCovering: Bool {
         switch firstRunStage {
         case .coldOpen, .question, .build, .drawing, .transformation, .science,
-             .plan, .metaphor, .doOne:
+             .plan, .metaphor, .paywall, .doOne:
             !hasCompletedFirstRun
         case .pull, .closing, .finished:
             false

@@ -37,6 +37,32 @@ struct ForgeTabView: View {
     @State private var mode: PanelMode = .today
 
     @State private var showChallenge = false
+    /// What has been bought, for the one locked state. Optional so a preview
+    /// without a store draws the day — unanswered StoreKit locks nothing.
+    @Environment(ForgeStore.self) private var store: ForgeStore?
+    @State private var paywallDoor: ForgeTelemetry.PaywallDoor?
+
+    /// Whether new days are locked here and now.
+    ///
+    /// The day's controls give way to one calm state — "New days need Forge
+    /// Pro." — for somebody lapsed or never subscribed, after the first run.
+    /// The sword stays: it is the record, and the record is never locked.
+    ///
+    /// **Never over the day.** Not while a summary or a celebration is up, and
+    /// not mid-pull; it waits for the moment to end. `isDragging` rather than
+    /// the pull's position, which changes every frame and would redraw this
+    /// whole tab with it.
+    private var isLocked: Bool {
+        guard let store else { return false }
+        return PremiumGate.showsLockedState(
+            for: store.access,
+            hasCompletedFirstRun: vm.hasCompletedFirstRun,
+            isMomentOnScreen: vm.summary != nil
+                || swords.pendingUnlock != nil
+                || engine.isDragging
+                || vm.honorRitualID != nil
+        )
+    }
     /// The copy sheet, raised from an empty day. The planner has its own; this
     /// is the same sheet, reached from the one screen where filling today from a
     /// day somebody has already thought about is the fastest thing they can do.
@@ -248,6 +274,8 @@ struct ForgeTabView: View {
     }
 
     private var backdrop: Backdrop? {
+        // Nothing is open behind the locked state, so nothing dims.
+        if isLocked { return nil }
         if mode == .today, vm.isOut, vm.reviewOpen { return .review }
         if isExpanded && canExpand { return .list }
         return nil
@@ -273,16 +301,26 @@ struct ForgeTabView: View {
             // between them. The gap is the whole reason the bar reads as a
             // separate thing — see `ForgeControlBar`.
             VStack(spacing: 12) {
-                ForgeControlBar(
-                    mode: $mode,
-                    challengeState: challenges.today.state,
-                    onChallenge: { showChallenge = true }
-                )
-                .padding(.horizontal, 20)
+                if isLocked {
+                    ProLockedState { paywallDoor = .locked }
+                        .glassEffect(.regular, in: .rect(cornerRadius: 32))
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 8)
+                        .transition(.opacity)
+                } else {
+                    ForgeControlBar(
+                        mode: $mode,
+                        challengeState: challenges.today.state,
+                        onChallenge: { showChallenge = true }
+                    )
+                    .padding(.horizontal, 20)
 
-                sheet
+                    sheet
+                }
             }
+            .animation(.easeInOut(duration: 0.3), value: isLocked)
         }
+        .paywall($paywallDoor)
         .ignoresSafeArea(edges: .top)
         // What the panel's tallest detent is capped against. Read rather than
         // assumed, so the same numbers behave on a phone this was not designed

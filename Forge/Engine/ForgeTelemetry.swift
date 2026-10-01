@@ -72,15 +72,20 @@ enum ForgeTelemetry {
         case reentryShown
         case reentryRecovered
         case chapterClosed
-        // The paywall's. `paywallView` when it appears, `paywallDismissed`
-        // when it is closed without buying, both carrying the door it was
-        // opened from. A trial and a sale are separate events so a trial is
-        // never counted as revenue.
+        // The paywall's. `paywallView` when it appears, carrying the door it
+        // was opened from; the exit offer when it is shown and when it is
+        // taken. A trial and a sale are separate events so a trial is never
+        // counted as revenue. `paywall_dismissed` went with the three doors
+        // (§6): the onboarding paywall cannot be dismissed.
         case paywallView(PaywallDoor)
-        case paywallDismissed(PaywallDoor)
+        case exitOfferView
+        case exitOfferAccepted
         case trialStarted(PremiumProduct)
         case purchaseCompleted(PremiumProduct)
         case restoreTapped
+        /// An install that ran 1.0 or 1.0.1 was recognised, from its record or
+        /// from the App Store. Once per install. No parameters.
+        case founderDetected
         /// A model wrote a Weekly Reading and it failed
         /// `ReviewObservation.validate`, so the phone's own sentence was used.
         /// No parameters: never the text, never a reason written by the model.
@@ -107,10 +112,12 @@ enum ForgeTelemetry {
             case .reentryRecovered: "reentry_recovered"
             case .chapterClosed: "chapter_closed"
             case .paywallView: "paywall_view"
-            case .paywallDismissed: "paywall_dismissed"
+            case .exitOfferView: "exit_offer_view"
+            case .exitOfferAccepted: "exit_offer_accepted"
             case .trialStarted: "trial_started"
             case .purchaseCompleted: "purchase_completed"
             case .restoreTapped: "restore_tapped"
+            case .founderDetected: "founder_detected"
             case .readingFellBack: "reading_fell_back"
             }
         }
@@ -124,7 +131,7 @@ enum ForgeTelemetry {
             case .activityCompleted(let method): ["method": method.rawValue]
             case .activityAdded(let source): ["source": source.rawValue]
             case .notificationOpened(let kind): ["kind": kind.rawValue]
-            case .paywallView(let door), .paywallDismissed(let door): ["door": door.rawValue]
+            case .paywallView(let door): ["door": door.rawValue]
             case .trialStarted(let plan), .purchaseCompleted(let plan): ["plan": plan.telemetryName]
             default: [:]
             }
@@ -145,6 +152,7 @@ enum ForgeTelemetry {
         case questionBuilding = "question_building"
         case build, drawing, transformation, science, plan
         case pullToBegin = "pull_to_begin"
+        case paywall
         case doOne = "do_one"
         case pull, closing
 
@@ -160,6 +168,7 @@ enum ForgeTelemetry {
             case .science: self = .science
             case .plan: self = .plan
             case .metaphor: self = .pullToBegin
+            case .paywall: self = .paywall
             case .doOne: self = .doOne
             case .pull: self = .pull
             case .closing: self = .closing
@@ -194,22 +203,18 @@ enum ForgeTelemetry {
 
     /// Where the paywall was opened from.
     ///
-    /// The first three are the unprompted doors, each shown at most once —
-    /// see `PremiumInvitation`. The rest are somebody tapping something
-    /// locked, or asking for it in Settings.
+    /// The three unprompted doors went in 1.1 (§6). What is left is the one
+    /// place every new install meets it, and three places somebody asks.
     enum PaywallDoor: String, CaseIterable, Sendable {
-        /// After the first blade celebration closes.
-        case firstBlade = "first_blade"
-        /// The locked Weekly Reading row in the weekly review.
-        case weeklyReading = "weekly_reading"
-        /// The invitation at a chapter close.
-        case chapterClose = "chapter_close"
-        /// A locked accent in Appearance.
-        case accent
-        /// Plan's locked free-text field.
-        case plan
-        /// The Forge Pro section in Settings.
+        /// The first run, after the pull is rehearsed. The hard paywall.
+        case onboarding
+        /// The locked state's Continue, or a locked accent — somebody without
+        /// Forge Pro, after onboarding.
+        case locked
+        /// Settings → Forge Pro → See Forge Pro.
         case settings
+        /// An AI feature, locked: Plan in your own words, the Weekly Reading.
+        case ai
     }
 
     // MARK: - The switch
@@ -335,8 +340,9 @@ extension PremiumProduct {
     /// The plan as it is named in the data — not the App Store product id.
     var telemetryName: String {
         switch self {
-        case .monthly: "monthly"
         case .annual: "annual"
+        case .annualOffer: "annual_offer"
+        case .monthly: "monthly"
         case .lifetime: "lifetime"
         }
     }

@@ -342,52 +342,52 @@ struct FutureAIPathTests {
 struct WeeklyReadingLayoutTests {
 
     private func parts(
-        observation: Bool = true, pro: Bool, offering: Bool = false,
+        observation: Bool = true, ai: Bool,
         reachable: Bool = false, written: Bool = false
     ) -> [WeeklyReviewReading.Part] {
         WeeklyReviewReading.parts(
-            hasObservation: observation, isPremium: pro, isOfferingLocked: offering,
+            hasObservation: observation, hasAI: ai,
             canReachModel: reachable, hasWritten: written
         )
     }
 
     @Test("The rules' observation is free and always first")
     func observationFirst() {
-        for pro in [false, true] {
-            for offering in [false, true] {
-                for reachable in [false, true] {
-                    for written in [false, true] {
-                        let laid = parts(pro: pro, offering: offering, reachable: reachable, written: written)
-                        #expect(laid.first == .observation)
-                    }
+        for ai in [false, true] {
+            for reachable in [false, true] {
+                for written in [false, true] {
+                    let laid = parts(ai: ai, reachable: reachable, written: written)
+                    #expect(laid.first == .observation)
                 }
             }
         }
     }
 
-    @Test("Without Pro the Weekly Reading stays locked — door 2 — and is never shown")
-    func freeIsLocked() {
-        #expect(parts(pro: false, offering: true) == [.observation, .locked])
-        #expect(parts(pro: false, offering: false) == [.observation])
-        // Not even if a reading somehow exists or a model is reachable.
-        #expect(parts(pro: false, offering: true, reachable: true, written: true) == [.observation, .locked])
+    /// The doors went in 1.1 (§6). A locked row is somebody being offered the
+    /// AI, so it exists only where the AI does.
+    @Test("Without the AI, the Weekly Reading is locked where a model is reachable, and absent where none is")
+    func lockedOnlyWhereItExists() {
+        #expect(parts(ai: false, reachable: true) == [.observation, .locked])
+        #expect(parts(ai: false, reachable: false) == [.observation], "nothing sold that the build does not have")
+        // Not even if a reading somehow exists.
+        #expect(parts(ai: false, reachable: true, written: true) == [.observation, .locked])
     }
 
-    @Test("Pro with the model off adds nothing; nothing is invented to fill the space")
-    func proWhileDisabled() {
-        #expect(parts(pro: true, reachable: false) == [.observation])
+    @Test("With the AI and the model off, nothing is added; nothing is invented to fill the space")
+    func aiWhileDisabled() {
+        #expect(parts(ai: true, reachable: false) == [.observation])
     }
 
-    @Test("Pro with a reachable model offers Read my week, then shows the written reading under the observation")
-    func proWhenActivated() {
-        #expect(parts(pro: true, reachable: true) == [.observation, .readButton])
-        #expect(parts(pro: true, reachable: true, written: true) == [.observation, .written])
+    @Test("With the AI and a reachable model, Read my week, then the written reading under the observation")
+    func aiWhenActivated() {
+        #expect(parts(ai: true, reachable: true) == [.observation, .readButton])
+        #expect(parts(ai: true, reachable: true, written: true) == [.observation, .written])
     }
 
     @Test("A week with nothing to observe offers nothing further")
     func emptyWeek() {
-        #expect(parts(observation: false, pro: false, offering: true).isEmpty)
-        #expect(parts(observation: false, pro: true, reachable: true).isEmpty)
+        #expect(parts(observation: false, ai: false, reachable: true).isEmpty)
+        #expect(parts(observation: false, ai: true, reachable: true).isEmpty)
     }
 }
 

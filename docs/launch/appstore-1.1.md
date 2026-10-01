@@ -4,22 +4,15 @@ Everything in this file is written against what the app actually does on the
 `feat/first-week` branch. It is not the submission checklist — that is
 `docs/APP_STORE.md` (privacy labels §1, review notes §6, subscription setup §7).
 
-> ⚠️ **One decision before submitting 1.1: is remote AI on?**
+> ⚠️ **Forge Pro is a hard paywall with a free week since session S2**
+> (`FORGE_CONTEXT.md` §6, §17.2). New installs need Forge Pro to keep new days,
+> so nothing in this listing may say "Forge is free". The record stays
+> readable to everybody, and that is what the listing promises instead.
 >
-> The Pro **Weekly Reading** is a model-written reading. It only exists once
-> remote AI is activated (`RemoteForgeAI.isModelEnabled`, currently `false` —
-> `FORGE_CONTEXT.md` §2r). Until then Pro adds no Weekly Reading beyond the
-> free observation everybody gets.
->
-> - **Recommended:** activate AI first, then submit 1.1 with **Variant B**
->   below.
-> - **If 1.1 must ship before activation:** use **Variant A**, *and* change the
->   in-app paywall line (`ProFeature.weeklyReading` in `Forge/Models/Premium.swift`)
->   in a separate code PR first. Selling a feature the build cannot deliver is
->   an App Review rejection and a broken promise to paying users.
->
-> Plan in your own words and the eight accents work today, on the device, with
-> AI off.
+> The AI features (the Weekly Reading, Plan in your own words, Ask Forge) are
+> named in the listing only once remote AI is activated
+> (`RemoteForgeAI.isModelEnabled`, currently `false` — §2r). Until then use
+> **Variant A** below; at activation, **Variant B**.
 
 ---
 
@@ -91,9 +84,9 @@ ON YOUR PHONE
 
 Your record stays on your phone. There is no account to create and no sign-in. No ads. Home Screen and Lock Screen widgets, and a Live Activity for the day. Forge can read steps, distance and workouts from Apple Health to tick off what your phone can already measure; it never writes to Health, and it is optional.
 
-FREE — AND YOUR RECORD ALWAYS WILL BE
+YOUR RECORD STAYS YOURS
 
-The whole daily loop. Any number of activities. Your complete history, the shape, the heatmap, the trends, the blades, rest days, widgets, a challenge every day, chapters, the weekly review and Plan's suggestions. Forge Pro never locks anything you have already done.
+If you ever stop, nothing is deleted or hidden. Your history, the shape, the heatmap, the trends, the blades, the weekly reviews and the widgets stay readable for good.
 
 [FORGE PRO — paste Variant A or Variant B here]
 
@@ -104,26 +97,23 @@ Privacy Policy: https://forgebetter.app/privacy
 ### Variant A — AI not yet active
 
 ```
-FORGE PRO
+FORGE PRO — SEVEN DAYS FREE, THEN DECIDE
 
-Forge is free. Pro adds:
-- Plan in your own words: tell Plan the hours you cannot move and what you want fitted around them, and it lays out the week on your phone.
-- Eight accents to dress the app in. Forge blue stays free.
+Keeping new days takes Forge Pro: the daily loop, any number of activities, the six stats scored on what you actually do, a blade for every stretch of days you keep, a challenge every day, and Plan.
 
-Monthly, annual with a 7-day free trial, or once for life. Subscriptions renew automatically unless cancelled at least 24 hours before the end of the current period. Manage or cancel them in your Apple Account settings.
+Annual with a 7-day free trial, or monthly. Forge reminds you two days before the trial ends. Subscriptions renew automatically unless cancelled at least 24 hours before the end of the current period. Manage or cancel them in your Apple Account settings. A one-time Lifetime purchase is in Settings.
 ```
 
 ### Variant B — after AI activation
 
 ```
-FORGE PRO
+FORGE PRO — SEVEN DAYS FREE, THEN DECIDE
 
-Forge is free. Pro reads your record back to you:
+Keeping new days takes Forge Pro: the daily loop, any number of activities, the six stats scored on what you actually do, a blade for every stretch of days you keep, a challenge every day, and Plan. With it, Forge's AI:
 - Weekly Reading: a written reading of what held and what slipped, checked against your own record before you see it. Written by an AI model through Forge's own server, only after you allow it.
 - Plan in your own words: tell Plan the hours you cannot move and what you want fitted around them.
-- Eight accents to dress the app in. Forge blue stays free.
 
-Monthly, annual with a 7-day free trial, or once for life. Subscriptions renew automatically unless cancelled at least 24 hours before the end of the current period. Manage or cancel them in your Apple Account settings.
+Annual with a 7-day free trial, or monthly. Forge reminds you two days before the trial ends. Subscriptions renew automatically unless cancelled at least 24 hours before the end of the current period. Manage or cancel them in your Apple Account settings. A one-time Lifetime purchase is in Settings.
 ```
 
 Notes on claims kept out on purpose: no cloud sync, no account, no friends or
@@ -137,7 +127,7 @@ storefront.
 
 ```
 Forge Pro
-Forge is free. Pro is optional: Plan in your own words and eight accents, as Monthly, Annual with a 7-day free trial, or Lifetime. Your record stays free. Restore Purchases and Manage Subscription are at the top of Settings.
+New days now need Forge Pro, and every new install starts with seven days free. Annual or monthly, with a reminder two days before the trial ends; Lifetime is in Settings. If you ran Forge before 1.1, everything except the AI stays free for you. Your record stays readable whatever you decide.
 
 Your first week on Becoming
 Until your shape can be drawn, Becoming tells you when it will draw itself and how many days you have kept so far. Parts of you with nothing in them yet offer the smallest activity that would start them.

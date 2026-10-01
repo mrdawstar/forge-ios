@@ -38,6 +38,16 @@ struct DailyChallengeSheet: View {
     var challenges: ChallengeStore
 
     @Environment(\.dismiss) private var dismiss
+    /// The challenge is part of the practice: somebody lapsed meets the one
+    /// locked state here too, rather than buttons that would keep nothing.
+    /// Unreachable from the Forge tab while locked — this is for a sheet that
+    /// was already open when the answer changed.
+    @Environment(ForgeStore.self) private var store: ForgeStore?
+    @State private var paywallDoor: ForgeTelemetry.PaywallDoor?
+
+    private var isLocked: Bool {
+        store.map { PremiumGate.isLocked(.dailyChallenge, for: $0.access) } ?? false
+    }
 
     /// Which card is under the finger. Nil until the pager reports one, which
     /// is why every read of it falls back to today's.
@@ -117,10 +127,15 @@ struct DailyChallengeSheet: View {
             ScrollView {
                 VStack(spacing: 0) {
                     mark
-                    pager
-                    rail
-                    actions
-                    footnote
+                    if isLocked {
+                        ProLockedState { paywallDoor = .locked }
+                            .padding(.horizontal, ForgeTheme.Space.gutter)
+                    } else {
+                        pager
+                        rail
+                        actions
+                        footnote
+                    }
                 }
                 .padding(.bottom, 36)
             }
@@ -149,6 +164,7 @@ struct DailyChallengeSheet: View {
         .presentationDetents([.medium, .large])
         .presentationCornerRadius(ForgeTheme.Radius.sheet)
         .presentationDragIndicator(.visible)
+        .paywall($paywallDoor)
     }
 
     // MARK: - The challenge
