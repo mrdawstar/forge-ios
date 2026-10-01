@@ -2911,3 +2911,34 @@ the existing catalog. Added outside the build: `docs/art/hero_plate.py`,
 - Training lands in the morning slot (`OnboardingPlan.isEvening` is unchanged);
   a swap keeps the row's time, so a longer activity swapped in can run into the
   next row's start (pre-existing).
+
+#### Cold-open light (2026-10-01, branch `fix/cold-open-light`)
+
+One visual fix on the cold open; nothing else in the first run changed.
+
+- **The plate's light still drew its rectangle.** With the black gone, the
+  plate's *light* was the box: `hero_plate.py`'s key takes in the haze and the
+  ray as well as the subject, so the lit haze filled the whole plate and was
+  faded only by the frame's edge ramps — a lit column behind the stone, the ray
+  starting at a straight cut along the plate's top, a floor ending in a
+  horizontal line.
+- **Fix, in the asset only.** `hero_plate.py` step 5: outside the stone and the
+  sword everything is faded by an elliptical smoothstep (centre 0.5, 0.52; radii
+  0.5; full to 0.2, gone by 1.0), so the light is zero before any frame edge and
+  `FirstRunAmbience` lights the rest of the screen. The stone and the sword are
+  named by Vision's foreground mask (`docs/art/subject_mask.swift`, run on the
+  plate for the sword and on its lower 55% for the stone), cached as
+  `docs/art/hero_subject_mask.png`. Inside the mask the plate is unchanged:
+  measured against the previous `hero-plate`, at most 2 on 255, at the mask's
+  edge. `BladePlate`'s doc comment says so; no code changed.
+- **Verified** on iPhone 17 Pro and 17e at the default size, before and after,
+  also with levels stretched ×5 to show anything an OLED would: no straight
+  contour left; the ray fades out on its own. Sheets in
+  `docs/verification/1.1-s1-light/`.
+- **Left as it was:** the stone's own bottom still fades with the plate's bottom
+  ramp (the stone was to stay exactly as it is), and `FirstRunAmbience`'s warm
+  gradient shows faint rings only at ×5.
+
+**Files.** Nothing added to `project.pbxproj`. Added outside the build:
+`docs/art/subject_mask.swift`, `docs/art/hero_subject_mask.png`,
+`docs/verification/1.1-s1-light/`.

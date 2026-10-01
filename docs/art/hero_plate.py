@@ -31,6 +31,16 @@ The art's black is treated as empty space, not black paint:
 4. **Smooth edges.** What light reaches the edge of the frame — the ray, the
    floor — is faded by smoothstep ramps (left 22%, right 10%, top 8%, bottom
    30%), which have no corner in them to band.
+5. **The light fades in an oval, not in the frame** (§17.1, the cold-open
+   light fix). The key above takes in the haze and the ray as well as the
+   subject, so the plate's light filled its whole frame and stopped at the
+   frame's edges: a lit column behind the stone with a cut along its top, and
+   a floor that ended in a straight line. Outside the stone and the sword
+   everything is now faded by an elliptical smoothstep that is gone before it
+   reaches the frame, and the room (`FirstRunAmbience`) lights the rest. The
+   stone and the sword are named by Vision's subject mask (`subject_mask.swift`,
+   run once on the plate and once on its lower part, where it finds the stone),
+   cached as `hero_subject_mask.png`; inside it the plate is what it was.
 
 The paywall and the Proof Card keep `hero.png` as it is.
 
@@ -40,6 +50,8 @@ Usage (from the repository root; needs numpy, scipy and Pillow):
 """
 
 import json
+import subprocess
+import tempfile
 from pathlib import Path
 
 import numpy as np
@@ -50,6 +62,7 @@ ROOT = Path(__file__).resolve().parents[2]
 SOURCE = ROOT / "Forge/Assets.xcassets/hero.imageset/hero.png"
 TARGET_SET = ROOT / "Forge/Assets.xcassets/hero-plate.imageset"
 TARGET = TARGET_SET / "hero-plate.png"
+MASK = ROOT / "docs/art/hero_subject_mask.png"
 
 # The plate is never drawn taller than 380 pt (`FirstRunView.artHeight`), which
 # is 1140 px at 3x.
@@ -61,6 +74,13 @@ KEY_BLUR = 18
 ERODE = 26
 SOFTEN = 3
 EDGES = {"left": 0.22, "right": 0.10, "top": 0.08, "bottom": 0.30}
+# Vision finds the sword in the whole plate and the stone below STONE_FROM.
+STONE_FROM = 0.45
+# The light's oval: centre and radii as fractions of the frame, full inside the
+# first falloff value and gone by the second.
+LIGHT_CENTRE = (0.5, 0.52)
+LIGHT_RADII = (0.5, 0.5)
+LIGHT_FALLOFF = (0.2, 1.0)
 
 
 def smoothstep(edge0, edge1, x):
@@ -70,6 +90,25 @@ def smoothstep(edge0, edge1, x):
 
 def luminance(rgb):
     return 0.2126 * rgb[..., 0] + 0.7152 * rgb[..., 1] + 0.0722 * rgb[..., 2]
+
+
+def vision_mask(image):
+    with tempfile.TemporaryDirectory() as tmp:
+        source, target = Path(tmp) / "in.png", Path(tmp) / "out.png"
+        image.save(source)
+        subprocess.run(["swift", str(Path(__file__).with_name("subject_mask.swift")), source, target], check=True)
+        return np.asarray(Image.open(target).convert("L")).astype(np.float64) / 255.0
+
+
+def subject_mask():
+    """The stone and the sword, 0 to 1, cached in MASK (macOS, for Vision)."""
+    if not MASK.exists():
+        image = Image.open(SOURCE).convert("RGB")
+        top = round(image.height * STONE_FROM)
+        mask = vision_mask(image)
+        mask[top:] = np.maximum(mask[top:], vision_mask(image.crop((0, top, image.width, image.height))))
+        Image.fromarray((mask * 255).round().astype(np.uint8), "L").save(MASK, optimize=True)
+    return np.asarray(Image.open(MASK)).astype(np.float64) / 255.0
 
 
 def main():
@@ -95,6 +134,12 @@ def main():
         * smoothstep(0, EDGES["top"], v)
         * smoothstep(0, EDGES["bottom"], 1 - v)
     )
+
+    # 5. The light fades in an oval; the stone and the sword keep `edges`.
+    r = np.hypot((u - LIGHT_CENTRE[0]) / LIGHT_RADII[0], (v - LIGHT_CENTRE[1]) / LIGHT_RADII[1])
+    light = 1.0 - smoothstep(*LIGHT_FALLOFF, r)
+    subject = subject_mask()
+    edges = edges * (subject + (1.0 - subject) * light)
 
     # 3. Premultiplied light over the room.
     alpha = np.maximum(key, colour.max(axis=-1) / 255.0) * edges

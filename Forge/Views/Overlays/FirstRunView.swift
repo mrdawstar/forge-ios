@@ -1048,6 +1048,10 @@ private struct PullToBegin: View {
 /// except the stone and the sword themselves, and the plate's outer edge
 /// differs from the room by under one level on 255. `docs/art/hero_plate.py`
 /// makes it from `hero`, which is untouched.
+///
+/// The plate's light — the haze, the ray, the floor — fades in an oval round
+/// the stone and the sword and is gone before the frame. Faded only at the
+/// frame, it filled the plate and drew the rectangle the black no longer did.
 private struct BladePlate: View {
     let height: CGFloat
 
