@@ -43,15 +43,17 @@ enum IdentityActivities {
         // A glass of water, a pill, two minutes of breathing. Nothing here
         // needs a decision, which is the whole definition of this end.
         "water", "vitamins", "breathe", "bed", "teeth", "gratitude", "lookup",
-        "plants", "dishes", "thanks", "prep", "tidy", "coffee", "arrange",
+        "plants", "dishes", "thanks", "prep", "bedroom", "tidy", "coffee", "arrange",
         // Five to fifteen minutes, and each one asks for something: cold water,
         // an honest sentence, sitting still.
-        "cold", "worry", "journal", "plan", "meditate", "light", "push",
-        "stretch", "sketch", "nofeed", "call", "silence", "reach", "play",
-        "language", "letter", "read", "teach", "walk", "write",
-        // Half an hour or more, or a real interruption to a day.
+        "cold", "worry", "journal", "nightlines", "plan", "meditate", "light", "push",
+        "stretch", "sketch", "nofeed", "firstthirty", "call", "silence", "reach", "play",
+        "language", "letter", "read", "pages", "teach", "walk", "write",
+        // Half an hour or more, or a real interruption to a day. A whole day
+        // without a clip is an interruption to most days, which is why it sits
+        // among the long ones despite taking no time at all.
         "protein", "listen", "wake", "numbers", "sleep", "help", "meal",
-        "learn", "run", "workout", "present", "study",
+        "learn", "steps", "run", "workout", "present", "noshort", "study",
         // The hard end. Long, uncomfortable, or both — and "Ask for something"
         // is on it despite taking ten minutes, because the ladder is about the
         // ask and not the clock.
@@ -258,25 +260,29 @@ enum IdentityActivities {
     /// filled from one dimension alone. A test holds both.
     static let starters: [RitualCategory: [String]] = [
         // The three people mean by "get fit" first, then what holds them up.
+        // The Arcs' additions go last in each list (`steps`, `pages`, …): a
+        // proposal is only ever each list's first entry, so nothing a first run
+        // offers moves because the Arcs exist.
         .physical: [
             "walk", "workout", "stretch", "push", "run", "water", "protein",
-            "sleep", "lift", "vitamins", "coffee",
+            "sleep", "lift", "vitamins", "coffee", "steps",
         ],
         // Reading is the whole dimension for most people; the rest is what you
         // do with what you read.
         .intellect: [
             "read", "learn", "write", "study", "language", "teach", "sketch",
-            "lookup", "play",
+            "lookup", "play", "pages",
         ],
         // The two ends of a day, and the small levers on the one after it.
         .discipline: [
             "wake", "bed", "nofeed", "prep", "tidy", "teeth", "dishes", "plants",
+            "firstthirty", "bedroom", "noshort",
         ],
         // Two minutes of breathing is the honest entry point. Cold water is
         // here because it is about discomfort rather than about the body.
         .mental: [
             "breathe", "meditate", "journal", "gratitude", "silence", "worry",
-            "light", "cold",
+            "light", "cold", "nightlines",
         ],
         // A call and a sentence said out loud are the two anybody can do today,
         // from where they are standing, without arranging anything.

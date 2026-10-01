@@ -297,10 +297,32 @@ struct ProofCardTests {
         }
     }
 
-    /// Exactly two doors. Reads the app's source: the Proof Card button is
-    /// placed in the blade celebration and the chapter close and nowhere else,
-    /// and nothing else in the app can open a share sheet.
-    @Test("The Proof Card is offered at a blade unlock and a chapter close, and nowhere else")
+    /// The Arc's card, in both shapes: "Winter Arc · Day 30 of 90", the blade,
+    /// the six and OVR (DIRECTION_1_1 §5).
+    @MainActor
+    @Test("The Arc's card renders in 9:16 and 1:1")
+    func arcCardRenders() throws {
+        let proof = ArcProof(
+            title: "Winter Arc \u{00B7} Day 30 of 90",
+            scores: [62, 48, 71, nil, 55, 80],
+            overall: 53,
+            blade: "sword4",
+            winters: 1
+        )
+        for format in PracticeArtifact.Format.allCases {
+            let file = ProofCardFile(occasion: .arc(proof), daysKept: 30, date: .now, format: format)
+            let image = try #require(UIImage(data: try file.png()))
+            #expect(image.size.width * image.scale == format.size.width)
+            #expect(image.size.height * image.scale == format.size.height)
+        }
+        #expect(PracticeArtifact.Occasion.arc(proof).line == "WINTER ARC \u{00B7} DAY 30 OF 90")
+    }
+
+    /// Exactly three doors. Reads the app's source: the Proof Card button is
+    /// placed in the blade celebration, the chapter close and the running
+    /// Arc's card and nowhere else, and nothing else in the app can open a
+    /// share sheet.
+    @Test("The Proof Card is offered at a blade unlock, a chapter close and an Arc, and nowhere else")
     func proofCardDoors() throws {
         let app = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()
@@ -321,7 +343,8 @@ struct ProofCardTests {
             if name != "PracticeArtifact.swift", text.contains("ProofCardButton(") { doors.insert(name) }
             if text.contains("ShareLink(") || text.contains("UIActivityViewController") { sharers.insert(name) }
         }
-        #expect(doors == ["SwordUnlockOverlay.swift", "ChapterCloseView.swift"])
+        // The third, since 1.1: the running Arc's card (DIRECTION_1_1 §5).
+        #expect(doors == ["SwordUnlockOverlay.swift", "ChapterCloseView.swift", "ArcsTabView.swift"])
         #expect(sharers == ["PracticeArtifact.swift"])
     }
 }

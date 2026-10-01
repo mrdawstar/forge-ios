@@ -44,10 +44,20 @@ final class ProgressStore {
     /// Suppresses the `didSet` writes that loading would otherwise trigger.
     private var isLoaded = false
 
+    /// Every daily challenge finished, by day. See `KeptChallenge`.
+    ///
+    /// Kept here rather than by `ChallengeStore` because it is the same kind of
+    /// fact as everything else in this file — a thing somebody did on a day —
+    /// and because what reads it is the Shape, which reads this store. The
+    /// challenge store still holds only today's challenge and its state; it
+    /// writes here when that state reaches `completed` and when it leaves it.
+    private(set) var challengesKept: [ForgeDay: KeptChallenge] = [:]
+
     private enum Key {
         static let history = "forge.history.v1"
         static let dayStartHour = "forge.dayStartHour.v1"
         static let restDays = "forge.restDays.v1"
+        static let challenges = "forge.challengesKept.v1"
     }
 
     /// `defaults` is injectable so tests get a scratch suite instead of
@@ -95,12 +105,50 @@ final class ProgressStore {
         if let rest = defaults.array(forKey: Key.restDays) as? [Int] {
             restWeekdays = Set(rest)
         }
+        if let data = defaults.data(forKey: Key.challenges) {
+            challengesKept = Dictionary(
+                KeptChallenge.decodeAll(data).map { ($0.day, $0) },
+                uniquingKeysWith: { _, latest in latest }
+            )
+        }
     }
 
     private func persistHistory() {
         guard isLoaded else { return }
         guard let data = try? JSONEncoder().encode(records) else { return }
         defaults.set(data, forKey: Key.history)
+    }
+
+    private func persistChallenges() {
+        guard isLoaded else { return }
+        let kept = challengesKept.values.sorted { $0.day < $1.day }
+        guard let data = try? JSONEncoder().encode(kept) else { return }
+        defaults.set(data, forKey: Key.challenges)
+    }
+
+    // MARK: - The challenge, kept
+
+    /// A challenge was finished on its day. One per day: a second for the same
+    /// day replaces the first, because there is one challenge a day.
+    func keepChallenge(_ challenge: DailyChallenge, on day: ForgeDay, at instant: Date) {
+        let kept = KeptChallenge(day: day, id: challenge.id, focus: challenge.focus, at: instant)
+        guard challengesKept[day] != kept else { return }
+        challengesKept[day] = kept
+        persistChallenges()
+    }
+
+    /// The day's finished challenge is not finished after all — undone,
+    /// skipped, or swapped for another.
+    func releaseChallenge(on day: ForgeDay) {
+        guard challengesKept[day] != nil else { return }
+        challengesKept[day] = nil
+        persistChallenges()
+    }
+
+    /// Which of the six each day's finished challenge fed — what the Shape
+    /// credits. See `ForgeShape.crediting`.
+    var challengeCredit: [ForgeDay: RitualCategory] {
+        challengesKept.mapValues(\.focus.category)
     }
 
     private func persistSettings() {
@@ -874,7 +922,9 @@ final class ProgressStore {
 
     func clearHistory() {
         byDay = [:]
+        challengesKept = [:]
         persistHistory()
+        persistChallenges()
     }
     #endif
 }

@@ -31,6 +31,11 @@ struct SettingsTabView: View {
     /// `aiBrief` is: the primer draws the sentences Forge would actually send,
     /// and it can only do that from the value the scheduler is given.
     var notificationState: ForgeNotificationState
+    /// Only the DEBUG section reads this: starting any Arc as if it had begun
+    /// days ago, so every phase and the ending can be walked.
+    var arcs: ArcStore
+    /// Settings is a sheet since Arcs took its tab; this closes it.
+    var onDone: (() -> Void)? = nil
 
     /// The permission explanation, raised the first time somebody turns the
     /// switch on here without iOS ever having been asked.
@@ -41,6 +46,8 @@ struct SettingsTabView: View {
 
     #if DEBUG
     @State private var pending: [String] = []
+    @State private var debugArc: ArcID = .winter
+    @State private var debugArcDaysAgo = 14
     #endif
 
     var body: some View {
@@ -98,6 +105,13 @@ struct SettingsTabView: View {
             }
             .navigationTitle("Settings")
             .scrollIndicators(.hidden)
+            .toolbar {
+                if let onDone {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Done", action: onDone)
+                    }
+                }
+            }
             .sheet(isPresented: $showPrimer) { primer }
             .paywall($paywallDoor)
         }
@@ -537,6 +551,9 @@ struct SettingsTabView: View {
             }
 
             Button("Run First Launch Again", role: .destructive) {
+                // The Arcs go with the run that started them: a replay is a
+                // fresh install, and a fresh install is in no Arc.
+                arcs.debugClear()
                 forge.resetFirstRun(identities: identities)
             }
 
@@ -554,6 +571,24 @@ struct SettingsTabView: View {
 
             Button("Reset Exit Offer") { ExitOffer().reset() }
             Button("Reset Rating Prompts") { RatingPrompt().reset() }
+
+            // Any Arc, as if joined N days ago: every phase change, a trial
+            // week and the ending can be reached without living through them.
+            // Past the Arc's length it lands finished, mark and all.
+            Picker("Arc", selection: $debugArc) {
+                ForEach(ArcID.allCases) { arc in
+                    Text(ArcCatalog.program(arc).name).tag(arc)
+                }
+            }
+            Stepper(value: $debugArcDaysAgo, in: 0...120) {
+                LabeledContent("Started days ago") {
+                    Text("\(debugArcDaysAgo)").monospacedDigit()
+                }
+            }
+            Button("Start Arc \(debugArcDaysAgo) Days Ago") {
+                arcs.debugStart(debugArc, daysAgo: debugArcDaysAgo)
+            }
+            Button("Clear Arcs", role: .destructive) { arcs.debugClear() }
 
             // The consent can be walked, but nothing can be sent: the model is
             // switched off in this build (§2r) whatever this says.

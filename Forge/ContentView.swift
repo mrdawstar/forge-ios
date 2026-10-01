@@ -14,6 +14,10 @@ struct ContentView: View {
     @State private var isReturning = false
     @State private var showReview = false
     @State private var showChapterClose = false
+    /// Settings, opened from the gear in the Becoming and Blade navigation
+    /// bars. Held here, at the root, so a notification or a widget landing on
+    /// Forge can put it away like every other sheet — see `landOnHome`.
+    @State private var showSettings = false
     /// The history every other object reads. Built first and handed down, so
     /// there is one answer to "what have I done" for the whole app.
     @State private var progress: ProgressStore
@@ -66,6 +70,11 @@ struct ContentView: View {
     /// others are: it turns over at four in the morning with the rest of the
     /// app, and there has to be one answer to "what is today's" for the process.
     @State private var challenges: ChallengeStore
+    /// The Arcs somebody has joined (DIRECTION_1_1 §5). Owned here for the
+    /// reason the chapters are: an Arc is a window over the whole record, read
+    /// by the day, the Arcs tab, the Blade tab and the morning notification,
+    /// and there has to be one answer to "which Arc am I in". See `ArcStore`.
+    @State private var arcs: ArcStore
     // **There is no cloud half, and no account.** A `ForgeBackend` used to be
     // built here — last, because it read the five stores above and nothing read
     // it — and the doc comment promised that deleting it would leave every
@@ -142,6 +151,19 @@ struct ContentView: View {
                 forge?.challengeContext ?? ChallengeContext()
             }
         )
+        // The Arcs reach the week the way the challenge reaches the day:
+        // through the day's own view model, weakly, and only through the doors
+        // it already has — `apply` for a plan somebody has read, and taking
+        // activities off for somebody leaving.
+        _arcs = State(
+            initialValue: ArcStore(
+                progress: progress,
+                week: { [weak forge] in forge?.activeRituals ?? [] },
+                find: { [weak forge] id in forge?.ritual(id) ?? Ritual.find(id) },
+                write: { [weak forge] plan in forge?.apply(plan) ?? 0 },
+                takeOff: { [weak forge] ids in forge?.removeRituals(ids) }
+            )
+        )
         // No visible account, and none is added here (§2n, §2q). A model
         // request is made under an invisible anonymous identity and carries
         // the StoreKit proof of purchase. `RemoteForgeAI` checks, in order:
@@ -170,18 +192,22 @@ struct ContentView: View {
             Tab(AppTab.forge.label, systemImage: AppTab.forge.symbol, value: .forge) {
                 forgeTab
             }
-            Tab(AppTab.blade.label, systemImage: AppTab.blade.symbol, value: .blade) {
-                bladeTab
+            Tab(AppTab.arcs.label, systemImage: AppTab.arcs.symbol, value: .arcs) {
+                arcsTab
             }
             // The one tab drawn from the catalogue rather than from SF Symbols.
             // See `AppTab.image`.
             Tab(AppTab.becoming.label, image: AppTab.becoming.image ?? AppTab.becoming.symbol, value: .becoming) {
                 becomingTab
             }
-            Tab(AppTab.settings.label, systemImage: AppTab.settings.symbol, value: .settings) {
-                settingsTab
+            Tab(AppTab.blade.label, systemImage: AppTab.blade.symbol, value: .blade) {
+                bladeTab
             }
         }
+        // Settings is no longer a tab; it is one sheet, opened from the gear in
+        // the Becoming and Blade bars. Inside `ForgeProModifier` below like the
+        // other sheets, so the store reaches it.
+        .sheet(isPresented: $showSettings) { settingsTab }
         // The world, handed to every screen at once. Pushed into the environment
         // rather than passed down, so a view is themed without having heard of
         // Paths — which is what keeps the fifth world from being a week of work
@@ -225,6 +251,9 @@ struct ContentView: View {
                 // opened at half past four would otherwise show yesterday's for
                 // a frame.
                 challenges.rollOver()
+                // A "Start Monday" waiting for its Monday is written into the
+                // week on the first open of that day.
+                arcs.applyIfDue()
                 syncAmbient()
                 // A free week that ended, or a subscription that lapsed, while
                 // the app was away says nothing on `Transaction.updates`; the
@@ -237,6 +266,7 @@ struct ContentView: View {
         // `onChange` does not fire for the value a view launches with, so this
         // is the launch pass. Every later one comes from the scene phase above.
         .task {
+            arcs.applyIfDue()
             syncAmbient()
             // How old the install is, for every signal: read off the oldest
             // record each time rather than stored anywhere.
@@ -277,6 +307,7 @@ struct ContentView: View {
         .onChange(of: progress.currentDay) { _, _ in
             forgeVM.publishPlanned()
             challenges.rollOver()
+            arcs.applyIfDue()
             syncAmbient()
         }
         .onChange(of: notifications.isEnabled) { _, _ in syncAmbient() }
@@ -540,7 +571,10 @@ struct ContentView: View {
             // Nil until there is a week worth reviewing. A weekly notification
             // arriving on somebody's second Sunday, about four days they were
             // present for, is the app talking about itself.
-            reviewWeekday: progress.records.count >= 7 ? reviews.reviewWeekday : nil
+            reviewWeekday: progress.records.count >= 7 ? reviews.reviewWeekday : nil,
+            // "Day 12 of 90" on the mornings of a running Arc, and its phase
+            // changes and its last day. See `ForgeNotificationPlan.arcMornings`.
+            arc: arcNotice
         )
     }
 
@@ -551,6 +585,7 @@ struct ContentView: View {
     /// sheet happened to be open when the app was last put down.
     private func landOnHome() {
         selectedTab = .forge
+        showSettings = false
         forgeVM.showEditRituals = false
         forgeVM.honorRitualID = nil
     }
@@ -561,7 +596,7 @@ struct ContentView: View {
     @ViewBuilder
     private var firstRun: some View {
         if forgeVM.isFirstRunCovering {
-            FirstRunView(vm: forgeVM)
+            FirstRunView(vm: forgeVM, arcs: arcs)
                 .transition(.opacity)
                 .zIndex(2)
         } else if forgeVM.firstRunStage == .closing {
@@ -626,6 +661,11 @@ struct ContentView: View {
     /// nothing happens *at* week six — the app simply starts offering to close
     /// it, and goes on offering until somebody does. See `Chapter.defaultWeeks`.
     private var isChapterDue: Bool {
+        // Suspended while an Arc runs: one time-boxed stretch at a time, and
+        // the Arc is the one with an end day. The chapter is untouched — its
+        // window goes on covering the record — and is offered again once the
+        // Arc is over. See `BladeTabView.chapter`.
+        guard !isArcRunning else { return false }
         guard let chapter = chapters.current else { return false }
         return chapter.progress(
             dayStartHour: progress.dayStartHour, today: progress.currentDay
@@ -881,6 +921,28 @@ struct ContentView: View {
         }
     }
 
+    // MARK: - The Arc
+
+    /// Whether an Arc is running today — the one thing that suspends the
+    /// chapter.
+    private var isArcRunning: Bool { arcs.currentReading?.isRunning == true }
+
+    /// What the morning notification is told about the running Arc. Nil when
+    /// there is none, and nil while new days are locked: an Arc that cannot be
+    /// kept is not counted at somebody.
+    private var arcNotice: ArcNotice? {
+        guard !isPracticeLocked, let current = arcs.current, current.isApplied,
+              let reading = arcs.currentReading, reading.isRunning
+        else { return nil }
+        let program = current.program
+        return ArcNotice(
+            name: program.name,
+            startDay: current.startDay,
+            length: program.length,
+            phases: program.phases.dropFirst().map { ArcNotice.Phase(name: $0.name, firstDay: $0.firstDay) }
+        )
+    }
+
     // MARK: - Forge Pro
 
     /// New days are locked: lapsed, or never subscribed, after onboarding.
@@ -895,7 +957,7 @@ struct ContentView: View {
         .preferredColorScheme(.dark)
 }
 
-// MARK: - The four tabs
+// MARK: - The four tabs, and Settings
 
 extension ContentView {
 
@@ -910,20 +972,31 @@ extension ContentView {
             vm: forgeVM,
             swords: swords,
             challenges: challenges,
+            arcs: arcs,
             brief: aiBrief,
-            ai: ai
+            ai: ai,
+            onArcs: { selectedTab = .arcs }
         )
+    }
+
+    fileprivate var arcsTab: some View {
+        ArcsTabView(arcs: arcs, forge: forgeVM, swords: swords)
     }
 
     fileprivate var bladeTab: some View {
         BladeTabView(
             vm: bladeVM, swords: swords,
-            identities: identities, chapters: chapters
+            identities: identities, chapters: chapters,
+            arcs: arcs,
+            onSettings: { showSettings = true }
         )
     }
 
     fileprivate var becomingTab: some View {
-        BecomingTabView(forge: forgeVM, identities: identities, reviews: reviews)
+        BecomingTabView(
+            forge: forgeVM, identities: identities, reviews: reviews,
+            onSettings: { showSettings = true }
+        )
     }
 
     fileprivate var settingsTab: some View {
@@ -948,7 +1021,9 @@ extension ContentView {
             ),
             isAIConnected: remote.isConnected,
             aiConsent: aiConsent,
-            notificationState: notificationState
+            notificationState: notificationState,
+            arcs: arcs,
+            onDone: { showSettings = false }
         )
     }
 }

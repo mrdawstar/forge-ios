@@ -11,15 +11,16 @@ import UniformTypeIdentifiers
 /// **one artifact, at two moments that actually mean something, that the user
 /// has to go and get.**
 ///
-/// # Exactly two doors
+/// # Exactly three doors
 ///
 /// **A blade earned** (`SwordUnlockOverlay`, once its celebration has staged
-/// its actions) and **a chapter closed** (`ChapterCloseView`, once "Close this
-/// chapter" has been pressed). Both carry one quiet third action, *Save the
+/// its actions), **a chapter closed** (`ChapterCloseView`, once "Close this
+/// chapter" has been pressed) and, since 1.1, **the running Arc's card** on
+/// the Arcs tab (DIRECTION_1_1 §5). Each carries one quiet action, *Save the
 /// proof*, and nothing else in the app offers to share anything: no prompt at
 /// launch, no reminder, no notification, nothing in the daily loop, and the
 /// share sheet only ever opens because somebody pressed the button.
-/// `FirstWeekTests.proofCardDoors` reads the source and fails if a third door
+/// `FirstWeekTests.proofCardDoors` reads the source and fails if a fourth door
 /// appears.
 ///
 /// # What is on it
@@ -29,6 +30,15 @@ import UniformTypeIdentifiers
 /// would need to find what they are looking at. No congratulation, no streak (a
 /// streak on a shared image is a number somebody has to defend next month), no
 /// achievement, no handle, no marketing line. Nothing the person wrote.
+///
+/// # The Arc's card
+///
+/// The one card with numbers on it: "Winter Arc · Day 30 of 90", the blade,
+/// the hexagon with its six numbers and OVR, the date and the address. It is
+/// the only one where a number is the point — an Arc is a count of days, and
+/// the six are what the days did — so they are digits, as everywhere they are
+/// a score (DIRECTION_1_1 §3). Still nothing written by the person, no streak
+/// and no congratulation.
 ///
 /// # Two formats
 ///
@@ -42,11 +52,14 @@ struct PracticeArtifact: View {
         case blade(name: String)
         /// A chapter closed.
         case chapter
+        /// Where somebody is in an Arc.
+        case arc(ArcProof)
 
         var line: String {
             switch self {
             case .blade(let name): name.uppercased()
             case .chapter: "CHAPTER CLOSED"
+            case .arc(let proof): proof.title.uppercased()
             }
         }
     }
@@ -84,8 +97,16 @@ struct PracticeArtifact: View {
     static let site = "forgebetter.app"
 
     var body: some View {
+        if case .arc(let proof) = occasion {
+            ArcProofCard(proof: proof, date: date, format: format)
+        } else {
+            bladeCard
+        }
+    }
+
+    private var bladeCard: some View {
         let size = format.size
-        ZStack {
+        return ZStack {
             // The room, not a gradient off a brand palette: the near-black the
             // app is drawn in.
             Rectangle().fill(ForgeTheme.bg)
@@ -155,12 +176,155 @@ struct PracticeArtifact: View {
         }
     }
 
-    private static let dateFormat: DateFormatter = {
+    static let dateFormat: DateFormatter = {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US")
         formatter.setLocalizedDateFormatFromTemplate("d MMMM yyyy")
         return formatter
     }()
+}
+
+// MARK: - The Arc's card
+
+/// What the Arc's card is made of, taken once when the button is drawn.
+///
+/// Values, not stores: the card is rendered off the main loop's state at the
+/// moment the share sheet asks, and it must be the numbers that were on
+/// screen when the button was pressed.
+struct ArcProof: Equatable, Sendable {
+    /// "Winter Arc · Day 30 of 90".
+    let title: String
+    /// The six, in `RitualCategory.dimensions` order; nil draws a dash.
+    let scores: [Int?]
+    let overall: Int
+    /// The equipped blade's sprite.
+    let blade: String
+    /// Winters finished, engraved on the blade.
+    let winters: Int
+}
+
+/// "Winter Arc · Day 30 of 90", the blade, the six and OVR, the date, the
+/// address. Drawn on the room, like every other card.
+struct ArcProofCard: View {
+    let proof: ArcProof
+    let date: Date
+    let format: PracticeArtifact.Format
+
+    private var isPortrait: Bool { format == .portrait }
+
+    var body: some View {
+        let size = format.size
+        let bladeWidth: CGFloat = isPortrait ? 150 : 104
+        let spriteHeight = bladeWidth * 1771.0 / 483.0
+        let bladeHeight: CGFloat = isPortrait ? 560 : 400
+        let hexagon: CGFloat = isPortrait ? 600 : 470
+
+        return ZStack {
+            Rectangle().fill(ForgeTheme.bg)
+            RadialGradient(
+                colors: [ForgeTheme.cream.opacity(0.10), .clear],
+                center: .top, startRadius: 0, endRadius: size.height * 0.6
+            )
+
+            VStack(spacing: 0) {
+                Text(proof.title.uppercased())
+                    .font(.system(size: isPortrait ? 40 : 34, weight: .semibold))
+                    .tracking(6)
+                    .foregroundStyle(ForgeTheme.cream)
+                    .minimumScaleFactor(0.6)
+                    .lineLimit(1)
+                    .padding(.top, isPortrait ? 150 : 70)
+                    .padding(.horizontal, 60)
+
+                if isPortrait {
+                    sword(width: bladeWidth, height: bladeHeight, spriteHeight: spriteHeight)
+                        .padding(.top, 60)
+                    six(side: hexagon)
+                        .padding(.top, 10)
+                } else {
+                    HStack(spacing: 30) {
+                        sword(width: bladeWidth, height: bladeHeight, spriteHeight: spriteHeight)
+                        six(side: hexagon)
+                    }
+                    .padding(.top, 40)
+                }
+
+                Spacer(minLength: 0)
+
+                Text(PracticeArtifact.dateFormat.string(from: date).uppercased())
+                    .font(.system(size: 22, weight: .medium))
+                    .tracking(4)
+                    .foregroundStyle(.white.opacity(0.34))
+                    .padding(.bottom, 16)
+
+                Text(PracticeArtifact.site)
+                    .font(.system(size: 20, weight: .medium))
+                    .tracking(2)
+                    .foregroundStyle(.white.opacity(0.28))
+                    .padding(.bottom, isPortrait ? 120 : 56)
+            }
+        }
+        .frame(width: size.width, height: size.height)
+        .environment(\.colorScheme, .dark)
+    }
+
+    private func sword(width: CGFloat, height: CGFloat, spriteHeight: CGFloat) -> some View {
+        Image(proof.blade)
+            .resizable()
+            .aspectRatio(contentMode: .fit)
+            .frame(width: width, height: spriteHeight)
+            .winterEngraving(proof.winters, width: width, spriteHeight: spriteHeight)
+            .frame(width: width, height: height, alignment: .top)
+            .clipped()
+            .mask(
+                LinearGradient(
+                    stops: SwordArt.fadeStops(solid: 0.62),
+                    startPoint: .top, endPoint: .bottom
+                )
+            )
+    }
+
+    /// The hexagon in the six colours, OVR in its middle, and each side's
+    /// number beside its vertex.
+    private func six(side: CGFloat) -> some View {
+        let values = proof.scores.map { Double($0 ?? 0) / 100 }
+        return ZStack {
+            StatHexagon(values: values, showsGlyphs: false, animation: nil) {
+                VStack(spacing: 2) {
+                    Text("\(proof.overall)")
+                        .font(.system(size: side * 0.15, weight: .semibold))
+                        .monospacedDigit()
+                        .foregroundStyle(.white)
+                    Text("OVR")
+                        .font(.system(size: side * 0.035, weight: .semibold))
+                        .tracking(3)
+                        .foregroundStyle(ForgeTheme.cream.opacity(0.75))
+                }
+            }
+            .frame(width: side * 0.66, height: side * 0.66)
+
+            ForEach(Array(RitualCategory.dimensions.enumerated()), id: \.element) { index, dimension in
+                let score = proof.scores.indices.contains(index) ? proof.scores[index] : nil
+                VStack(spacing: 2) {
+                    Text(score.map(String.init) ?? "\u{2014}")
+                        .font(.system(size: side * 0.06, weight: .semibold))
+                        .monospacedDigit()
+                        .foregroundStyle(dimension.color)
+                    Text(dimension.label.uppercased())
+                        .font(.system(size: side * 0.026, weight: .semibold))
+                        .tracking(1.5)
+                        .foregroundStyle(.white.opacity(0.5))
+                }
+                .position(
+                    HexagonGeometry.point(
+                        index, radius: side * 0.43,
+                        centre: CGPoint(x: side / 2, y: side / 2)
+                    )
+                )
+            }
+        }
+        .frame(width: side, height: side)
+    }
 }
 
 // MARK: - The file
@@ -202,8 +366,8 @@ struct ProofCardFile: Transferable, Sendable {
 
 /// *Save the proof*: a quiet third action, offering the two formats.
 ///
-/// Used in exactly two places — see `PracticeArtifact`. It never opens itself;
-/// the share sheet appears only after somebody picks a format.
+/// Used in exactly three places — see `PracticeArtifact`. It never opens
+/// itself; the share sheet appears only after somebody picks a format.
 struct ProofCardButton: View {
     let occasion: PracticeArtifact.Occasion
     let daysKept: Int
@@ -211,12 +375,19 @@ struct ProofCardButton: View {
 
     static let title = "Save the proof"
 
+    /// What the share sheet calls the file: the Arc's title on the Arc's
+    /// card, the days kept on the other two.
+    private var previewTitle: String {
+        if case .arc(let proof) = occasion { return proof.title }
+        return PracticeArtifact.dayWords(daysKept)
+    }
+
     var body: some View {
         Menu {
             ForEach(PracticeArtifact.Format.allCases) { format in
                 ShareLink(
                     item: ProofCardFile(occasion: occasion, daysKept: daysKept, date: date, format: format),
-                    preview: SharePreview(PracticeArtifact.dayWords(daysKept), image: Image("hero"))
+                    preview: SharePreview(previewTitle, image: Image("hero"))
                 ) {
                     Text(format.label)
                 }

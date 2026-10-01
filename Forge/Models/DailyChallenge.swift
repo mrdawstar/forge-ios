@@ -156,9 +156,10 @@ struct DailyChallenge: Identifiable, Codable, Equatable, Sendable {
 /// permanent for the rest of the day. A rule that cannot be unwound has to be
 /// worth its worst case, and "I pressed Done before I did it" is not.
 ///
-/// Nothing about the record changes either way: the challenge is not scored, not
-/// counted and not part of the chain, so there is nothing here that undoing
-/// could falsify.
+/// The chain never hears about it either way. Since 1.1 a finished challenge
+/// counts as a kept day for its dimension in the Shape (`KeptChallenge`), and
+/// every move away from `completed` takes that day back in the same write — so
+/// there is still nothing here that undoing could falsify.
 enum ChallengeState: String, Codable, Sendable {
     /// Offered, and not yet answered.
     case offered
@@ -181,6 +182,65 @@ struct ChallengeDay: Codable, Equatable, Sendable {
     var state: ChallengeState = .offered
     /// When it was finished. Only ever set once.
     var completedAt: Date?
+}
+
+/// A daily challenge somebody finished, as the record keeps it: the day, which
+/// one, and which of the six it was aimed at.
+///
+/// # Why a finished challenge is kept at all
+///
+/// It was not, on purpose: "a scoreboard of challenges taken and missed is
+/// exactly the pressure this feature must not add". 1.1 makes the challenge
+/// count (DIRECTION_1_1 §7) — a finished one is a kept day for its dimension in
+/// the Shape — and a thing that counts has to be written down, or the Shape
+/// would forget it at four in the morning.
+///
+/// **Only what was finished.** Nothing is kept about a challenge skipped,
+/// ignored or swapped, so there is still no list of misses anywhere: this is a
+/// record of things done, the same kind of fact as a `DayRecord.Completion`,
+/// and the Shape reads it the same way — derived on read, one day per
+/// dimension however much was done in it. See `ForgeShape.crediting`.
+///
+/// One per day, because there is one challenge a day: taking another one, or
+/// undoing the finish, takes the day's entry away again. Stored by
+/// `ProgressStore` under `forge.challengesKept.v1`.
+struct KeptChallenge: Codable, Equatable, Sendable {
+    let day: ForgeDay
+    /// The catalogue id, for the record. Nothing reads it to count.
+    let id: String
+    /// Which of the six it fed.
+    let focus: ChallengeFocus
+    let at: Date
+
+    init(day: ForgeDay, id: String, focus: ChallengeFocus, at: Date) {
+        self.day = day
+        self.id = id
+        self.focus = focus
+        self.at = at
+    }
+
+    /// Tolerant, like every decoder here: the day and the aim are the whole of
+    /// what counts, so only they are required. `ChallengeFocus` already lands
+    /// an unknown aim somewhere safe rather than throwing.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        day = try c.decode(ForgeDay.self, forKey: .day)
+        focus = try c.decode(ChallengeFocus.self, forKey: .focus)
+        id = try c.decodeIfPresent(String.self, forKey: .id) ?? ""
+        at = try c.decodeIfPresent(Date.self, forKey: .at) ?? day.startOfDay()
+    }
+
+    private enum CodingKeys: String, CodingKey { case day, id, focus, at }
+
+    /// A whole list, keeping every entry that reads and dropping the rest — one
+    /// bad row must not cost somebody every challenge they ever finished.
+    static func decodeAll(_ data: Data) -> [KeptChallenge] {
+        struct Lossy: Decodable {
+            let value: KeptChallenge?
+            init(from decoder: Decoder) throws { value = try? KeptChallenge(from: decoder) }
+        }
+        return ((try? JSONDecoder().decode([Lossy].self, from: data)) ?? []).compactMap(\.value)
+    }
 }
 
 // MARK: - What the day is already about

@@ -6,9 +6,15 @@ import Foundation
 /// because a locked daily challenge is the app withholding the one thing it is
 /// for. Nothing here is behind anything.
 ///
-/// Nothing is scored and nothing is punished. A skipped challenge costs nothing,
-/// does not touch the streak, and is not counted anywhere — the chain is about
-/// the day, and a challenge is a thing offered on top of it.
+/// Nothing is punished. A skipped challenge costs nothing, does not touch the
+/// streak, and is not written anywhere — the chain is about the day, and a
+/// challenge is a thing offered on top of it.
+///
+/// **A finished one counts** (DIRECTION_1_1 §7): it is a kept day for its
+/// dimension in the Shape. This store does not keep that record itself — it
+/// hands it to `ProgressStore` (`keepChallenge`) the moment the state reaches
+/// `completed`, and takes it back (`releaseChallenge`) on every move away from
+/// it, so the Shape can never be holding a finish the sheet no longer shows.
 ///
 /// **It holds no model.** It used to take a `ForgeAI` and expose `generate`, for
 /// a screen that asked a model to compose a challenge — a screen 1.0 shipped
@@ -19,10 +25,12 @@ import Foundation
 @Observable
 final class ChallengeStore {
 
-    /// Read for the current day, and for nothing else. The challenge store has
-    /// no history of its own: yesterday's challenge is gone, on purpose, because
-    /// a scoreboard of challenges taken and missed is exactly the pressure this
-    /// feature must not add.
+    /// Read for the current day, and written to when a challenge is finished.
+    /// The challenge store has no history of its own: yesterday's challenge is
+    /// gone, on purpose, because a scoreboard of challenges taken and missed is
+    /// exactly the pressure this feature must not add. What survives the day is
+    /// only the fact of a finish, and it lives with every other fact about
+    /// what somebody did — `ProgressStore.challengesKept`.
     private let progress: ProgressStore
 
     /// Today's challenge and what has happened to it. Never nil — there is
@@ -55,6 +63,13 @@ final class ChallengeStore {
         self.defaults = defaults
         self.context = context
         self.today = Self.load(from: defaults, for: progress.currentDay, context: context())
+        // A challenge finished today on the build before this one was never
+        // written down as kept. Today's state is the truth, so the record is
+        // brought into step with it once, here — and only for today, the one
+        // day whose state is still known.
+        if today.state == .completed {
+            progress.keepChallenge(today.challenge, on: today.day, at: today.completedAt ?? progress.now)
+        }
     }
 
     // MARK: - The day turning over
@@ -82,6 +97,7 @@ final class ChallengeStore {
         today.state = .accepted
         today.completedAt = nil
         persist()
+        progress.releaseChallenge(on: today.day)
         if !wasAccepted { ForgeTelemetry.send(.challengeAccepted) }
     }
 
@@ -91,6 +107,7 @@ final class ChallengeStore {
         today.state = .skipped
         today.completedAt = nil
         persist()
+        progress.releaseChallenge(on: today.day)
     }
 
     func complete() {
@@ -98,6 +115,7 @@ final class ChallengeStore {
         today.state = .completed
         today.completedAt = progress.now
         persist()
+        progress.keepChallenge(today.challenge, on: today.day, at: progress.now)
         ForgeTelemetry.send(.challengeCompleted)
     }
 
@@ -111,6 +129,14 @@ final class ChallengeStore {
         today.state = .accepted
         today.completedAt = nil
         persist()
+        progress.releaseChallenge(on: today.day)
+    }
+
+    /// The dimension today's challenge feeds, said on its card — "Counts toward
+    /// Discipline". The aim, read off the challenge, so a card and the Shape
+    /// can never name two different ones.
+    static func countsToward(_ challenge: DailyChallenge) -> String {
+        "Counts toward \(challenge.focus.label)"
     }
 
     // MARK: - Browsing the six
@@ -146,6 +172,10 @@ final class ChallengeStore {
         guard challenge.id != today.challenge.id else { return }
         today = ChallengeDay(day: today.day, challenge: challenge, state: .accepted)
         persist()
+        // Whatever the day's challenge was, it is not the one being kept now:
+        // a finish of the one replaced must not go on counting for its
+        // dimension under a card that is about another.
+        progress.releaseChallenge(on: today.day)
         ForgeTelemetry.send(.challengeAccepted)
     }
 

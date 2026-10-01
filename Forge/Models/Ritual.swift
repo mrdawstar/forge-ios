@@ -494,12 +494,15 @@ struct RitualEdit: Codable, Equatable {
     /// never having tagged it, which is fine until you want "reset to default"
     /// to have something to undo.
     var identityID: String?? = nil
+    /// The number a measurable activity is held to, where it differs from the
+    /// default. See `Ritual.target`.
+    var target: Int? = nil
 
     var isEmpty: Bool {
         label == nil && symbol == nil && verification == nil && tail == nil
             && note == nil && minutes == nil && startMinute == nil
             && priority == nil && repeats == nil && category == nil
-            && identityID == nil
+            && identityID == nil && target == nil
     }
 
     /// Tolerant of every shape ever written to disk.
@@ -525,9 +528,48 @@ struct RitualEdit: Codable, Equatable {
         category = (try c.decodeIfPresent(String.self, forKey: .category))
             .flatMap(RitualCategory.init(migrating:))
         identityID = try c.decodeIfPresent(String?.self, forKey: .identityID)
+        target = try c.decodeIfPresent(Int.self, forKey: .target)
     }
 
     init() {}
+}
+
+// MARK: - What a phone could one day count
+
+/// What Apple Health would tick an activity off from, once it can.
+///
+/// Four, and they are the four DIRECTION_1_1 §8 names: steps, workout minutes,
+/// sleep and mindful minutes. **Nothing measures yet.** HealthKit left before
+/// 1.0 and comes back in session S5, read-only and on the device; until then
+/// every activity carrying one of these is Your Word like everything else
+/// (`Ritual.libraryVerification`). The metric is here first so the Arcs could
+/// be written against the numbers Health will actually check.
+enum ActivityMetric: String, Codable, CaseIterable, Sendable {
+    case steps
+    case workoutMinutes
+    case sleepMinutes
+    case mindfulMinutes
+
+    /// Whether the target is a length of time, which a timed activity already
+    /// states as its own `minutes`.
+    var isDuration: Bool { self != .steps }
+
+    /// The day's number where nobody has said one: 8,000 steps, thirty minutes
+    /// of training, seven hours asleep, ten mindful minutes.
+    var defaultTarget: Int {
+        switch self {
+        case .steps: 8_000
+        case .workoutMinutes: 30
+        case .sleepMinutes: 7 * 60
+        case .mindfulMinutes: 10
+        }
+    }
+}
+
+/// A metric and the day's number for it. See `Ritual.measure`.
+struct ActivityMeasure: Equatable, Sendable {
+    let metric: ActivityMetric
+    let target: Int
 }
 
 /// The six dimensions of the Forge Shape, and the filing system for every
@@ -699,6 +741,12 @@ struct Ritual: Identifiable, Equatable, Codable {
     /// shipped category — see `category`.
     var categoryOverride: RitualCategory? = nil
 
+    /// The number a measurable activity is held to — 10,000 for steps — where
+    /// somebody (or an Arc's phase, on one explicit tap) has set one. Nil keeps
+    /// the default. See `measure`, which is the only thing that reads it, and
+    /// `ActivityMetric` for why nothing measures yet.
+    var target: Int? = nil
+
     /// Who this is evidence for. See `Identity`.
     ///
     /// **The spine.** Everything Forge records is otherwise a volume — days
@@ -807,6 +855,7 @@ struct Ritual: Identifiable, Equatable, Codable {
         categoryOverride = (try c.decodeIfPresent(String.self, forKey: .categoryOverride))
             .flatMap(RitualCategory.init(migrating:))
         identityID = try c.decodeIfPresent(String.self, forKey: .identityID)
+        target = try c.decodeIfPresent(Int.self, forKey: .target)
     }
 
     /// Spelled out because `init(from:)` is, and a synthesised `CodingKeys`
@@ -815,7 +864,7 @@ struct Ritual: Identifiable, Equatable, Codable {
     private enum CodingKeys: String, CodingKey {
         case id, label, iconKey, sub, tail, reps, symbolName, isCustom
         case verificationOverride, note, minutes, startMinute, priority
-        case repeats, categoryOverride, identityID
+        case repeats, categoryOverride, identityID, target
     }
 
     /// Written out because the decoder is, and the two have to agree about the
@@ -837,7 +886,8 @@ struct Ritual: Identifiable, Equatable, Codable {
         priority: RitualPriority = .normal,
         repeats: RitualRepeat = .daily,
         categoryOverride: RitualCategory? = nil,
-        identityID: String? = nil
+        identityID: String? = nil,
+        target: Int? = nil
     ) {
         self.id = id
         self.label = label
@@ -855,6 +905,7 @@ struct Ritual: Identifiable, Equatable, Codable {
         self.repeats = repeats
         self.categoryOverride = categoryOverride
         self.identityID = identityID
+        self.target = target
     }
 
     /// Every shipped activity, filed by hand against the six dimensions.
@@ -911,6 +962,10 @@ struct Ritual: Identifiable, Equatable, Codable {
         "numbers": .ambition, "askfor": .ambition, "craft": .ambition,
         "breathe": .mental, "silence": .mental, "worry": .mental,
         "prep": .discipline,
+
+        // The six the Arcs needed. See the block at the foot of `library`.
+        "steps": .physical, "pages": .intellect, "nightlines": .mental,
+        "firstthirty": .discipline, "bedroom": .discipline, "noshort": .discipline,
     ]
 
     static let defaultActive = ["water", "bed", "teeth", "push", "read"]
@@ -947,7 +1002,45 @@ struct Ritual: Identifiable, Equatable, Codable {
         "numbers": .honor, "askfor": .honor, "craft": .honor,
         "breathe": .honor, "silence": .honor, "worry": .honor,
         "prep": .honor,
+        // The six the Arcs needed. Steps is the one a phone *could* measure,
+        // and it stays Your Word until Apple Health returns (DIRECTION_1_1 §8):
+        // until then the count is somebody looking at their own phone and
+        // saying so. See `ActivityMetric`.
+        "steps": .honor, "pages": .honor, "nightlines": .honor,
+        "firstthirty": .honor, "bedroom": .honor, "noshort": .honor,
     ]
+
+    /// The activities a phone can one day measure, and what it would count.
+    ///
+    /// **Nothing reads this yet.** Session S5 brings Apple Health back
+    /// read-only (DIRECTION_1_1 §8), and this is the table it will tick these
+    /// off from; until then every one of them is Your Word, exactly as the
+    /// verification table above says. It is here now so the Arcs can be
+    /// written against the numbers Health will check — a step count, minutes
+    /// of training, hours asleep, mindful minutes — rather than against
+    /// sentences that would have to be rewritten when it arrives.
+    static let metrics: [String: ActivityMetric] = [
+        "steps": .steps,
+        "workout": .workoutMinutes, "run": .workoutMinutes, "lift": .workoutMinutes,
+        "meditate": .mindfulMinutes,
+        "sleep": .sleepMinutes,
+    ]
+
+    /// What the phone would check this activity against, once it can: the
+    /// metric and the day's target. See `ActivityMetric`.
+    ///
+    /// The target is **this person's own standard**, never a number Forge
+    /// holds somewhere else. A timed activity is checked against the length on
+    /// its row — training is done when the minutes somebody set are done — and
+    /// a count is checked against `target`, which an Arc's phase moves (8,000
+    /// steps to 10,000). Only where neither has been said does the metric's
+    /// default stand in.
+    var measure: ActivityMeasure? {
+        guard let metric = Ritual.metrics[id] else { return nil }
+        if let target { return ActivityMeasure(metric: metric, target: target) }
+        if metric.isDuration, minutes > 0 { return ActivityMeasure(metric: metric, target: minutes) }
+        return ActivityMeasure(metric: metric, target: metric.defaultTarget)
+    }
 
     /// The shipped activities, each with the length it actually takes.
     ///
@@ -1076,6 +1169,24 @@ struct Ritual: Identifiable, Equatable, Codable {
         // Discipline. The smallest, most reliable lever there is on tomorrow
         // morning, and the library had nothing that touched the night before.
         Ritual(id: "prep", label: "Lay it out the night before", iconKey: "bag", sub: "Clothes, bag, keys, by the door", tail: "", minutes: 5),
+
+        // Six the Arcs needed (DIRECTION_1_1 §5), each filed under one of the
+        // six like everything above, and each something the library could not
+        // already say. Everything else an Arc asks for — getting up, training,
+        // deep work, a real conversation — it takes from the library as it is.
+        //
+        // **The subtitles hold no numbers**, and that is deliberate rather than
+        // a style. An Arc raises a standard by phase — 8,000 steps become
+        // 10,000, ten pages become twenty — and what it moves is the target in
+        // the row's right-hand column (`RitualEdit.tail`). The subtitle is
+        // ours and never moves, so a number written into it would be a second,
+        // stale copy of the standard three weeks into a winter.
+        Ritual(id: "steps", label: "Hit your steps", iconKey: "walk", sub: "However you get them. Check before dinner", tail: "8,000"),
+        Ritual(id: "pages", label: "Read on paper", iconKey: "pages", sub: "One sitting, the phone in another room", tail: "10 pages", minutes: 20),
+        Ritual(id: "nightlines", label: "Write five lines", iconKey: "lines", sub: "At night, on paper, before the phone goes out", tail: "5 lines", minutes: 10),
+        Ritual(id: "firstthirty", label: "No phone first thing", iconKey: "nophone", sub: "From the moment you are up, screen face down", tail: "30 min", minutes: 30),
+        Ritual(id: "bedroom", label: "Phone out of the bedroom", iconKey: "zzz", sub: "Charging in another room, all night", tail: ""),
+        Ritual(id: "noshort", label: "No short-form video", iconKey: "noplay", sub: "Not one clip, all day", tail: ""),
     ]
 
     static func find(_ id: String) -> Ritual? {
@@ -1193,6 +1304,15 @@ struct Ritual: Identifiable, Equatable, Codable {
         "plan": [.discipline],
         "ship": [.discipline],
         "reach": [.mental],
+
+        // The six the Arcs added. A phone kept out of somebody's morning or
+        // bedroom is a decision about attention as much as about the phone.
+        "steps": [.mental],
+        "pages": [.mental],
+        "nightlines": [.intellect],
+        "firstthirty": [.mental],
+        "bedroom": [.mental],
+        "noshort": [.mental],
     ]
 
     /// How much of a day each dimension gets from this activity.
@@ -1339,7 +1459,8 @@ struct Ritual: Identifiable, Equatable, Codable {
             startMinute: draft.startMinute,
             priority: draft.priority,
             repeats: draft.repeats,
-            categoryOverride: draft.category
+            categoryOverride: draft.category,
+            target: draft.target
         )
     }
 
@@ -1356,7 +1477,8 @@ struct Ritual: Identifiable, Equatable, Codable {
             repeats: repeats,
             category: category,
             verification: verification,
-            identityID: identityID
+            identityID: identityID,
+            target: target
         )
     }
 }
@@ -1384,6 +1506,10 @@ struct ActivityDraft: Equatable, Sendable {
     /// draft is and what every activity stays until somebody says otherwise.
     /// See `Ritual.identityID`.
     var identityID: String?
+    /// The number a measurable activity is held to, or nil for its default.
+    /// Defaulted so every draft built before it existed means what it meant.
+    /// See `Ritual.target`.
+    var target: Int? = nil
 
     /// The hour a newly-timed activity starts at.
     ///
@@ -1425,5 +1551,20 @@ struct ActivityDraft: Equatable, Sendable {
         copy.note = trimmedNote
         copy.goal = trimmedGoal
         return copy
+    }
+
+    /// A new length, and the target with it **where the target only ever said
+    /// the length**.
+    ///
+    /// "Deep work" ships with "45 min" in its right-hand column and 45 as its
+    /// minutes — two statements of one fact. A plan that moved the minutes and
+    /// left the column would leave the row reading "45 min" over a block that
+    /// is now ninety, so a target that is exactly the old length, as
+    /// `ClockMinute.duration` says it, moves with it. Anything else somebody
+    /// wrote there — "3 sets", "two chapters" — is theirs and stays.
+    mutating func setLength(_ newMinutes: Int) {
+        let said = ClockMinute.duration(minutes)
+        minutes = max(0, newMinutes)
+        if let said, goal == said, let now = ClockMinute.duration(minutes) { goal = now }
     }
 }

@@ -57,6 +57,15 @@ enum ForgeIcons {
         "globe": "globe",
         "cap": "graduationcap.fill",
         "fork": "fork.knife",
+        // The six the Arcs added, each with a mark of its own for the same
+        // reason: two phone rules and a second reading activity sit in the
+        // same week as the ones they resemble.
+        "walk": "figure.walk",
+        "pages": "book.closed.fill",
+        "lines": "text.justify.left",
+        "nophone": "iphone.slash",
+        "zzz": "moon.zzz.fill",
+        "noplay": "play.slash.fill",
 
         // Chrome & status
         //

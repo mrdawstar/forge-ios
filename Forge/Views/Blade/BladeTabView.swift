@@ -44,6 +44,11 @@ struct BladeTabView: View {
     /// able to say something about a retired identity later.
     var identities: IdentityStore
     var chapters: ChapterStore
+    /// The Arcs: a finished one is on the record, a Winter Arc is cut into
+    /// the blade, and a running one suspends the chapter. See `chapter`.
+    var arcs: ArcStore
+    /// The gear: Settings is a sheet since Arcs took its tab.
+    var onSettings: () -> Void = {}
 
     /// The milestone composer, open on a new one or on one being changed.
     @State private var composing: MilestoneComposer.Mode?
@@ -69,6 +74,8 @@ struct BladeTabView: View {
 
                     record
 
+                    arcRecord
+
                     milestones
                 }
                 .padding(.horizontal, 20)
@@ -76,6 +83,11 @@ struct BladeTabView: View {
             }
             .scrollIndicators(.hidden)
             .navigationTitle("Blade")
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    SettingsButton(action: onSettings)
+                }
+            }
         }
         .sheet(isPresented: $vm.showAnalytics) {
             AnalyticsSheet(vm: vm)
@@ -123,6 +135,8 @@ struct BladeTabView: View {
                 crossfade: true
             )
             .bladeState(vm.bladeState)
+            // Every winter finished, cut into the steel. See `WinterEngraving`.
+            .winterEngraving(arcs.winterMarks.count, width: 74, spriteHeight: 74 * 1771 / 483)
             .animation(reduceMotion ? nil : .smooth(duration: 0.42), value: swords.equippedID)
 
             VStack(spacing: 7) {
@@ -339,13 +353,48 @@ struct BladeTabView: View {
     /// only when there is one open: a closed chapter is history and belongs to
     /// the review that has not been built yet, and no chapter at all is an
     /// ordinary state that needs no announcement.
+    ///
+    /// # While an Arc runs
+    ///
+    /// **The chapter is suspended.** An Arc is a stretch of days with a start,
+    /// an end and a counter, and a chapter is too; two bars running two
+    /// lengths over the same days ask somebody to keep two scores. So while an
+    /// Arc runs the chapter is one quiet line, nothing is drawn against it, and
+    /// its six-week close is not offered (`ContentView.isChapterDue`). Nothing
+    /// about it changes: it is a window over the record, it goes on covering
+    /// the same days, and it is back, exactly as true, the day the Arc ends.
+    ///
+    /// Why not run the Arc *as* a chapter: a chapter is a name, an intention
+    /// and an open date, with no length or program of its own, and it is a
+    /// synced row. Carrying an Arc would mean new columns on the server's
+    /// chapters table and a six-week close that would fire forty-eight days
+    /// into a Winter Arc.
     @ViewBuilder
     private var chapter: some View {
-        if let chapter = chapters.current {
+        if let running = arcs.currentReading, running.isRunning {
+            suspendedChapter(running)
+        } else if let chapter = chapters.current {
             openChapter(chapter)
         } else {
             noChapter
         }
+    }
+
+    /// The chapter, while an Arc has the days.
+    @ViewBuilder
+    private func suspendedChapter(_ running: ArcReading) -> some View {
+        let name = ArcCatalog.program(running.arc).name
+        VStack(alignment: .leading, spacing: 6) {
+            SectionHeader(title: chapters.current == nil ? "CHAPTERS" : "THIS CHAPTER")
+            Text(chapters.current.map { "\($0.name) waits while \(name) runs." }
+                 ?? "Chapters wait while \(name) runs.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, 4)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.bottom, 26)
     }
 
     /// The offer, for somebody who is not in a chapter.
@@ -489,6 +538,41 @@ struct BladeTabView: View {
         guard reading.daysKept > 0 else { return "Nothing kept in it yet." }
         let word = reading.daysKept == 1 ? "day" : "days"
         return "\(ForgeCount.spelled(reading.daysKept)) \(word) kept, of \(reading.daysElapsed) so far."
+    }
+
+    // MARK: - 4b. The Arcs finished
+
+    /// Every Arc run to its end, with its mark — "Winter Arc 2026 · Completed,
+    /// 84 of 90 days". Part of the record, so it is never locked (§5 #1), and
+    /// not drawn at all until there is one.
+    @ViewBuilder
+    private var arcRecord: some View {
+        let finished = arcs.finished
+        if !finished.isEmpty {
+            SectionHeader(title: "ARCS")
+                .padding(.bottom, 12)
+            VStack(spacing: 9) {
+                ForEach(finished) { enrollment in
+                    HStack(spacing: 12) {
+                        ArcMark(arc: enrollment.arc, size: 20)
+                            .frame(width: 32, height: 32)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(enrollment.recordName)
+                                .font(.subheadline.weight(.medium))
+                            Text(arcs.reading(enrollment).outcome)
+                                .font(.caption)
+                                .monospacedDigit()
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer(minLength: 0)
+                    }
+                    .padding(14)
+                    .forgeCard(radius: ForgeTheme.Radius.control)
+                    .accessibilityElement(children: .combine)
+                }
+            }
+            .padding(.bottom, 26)
+        }
     }
 
     // MARK: - 4. The record
