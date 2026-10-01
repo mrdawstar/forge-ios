@@ -44,11 +44,18 @@ enum ForgeShared {
         "forge.verificationMemory.v1",
         "forge.libraryEdits.v1",
         "forge.commitment.v1",
+        // 1.0's single paywall door. Nothing reads it since 1.1 retired the
+        // doors (FORGE_CONTEXT §6); kept so an old install's value still has a
+        // home rather than being stranded in the old suite.
         "forge.premiumInvited.v1",
-        // Which of Forge Pro's three doors have been shown. See
-        // `PremiumInvitation`; the key above is 1.0's single door, kept so an
-        // old install's value still migrates rather than being stranded.
-        "forge.paywallDoors.v1",
+        // Forge Pro (1.1). Whether this install ran 1.0 or 1.0.1 (`Founder`),
+        // whether the one exit offer has been shown (`ExitOffer`), whether the
+        // trial reminder was asked for (`TrialReminder`), and when Forge asked
+        // for a rating (`RatingPrompt`).
+        "forge.founder.v1",
+        "forge.exitOffer.v1",
+        "forge.trialReminder.v1",
+        "forge.ratingAsked.v1",
         // Whether Forge's AI has been allowed. Stranding it would ask again —
         // or, worse, lose a revocation. See `AIConsentStore`.
         "forge.aiConsent.v1",

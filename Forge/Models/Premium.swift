@@ -3,27 +3,33 @@ import StoreKit
 
 // MARK: - What is sold
 
-/// The three things somebody can buy.
+/// The four things somebody can buy.
 ///
-/// # Monthly is back, and that is a decision rather than a drift
+/// # A hard paywall with a free week (1.1)
 ///
-/// 1.0's version of this file said *"No monthly plan"* and argued it: Forge keeps
-/// everything on the phone, costs almost nothing per person, and a practice
-/// measured in years should not be re-decided twelve times a year. **That
-/// decision has been reversed on purpose for Forge Pro (1.1)**, and the reversal
-/// is final — see `FORGE_CONTEXT.md` §6. What changed is what is being sold: Pro
-/// is a reading of the record, and somebody deciding whether that reading is
-/// worth anything should be able to find out for a month without committing to
-/// a year. Annual stays the default and the one with the trial; lifetime stays
-/// for anybody who wants never to be asked again.
+/// 1.0 sold nothing, and 1.1's first pass sold "a reading of the record" behind
+/// three rationed doors. **Both are gone, on purpose** (DIRECTION_1_1 §1,
+/// `FORGE_CONTEXT.md` §6): a new install finishes onboarding and meets the
+/// paywall, and the ongoing practice — keeping new days, the Arcs, the daily
+/// challenge, the AI — is what is sold. Nothing that has already happened is
+/// sold back: the record stays readable to everybody, forever (`PremiumGate`).
 ///
-/// The identifiers are a contract with App Store Connect, `Forge.storekit` and
-/// `supabase/functions/forge-ai/storekit.ts` (`PREMIUM_PRODUCTS`). All four
-/// must name the same three strings; `PremiumTests` reads the `.storekit` file
-/// to hold the first two together.
+/// - **Annual** is the default: preselected, and the plan with the free week.
+/// - **Monthly** has no trial.
+/// - **The annual offer** is a lower annual price with the same free week,
+///   shown once, ever, to somebody who declines the onboarding paywall
+///   (`ExitOffer`).
+/// - **Lifetime** is never on the paywall. It is sold in Settings → Forge Pro
+///   and nowhere else.
+///
+/// The identifiers are a contract with App Store Connect, `Forge.storekit`,
+/// `supabase/functions/forge-ai/storekit.ts` (`PREMIUM_PRODUCTS`) and the table
+/// in `docs/APP_STORE.md` §7. `PremiumTests.productsAgree` reads all four files
+/// and fails the moment one of them names something else.
 enum PremiumProduct: String, CaseIterable, Sendable {
-    case monthly = "com.dawid.forge.premium.monthly"
     case annual = "com.dawid.forge.premium.annual"
+    case annualOffer = "com.dawid.forge.premium.annual.offer"
+    case monthly = "com.dawid.forge.premium.monthly"
     case lifetime = "com.dawid.forge.premium.lifetime"
 
     static var identifiers: [String] { allCases.map(\.rawValue) }
@@ -33,25 +39,26 @@ enum PremiumProduct: String, CaseIterable, Sendable {
         self = match
     }
 
-    /// The order the paywall lists them in: annual first and selected, then
-    /// monthly, then lifetime.
-    static let displayOrder: [PremiumProduct] = [.annual, .monthly, .lifetime]
+    /// The two plans the paywall offers, annual first and chosen. The offer has
+    /// a screen of its own, once; lifetime is Settings' alone.
+    static let paywallPlans: [PremiumProduct] = [.annual, .monthly]
 
     /// Whether it renews. Lifetime is a non-consumable and cannot lapse.
     var isSubscription: Bool { self != .lifetime }
 
     /// What the plan is called on screen. Never a price — prices only ever come
-    /// from `Product.displayPrice`.
+    /// from `Product.displayPrice`. The offer is an annual plan at another
+    /// price, and Settings names it as one.
     var planName: String {
         switch self {
+        case .annual, .annualOffer: "Annual"
         case .monthly: "Monthly"
-        case .annual: "Annual"
         case .lifetime: "Lifetime"
         }
     }
 }
 
-/// What somebody currently has.
+/// What StoreKit says is owned, before founders and trials are considered.
 enum PremiumEntitlement: Equatable, Sendable {
     case free
     case subscribed
@@ -70,49 +77,300 @@ enum PremiumEntitlement: Equatable, Sendable {
         return .free
     }
 
-    /// Which plan to name in Settings for the same set. Lifetime first, then
-    /// annual, then monthly — the longest commitment is the one that is true.
+    /// Which plan to name for the same set. Lifetime first, then the annual
+    /// plans, then monthly — the longest commitment is the one that is true.
     static func plan(among owned: [PremiumProduct]) -> PremiumProduct? {
-        let longestFirst: [PremiumProduct] = [.lifetime, .annual, .monthly]
+        let longestFirst: [PremiumProduct] = [.lifetime, .annual, .annualOffer, .monthly]
         return longestFirst.first { owned.contains($0) }
     }
 }
 
-// MARK: - What Pro is
+// MARK: - Who has what
 
-/// The three things Pro adds, and there are only three.
+/// The live subscription, as StoreKit described it.
+struct ActiveSubscription: Equatable, Sendable {
+    let plan: PremiumProduct
+    /// When the current period — or the free week — ends.
+    let expires: Date?
+    /// The current period is an introductory free trial.
+    let isTrial: Bool
+}
+
+/// Everything deciding `ProAccess` depends on, read at one moment.
+struct EntitlementFacts: Equatable, Sendable {
+    /// StoreKit has answered at least once since launch. Until it has, nothing
+    /// may be taken away on the strength of a placeholder (`ForgeStore`).
+    var hasAnswered: Bool
+    /// Live, verified, unrevoked purchases.
+    var owned: [PremiumProduct] = []
+    /// The live subscription, when there is one.
+    var subscription: ActiveSubscription? = nil
+    /// Forge Pro was bought or tried on this Apple Account at some point.
+    var hadPurchase: Bool = false
+    /// Ran 1.0 or 1.0.1 — see `Founder`.
+    var isFounder: Bool = false
+}
+
+/// Who has what. Every gate in the app reads this, through `PremiumGate`.
 ///
-/// **Everything that is the user's record stays free**: the day, the pull, the
-/// history, the heatmap, the streak, blades, milestones, chapters, the weekly
-/// review's marks, count and questions, every answer they ever wrote, the
-/// Becoming tab, Plan's own moves, the widgets. Pro is a *reading* of that
-/// record and a way to ask for things in words — never the record itself. That
-/// line is §5 rule #1 and it is not moved by this file.
+/// | | New days, Arcs, challenge | AI | The record |
+/// |---|---|---|---|
+/// | `unknown` | yes | yes | yes |
+/// | `pro`, `trial` | yes | yes | yes |
+/// | `founder` | yes | **no** | yes |
+/// | `lapsed`, `none` | **no** | **no** | yes |
+///
+/// **`unknown` is treated as Pro**, exactly as `hasReadEntitlement` always
+/// was: until StoreKit has answered, nothing is locked and nothing is asked
+/// for. An unknown answer is never a reason to ask somebody for money.
+enum ProAccess: Equatable, Sendable {
+    case unknown
+    case pro(PremiumProduct)
+    case trial(PremiumProduct, ends: Date)
+    case founder
+    case lapsed
+    case none
+
+    /// New days, the Arcs and the daily challenge.
+    var keepsNewDays: Bool {
+        switch self {
+        case .unknown, .pro, .trial, .founder: true
+        case .lapsed, .none: false
+        }
+    }
+
+    /// Ask Forge, the Weekly Reading and Plan in your own words. Founders keep
+    /// everything else free; the AI costs money to run and is not theirs.
+    var hasAI: Bool {
+        switch self {
+        case .unknown, .pro, .trial: true
+        case .founder, .lapsed, .none: false
+        }
+    }
+
+    /// A subscription is live — trial included — so Manage Subscription has
+    /// something to manage.
+    var hasSubscription: Bool {
+        switch self {
+        case .pro(let plan): plan.isSubscription
+        case .trial: true
+        default: false
+        }
+    }
+
+    /// The answer, given what StoreKit and the founder record say.
+    ///
+    /// Lifetime beats a subscription; a subscription — trial or paid — beats
+    /// the founder rule, because somebody who pays for the AI should have it;
+    /// a founder is never lapsed; and lapsed is only ever said of somebody who
+    /// had Forge Pro once.
+    static func resolve(_ facts: EntitlementFacts) -> ProAccess {
+        guard facts.hasAnswered else { return .unknown }
+        if facts.owned.contains(.lifetime) { return .pro(.lifetime) }
+        if let live = facts.subscription {
+            if live.isTrial, let ends = live.expires { return .trial(live.plan, ends: ends) }
+            return .pro(live.plan)
+        }
+        // Listed, but without the details to say which kind of period it is in.
+        if let plan = PremiumEntitlement.plan(among: facts.owned) { return .pro(plan) }
+        if facts.isFounder { return .founder }
+        return facts.hadPurchase ? .lapsed : .none
+    }
+}
+
+// MARK: - Founders
+
+/// Everybody who ran 1.0 or 1.0.1 keeps the whole app free forever, except the
+/// AI (DIRECTION_1_1 §1).
+///
+/// # Two ways to know, and neither is asked
+///
+/// 1. **The record, on the first launch of this build.** Before anything else
+///    in the app writes, the App Group is read once: a completed first run, or
+///    any history at all, can only have been left by 1.0 or 1.0.1. The answer
+///    is written down under `key` and never re-decided — `true` is never unset,
+///    and `false` only means "checked" (a later `AppTransaction` can still
+///    turn it into `true`).
+/// 2. **The App Store's own receipt of the first download**: a verified
+///    `AppTransaction` from `.production` whose `originalAppVersion` — the
+///    *build number* on iOS — is no greater than `lastFounderBuild`. This is
+///    the one that survives a new phone.
+///
+/// # Never in Sandbox or Xcode
+///
+/// The record only counts while the App Store says this is production, or has
+/// not said yet (`counts(recorded:environment:)`), so App Review and TestFlight
+/// — both Sandbox — always meet the paywall, whatever a test device remembers.
+enum Founder {
+
+    /// `CURRENT_PROJECT_VERSION` of the last 1.0.1 build.
+    ///
+    /// From the git history of `Forge.xcodeproj/project.pbxproj`: it is 2 in
+    /// "1.0 as submitted" (`2d8d865`) and was never changed again, through the
+    /// 1.0.1 hygiene release (`65734ba`), until 1.1 raised it to 3. A build of
+    /// 1.1 must therefore carry a number above this one, or every new install
+    /// would read as a founder — `PremiumTests.buildIsAboveFounders` holds it.
+    static let lastFounderBuild = 2
+
+    /// `true` for a founder, `false` once checked and not one; absent before
+    /// the check has run.
+    static let key = "forge.founder.v1"
+
+    /// The two keys 1.0 and 1.0.1 left behind. Spelled out rather than read
+    /// from their stores, because this runs before any store exists.
+    static let firstRunKey = "forge.hasCompletedFirstRun.v1"
+    static let historyKey = "forge.history.v1"
+
+    /// Whether this install is recorded as a founder.
+    static func isRecorded(in defaults: UserDefaults) -> Bool {
+        defaults.bool(forKey: key)
+    }
+
+    /// The check on the first launch of this build. Runs once; returns true only
+    /// the one time it finds a founder.
+    ///
+    /// Called from `ForgeApp.init`, straight after the App Group migration and
+    /// before `ContentView` builds a single store — `ProgressStore` writes
+    /// today's record the first time it opens, and after that every install
+    /// "holds history".
+    @discardableResult
+    static func recordOnFirstLaunch(in defaults: UserDefaults) -> Bool {
+        guard defaults.object(forKey: key) == nil else { return false }
+        let founder = ranBefore(in: defaults)
+        defaults.set(founder, forKey: key)
+        return founder
+    }
+
+    /// A completed first run, or any day on the record.
+    static func ranBefore(in defaults: UserDefaults) -> Bool {
+        if defaults.bool(forKey: firstRunKey) { return true }
+        guard let data = defaults.data(forKey: historyKey),
+              let days = try? JSONSerialization.jsonObject(with: data) as? [Any]
+        else { return false }
+        return !days.isEmpty
+    }
+
+    /// Write down a founder the App Store vouched for. Returns true the first
+    /// time. Never writes `false`: `true` is never unset.
+    @discardableResult
+    static func record(in defaults: UserDefaults) -> Bool {
+        guard !defaults.bool(forKey: key) else { return false }
+        defaults.set(true, forKey: key)
+        return true
+    }
+
+    /// The App Store's rule: production, and first downloaded as build 2 or
+    /// earlier.
+    static func isFounder(environment: AppStore.Environment, originalAppVersion: String) -> Bool {
+        guard environment == .production, let build = buildNumber(originalAppVersion) else { return false }
+        return build <= lastFounderBuild
+    }
+
+    /// Whether the record counts here. Not in Sandbox or Xcode; in production,
+    /// and before the App Store has said which it is — a founder opening the app
+    /// offline must not meet a lock.
+    static func counts(recorded: Bool, environment: AppStore.Environment?) -> Bool {
+        guard recorded else { return false }
+        guard let environment else { return true }
+        return environment == .production
+    }
+
+    /// "2" → 2, "2.1" → 2. Anything else is not a build number.
+    static func buildNumber(_ version: String) -> Int? {
+        let lead = version.trimmingCharacters(in: .whitespaces).split(separator: ".").first
+        return lead.flatMap { Int($0) }
+    }
+}
+
+// MARK: - What this build has
+
+/// Which of the features Forge Pro names exist in this build.
+///
+/// A paywall row only names a feature in the build (DIRECTION_1_1 §1), so the
+/// paywall reads this rather than a list of promises. **Sessions S3, S5 and S6
+/// turn `arcs`, `health` and `askForge` on** when they ship the feature, and
+/// the row appears with it. The two that exist now are flags too, so the rule
+/// is one rule.
+struct ForgeFeatures: Equatable, Sendable {
+    /// Lock In 7, Monk Mode 30, Discipline 66, Winter Arc. Session S3.
+    var arcs = false
+    /// The six, scored from what is actually done. Built.
+    var stats = true
+    /// A blade for every stretch of days kept. Built.
+    var blades = true
+    /// Apple Health ticking off workouts, steps and sleep. Session S5.
+    var health = false
+    /// Ask Forge, a coach that reads the record. Session S6.
+    var askForge = false
+
+    /// This build.
+    static let current = ForgeFeatures()
+}
+
+/// One row of "what you get": an icon and one line.
+enum PaywallRow: CaseIterable, Sendable {
+    case arcs, stats, blades, health, askForge
+
+    var line: String {
+        switch self {
+        case .arcs: "The Arcs: Winter Arc, Monk Mode 30, Discipline 66."
+        case .stats: "Six stats, scored on what you actually do."
+        case .blades: "A blade earned for every stretch of days you keep."
+        case .health: "Apple Health checks workouts, steps and sleep."
+        case .askForge: "Ask Forge, a coach that reads your record."
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .arcs: "flag.pattern.checkered"
+        case .stats: "hexagon"
+        case .blades: "flame"
+        case .health: "heart"
+        case .askForge: "text.bubble"
+        }
+    }
+
+    func isAvailable(in features: ForgeFeatures) -> Bool {
+        switch self {
+        case .arcs: features.arcs
+        case .stats: features.stats
+        case .blades: features.blades
+        case .health: features.health
+        case .askForge: features.askForge
+        }
+    }
+
+    /// The rows the paywall shows, in this order, and only the built ones.
+    static func rows(in features: ForgeFeatures = .current) -> [PaywallRow] {
+        allCases.filter { $0.isAvailable(in: features) }
+    }
+}
+
+// MARK: - The AI, locked
+
+/// The AI features, as a locked control names them. Tapping one opens the
+/// paywall every time — that is somebody asking, and it is never rationed.
 enum ProFeature: String, CaseIterable, Sendable {
     case weeklyReading
     case planInWords
-    case accents
 
     var title: String {
         switch self {
         case .weeklyReading: "Weekly Reading"
         case .planInWords: "Plan in your own words"
-        case .accents: "Eight accents"
         }
     }
 
     /// One line each.
     ///
-    /// ⚠️ **Release blocker (§2r):** the Weekly Reading line describes the
-    /// model-written reading, which only exists once remote AI is activated.
-    /// While `RemoteForgeAI.isModelEnabled` is false, Pro adds no Weekly Reading
-    /// beyond the free observation — so a build that sells Pro must not ship
-    /// before the activation PR, or this line must change.
+    /// ⚠️ **Release blocker (§2r):** the Weekly Reading is model-written and
+    /// only exists once remote AI is activated, which is why its locked row is
+    /// shown only where a model is reachable (`WeeklyReviewReading`).
     var detail: String {
         switch self {
         case .weeklyReading: "Each week, a written reading of what held and what slipped, from Forge's AI — checked against your own record before you see it."
         case .planInWords: "Tell Plan the hours you cannot move and what you want fitted around them."
-        case .accents: "Dress the app in any of the eight. Forge blue stays free."
         }
     }
 
@@ -120,34 +378,89 @@ enum ProFeature: String, CaseIterable, Sendable {
         switch self {
         case .weeklyReading: "text.book.closed"
         case .planInWords: "text.bubble"
-        case .accents: "paintpalette"
+        }
+    }
+}
+
+// MARK: - Every gate, in one place
+
+/// Everything somebody can reach, as the gates see it.
+enum ProSurface: CaseIterable, Sendable {
+    // The record. Readable forever, whatever is owned (§5 #1, amended in 1.1).
+    case history, blade, blades, becoming, reviews, proofCard, widgets
+    // The practice.
+    case dayControls, arcs, dailyChallenge
+    // The AI.
+    case askForge, weeklyReading, planInWords
+
+    /// What has already happened, and everything that shows it.
+    var isRecord: Bool {
+        switch self {
+        case .history, .blade, .blades, .becoming, .reviews, .proofCard, .widgets: true
+        default: false
+        }
+    }
+
+    var isAI: Bool {
+        switch self {
+        case .askForge, .weeklyReading, .planInWords: true
+        default: false
         }
     }
 }
 
 /// Every Pro gate in the app, in one place, so a test can hold all of them.
 enum PremiumGate {
-    /// Accent 1. The only one a free install can wear.
+    /// Accent 1. The only one a lapsed install can wear.
     static let freeAccent: ForgeThemeAccent = .forge
 
-    /// Accents 2–8 need Pro.
-    static func isLocked(_ accent: ForgeThemeAccent, isPremium: Bool) -> Bool {
-        !isPremium && accent != freeAccent
+    /// Whether this is locked for somebody with this access.
+    ///
+    /// **The record is never locked.** History, the Blade tab, every blade,
+    /// Becoming, the reviews, the Proof Card and the widgets are readable to a
+    /// lapsed install exactly as they were the day before it lapsed. Nothing is
+    /// deleted, hidden or blurred; only what makes *new* days is sold.
+    static func isLocked(_ surface: ProSurface, for access: ProAccess) -> Bool {
+        if surface.isRecord { return false }
+        if surface.isAI { return !access.hasAI }
+        return !access.keepsNewDays
     }
 
-    /// What should actually be worn, given what was chosen. A lapsed Pro
-    /// install falls back to the free accent rather than keeping a paid one.
-    static func wearable(_ chosen: ForgeThemeAccent, isPremium: Bool) -> ForgeThemeAccent {
-        isLocked(chosen, isPremium: isPremium) ? freeAccent : chosen
+    /// Whether the one locked state ("New days need Forge Pro.") is on screen.
+    ///
+    /// Never during the first run — a new install meets the paywall there
+    /// instead — and never over a summary, a pull or a celebration: it waits
+    /// for the moment to finish, so it can never land on top of one.
+    static func showsLockedState(
+        for access: ProAccess, hasCompletedFirstRun: Bool, isMomentOnScreen: Bool
+    ) -> Bool {
+        hasCompletedFirstRun && !isMomentOnScreen && isLocked(.dayControls, for: access)
     }
 
-    /// Plan's free-text field. Plan's own moves stay free.
-    static func canPlanInWords(isPremium: Bool) -> Bool { isPremium }
+    /// Whether the first run walks straight past the paywall: somebody who
+    /// already has the practice — a subscriber, a free week, a founder.
+    ///
+    /// **Not `unknown`.** Everywhere else an unanswered StoreKit counts as Pro,
+    /// because nothing may be taken away on a placeholder. Here the opposite is
+    /// the safe side: the paywall is shown, it waits for StoreKit with
+    /// everybody else, and it continues by itself the moment the answer is yes.
+    static func passesOnboardingPaywall(_ access: ProAccess) -> Bool {
+        switch access {
+        case .pro, .trial, .founder: true
+        case .unknown, .lapsed, .none: false
+        }
+    }
 
-    /// The Weekly Reading — the model-written reading under the observation.
-    /// The rules' observation itself, the week's marks, its count, last week's
-    /// line and both questions stay free (§2r).
-    static func showsWeeklyReading(isPremium: Bool) -> Bool { isPremium }
+    /// Accents 2–8 go with new days: a founder, a trial or a subscriber wears
+    /// any of the eight; a lapsed install wears Forge blue.
+    static func isLocked(accent: ForgeThemeAccent, for access: ProAccess) -> Bool {
+        !access.keepsNewDays && accent != freeAccent
+    }
+
+    /// What should actually be worn, given what was chosen.
+    static func wearable(_ chosen: ForgeThemeAccent, for access: ProAccess) -> ForgeThemeAccent {
+        isLocked(accent: chosen, for: access) ? freeAccent : chosen
+    }
 }
 
 // MARK: - The weekly review's two sentences
@@ -155,12 +468,10 @@ enum PremiumGate {
 /// What sits in the weekly review's card, in order.
 ///
 /// **The observation comes first and is free** — the rules' sentence, for
-/// everybody, whenever the record supports one. The Weekly Reading is the Pro
-/// half and only ever goes *under* it: locked for somebody without Pro (door
-/// 2, once), a "Read my week" button for Pro when a model is reachable, the
-/// model's validated reading once it has answered — and nothing at all for
-/// Pro while the model is switched off (§2r), because nothing may be invented
-/// to fill the space.
+/// everybody, whenever the record supports one. The Weekly Reading is AI and
+/// only ever goes *under* it. **It exists only where a model is reachable**
+/// (§2r), so in a build with the model off nobody is offered it — not even
+/// locked: a locked row would be selling something the build does not have.
 enum WeeklyReviewReading {
     enum Part: Equatable, Sendable {
         case observation
@@ -171,98 +482,36 @@ enum WeeklyReviewReading {
 
     static func parts(
         hasObservation: Bool,
-        isPremium: Bool,
-        isOfferingLocked: Bool,
+        hasAI: Bool,
         canReachModel: Bool,
         hasWritten: Bool
     ) -> [Part] {
         // A week the record says nothing about has nothing to read further
-        // either: no observation, no Weekly Reading, no upsell.
+        // either: no observation, no Weekly Reading, no offer.
         guard hasObservation else { return [] }
         var parts: [Part] = [.observation]
-        if !PremiumGate.showsWeeklyReading(isPremium: isPremium) {
-            if isOfferingLocked { parts.append(.locked) }
+        guard canReachModel else { return parts }
+        if !hasAI {
+            parts.append(.locked)
         } else if hasWritten {
             parts.append(.written)
-        } else if canReachModel {
+        } else {
             parts.append(.readButton)
         }
         return parts
     }
 }
 
-// MARK: - When Forge asks
+// MARK: - Shown once, ever
 
-/// The three doors, and the rule that each opens at most once, in order.
+/// The lower annual price, offered to somebody who declines the onboarding
+/// paywall — the first time they decline, and never again
+/// (`forge.exitOffer.v1`).
 ///
-/// # This replaces §5 rule #8, deliberately
-///
-/// The rule was *"Forge asks about money once, ever … only after 5 days kept,
-/// on the Blade tab"*, and `PremiumInvitation` was the one-flag type that kept
-/// it. **Forge Pro changes that rule on purpose** (see `FORGE_CONTEXT.md` §5 and
-/// §6): there are now three unprompted doors, each at a moment somebody has
-/// already stopped, each shown at most once, and never out of order.
-///
-/// 1. **`firstBlade`** — after the first blade celebration *closes*. If that
-///    happens inside the first run, it waits until the first run is over.
-/// 2. **`weeklyReading`** — the first weekly review with a reading in it shows a
-///    locked Weekly Reading row. Tapping it opens the paywall; not tapping it
-///    still spends the door.
-/// 3. **`chapterClose`** — the first chapter close shows the invitation card.
-///
-/// # What never opens a door
-///
-/// Launch, the day flow (anything between the first activity and the end of
-/// an earned day's summary), the pull itself, the first run, or a Pro install.
-/// Tapping a locked feature is not a door — that is somebody asking — and is
-/// never limited.
-///
-/// # Once, and in order
-///
-/// A door that has been passed is gone. A later door opening first retires the
-/// earlier ones: somebody who reached a chapter close before a blade (an
-/// upgrade from 1.0 with every blade already earned) is never shown the blade
-/// door afterwards. Three asks is the ceiling, not the target.
-///
-/// Stored in the App Group suite as a list of door names, and nothing else.
-struct PremiumInvitation {
-
-    enum Door: String, CaseIterable, Comparable, Sendable {
-        case firstBlade = "first_blade"
-        case weeklyReading = "weekly_reading"
-        case chapterClose = "chapter_close"
-
-        var order: Int {
-            switch self {
-            case .firstBlade: 0
-            case .weeklyReading: 1
-            case .chapterClose: 2
-            }
-        }
-
-        static func < (lhs: Door, rhs: Door) -> Bool { lhs.order < rhs.order }
-
-        /// The same door, as the paywall's telemetry names it.
-        var telemetry: ForgeTelemetry.PaywallDoor {
-            switch self {
-            case .firstBlade: .firstBlade
-            case .weeklyReading: .weeklyReading
-            case .chapterClose: .chapterClose
-            }
-        }
-    }
-
-    /// Everything the decision depends on, taken at the moment of asking.
-    struct Moment: Equatable, Sendable {
-        var isPremium: Bool
-        var hasCompletedFirstRun: Bool
-        /// The first run, a pull in progress, an earned day's summary, a blade
-        /// celebration, an honor activity's moment — anything that is the day
-        /// rather than a pause in it.
-        var isDayInProgress: Bool
-    }
-
-    static let key = "forge.paywallDoors.v1"
+/// No timer, no "you will never see this again", no invented discount: the
+/// screen states the price and that it is offered once, which is true.
+struct ExitOffer {
+    static let key = "forge.exitOffer.v1"
 
     let defaults: UserDefaults
 
@@ -270,104 +519,279 @@ struct PremiumInvitation {
         self.defaults = defaults
     }
 
-    /// Doors already shown, oldest first.
-    var shown: [Door] {
-        (defaults.array(forKey: Self.key) as? [String] ?? []).compactMap(Door.init(rawValue:))
-    }
+    var hasBeenShown: Bool { defaults.bool(forKey: Self.key) }
 
-    /// Whether this door may open now. Reads only — see `claim`.
-    func isOpen(_ door: Door, at moment: Moment) -> Bool {
-        guard !moment.isPremium,
-              moment.hasCompletedFirstRun,
-              !moment.isDayInProgress
-        else { return false }
-        let past = shown
-        guard !past.contains(door) else { return false }
-        // Never behind a door already passed.
-        return past.allSatisfy { $0 < door }
-    }
-
-    /// Open it if it may be opened, and spend it in the same step.
+    /// Show it if it never has been, and spend it in the same step.
     @discardableResult
-    func claim(_ door: Door, at moment: Moment) -> Bool {
-        guard isOpen(door, at: moment) else { return false }
-        markShown(door)
+    func claim() -> Bool {
+        guard !hasBeenShown else { return false }
+        defaults.set(true, forKey: Self.key)
         return true
     }
 
-    /// Spend a door. Idempotent.
-    func markShown(_ door: Door) {
-        var past = shown
-        guard !past.contains(door) else { return }
-        past.append(door)
-        defaults.set(past.map(\.rawValue), forKey: Self.key)
-    }
-
     #if DEBUG
-    /// Puts all three back, so App Review builds and a developer can walk them
-    /// again. Never compiled into a release build.
     func reset() { defaults.removeObject(forKey: Self.key) }
     #endif
 }
 
+// MARK: - The reminder before the trial ends
+
+/// "Day 5: we remind you." — and the notification that keeps the promise.
+///
+/// Scheduled for two days before the free week ends — the transaction's own
+/// `expirationDate`, read while its offer is introductory — and only while
+/// that is still the future, the subscription is still set to renew, and the
+/// person left "Remind me before the trial ends" on. Cancelled or converted,
+/// the reminder goes: `fireDate` is re-derived on every refresh and nothing
+/// else decides it.
+enum TrialReminder {
+    /// Whether somebody asked for it, from the paywall's toggle. On unless
+    /// they turned it off.
+    static let key = "forge.trialReminder.v1"
+
+    static let daysBefore = 2
+
+    static let body = "Your free week ends in two days. Keep Forge or cancel in Settings. Either takes one tap."
+
+    static func isWanted(in defaults: UserDefaults = ForgeShared.defaults) -> Bool {
+        defaults.object(forKey: key) as? Bool ?? true
+    }
+
+    static func setWanted(_ wanted: Bool, in defaults: UserDefaults = ForgeShared.defaults) {
+        defaults.set(wanted, forKey: key)
+    }
+
+    /// When it should go off, or nil when it should not exist.
+    ///
+    /// `willAutoRenew` nil means StoreKit has not said yet, and the reminder is
+    /// kept: only a known cancellation removes it.
+    static func fireDate(
+        access: ProAccess,
+        willAutoRenew: Bool?,
+        isWanted: Bool,
+        now: Date,
+        calendar: Calendar = .current
+    ) -> Date? {
+        guard isWanted, willAutoRenew != false, case .trial(_, let ends) = access else { return nil }
+        guard let fire = calendar.date(byAdding: .day, value: -daysBefore, to: ends), fire > now else {
+            return nil
+        }
+        return fire
+    }
+
+    /// What the reminder is re-synced on (`ContentView`): its date, whether iOS
+    /// lets it be heard, and whether StoreKit has answered at all — so the
+    /// answer arriving after a relaunch always runs the sync once, even when
+    /// it says "no reminder" exactly as the moment before it did.
+    static func syncKey(hasAnswered: Bool, fireDate: Date?, authorization: Int) -> String {
+        "\(hasAnswered)·\(fireDate?.timeIntervalSince1970 ?? 0)·\(authorization)"
+    }
+
+    /// The trial day the reminder lands on, as the timeline counts days: the
+    /// fifth of seven.
+    static func reminderDay(trialDays: Int) -> Int? {
+        let day = trialDays - daysBefore
+        return day >= 1 ? day : nil
+    }
+}
+
 // MARK: - Words built from StoreKit's own values
 
-/// The sentences the paywall prints under each plan.
+/// Every sentence the paywall, the exit offer, the locked state and Settings
+/// say about money.
 ///
-/// **Every price comes from `Product.displayPrice`**, handed in as a string —
-/// nothing here knows what anything costs, so no price can be hard-coded into
-/// the interface by accident and every storefront gets its own currency.
+/// **Every price comes from StoreKit**: `Product.displayPrice` for the price
+/// itself, and `Product.price` in the product's own `priceFormatStyle` for a
+/// per-week or per-month equivalent. Nothing here knows what anything costs,
+/// so no price can be typed into the interface by accident and every
+/// storefront gets its own currency.
+///
+/// **When the free week is not on offer, every trial word goes**: the
+/// headline, the timeline, "Nothing is charged today", the badge, the reminder
+/// and the button all read eligibility rather than assuming it.
 enum PremiumCopy {
 
-    /// "/year", "/month". Nil for anything that is not one whole period.
-    static func perPeriod(value: Int, unit: Product.SubscriptionPeriod.Unit) -> String? {
-        guard value == 1 else { return nil }
+    // MARK: The paywall
+
+    static func headline(trialDays: Int?) -> String {
+        guard let trialDays else { return "Keep the practice going." }
+        return "\(ForgeCount.spelled(trialDays)) days free. Then decide."
+    }
+
+    /// "7 days free" — the badge on the annual plan. Digits, like a price.
+    static func trialBadge(days: Int) -> String {
+        days == 1 ? "1 day free" : "\(days) days free"
+    }
+
+    /// "a year", "a month", "a week", "every 3 months".
+    static func per(value: Int, unit: Product.SubscriptionPeriod.Unit) -> String {
+        let noun = periodNoun(unit)
+        return value == 1 ? "a \(noun)" : "every \(value) \(noun)s"
+    }
+
+    /// "the year", "the month" — for "Day 7: $49.99 for the year".
+    static func forThe(value: Int, unit: Product.SubscriptionPeriod.Unit) -> String {
+        let noun = periodNoun(unit)
+        return value == 1 ? "the \(noun)" : "\(value) \(noun)s"
+    }
+
+    private static func periodNoun(_ unit: Product.SubscriptionPeriod.Unit) -> String {
         switch unit {
-        case .day: return "/day"
-        case .week: return "/week"
-        case .month: return "/month"
-        case .year: return "/year"
+        case .day: "day"
+        case .week: "week"
+        case .month: "month"
+        case .year: "year"
+        default: "period"
+        }
+    }
+
+    /// "$49.99 a year".
+    static func price(_ displayPrice: String, value: Int, unit: Product.SubscriptionPeriod.Unit) -> String {
+        "\(displayPrice) \(per(value: value, unit: unit))"
+    }
+
+    /// A trial's length in days, as people count a trial. Nil for anything
+    /// that is not whole days or weeks.
+    static func trialDays(value: Int, unit: Product.SubscriptionPeriod.Unit) -> Int? {
+        switch unit {
+        case .day: value
+        case .week: value * 7
+        default: nil
+        }
+    }
+
+    /// What one year (or one month) costs per week (or per month), computed
+    /// from StoreKit's own price in its own format.
+    ///
+    /// A year is fifty-two weeks here, as a price tag counts one.
+    static func perWeek(
+        price: Decimal, value: Int, unit: Product.SubscriptionPeriod.Unit,
+        format: Decimal.FormatStyle.Currency
+    ) -> String? {
+        let weeks: Decimal
+        switch unit {
+        case .year: weeks = Decimal(52 * value)
+        case .month: weeks = Decimal(value) * Decimal(52) / Decimal(12)
+        case .week: weeks = Decimal(value)
         default: return nil
         }
+        return "\((price / weeks).formatted(format)) a week"
     }
 
-    /// "year", "month" — for the sentence spelling out the renewal.
-    static func periodNoun(value: Int, unit: Product.SubscriptionPeriod.Unit) -> String {
-        let noun: String
+    static func perMonth(
+        price: Decimal, value: Int, unit: Product.SubscriptionPeriod.Unit,
+        format: Decimal.FormatStyle.Currency
+    ) -> String? {
+        let months: Decimal
         switch unit {
-        case .day: noun = "day"
-        case .week: noun = "week"
-        case .month: noun = "month"
-        case .year: noun = "year"
-        default: noun = "period"
+        case .year: months = Decimal(12 * value)
+        case .month: months = Decimal(value)
+        default: return nil
         }
-        return value == 1 ? noun : "\(value) \(noun)s"
+        return "\((price / months).formatted(format)) a month"
     }
 
-    /// "7 days", "1 month" — a trial's length as somebody would say it. A one-week
-    /// trial is said in days because that is how people count a trial.
-    static func trialLength(value: Int, unit: Product.SubscriptionPeriod.Unit) -> String {
-        var days: Int?
-        if unit == .day { days = value }
-        if unit == .week { days = value * 7 }
-        if let days { return days == 1 ? "1 day" : "\(days) days" }
-        return value == 1 ? "1 \(periodNoun(value: 1, unit: unit))" : periodNoun(value: value, unit: unit)
+    /// The three steps under the headline.
+    struct Step: Equatable, Sendable {
+        let when: String
+        let what: String
     }
 
-    /// "$49.99/year", or "7 days free, then $49.99/year" when a free trial is on
-    /// offer to this Apple Account.
-    static func subscriptionLine(
-        price: String,
-        value: Int,
-        unit: Product.SubscriptionPeriod.Unit,
-        freeTrial: (value: Int, unit: Product.SubscriptionPeriod.Unit)? = nil
+    /// Today: everything unlocked. Day 5: we remind you. Day 7: $49.99 for the
+    /// year, unless you cancel before.
+    static func timeline(
+        trialDays: Int, renewal: String, value: Int, unit: Product.SubscriptionPeriod.Unit,
+        reminds: Bool
+    ) -> [Step] {
+        var steps = [Step(when: "Today", what: "Everything unlocked.")]
+        if let day = TrialReminder.reminderDay(trialDays: trialDays) {
+            steps.append(Step(when: "Day \(day)", what: reminds ? "We remind you." : "Two days left."))
+        }
+        steps.append(Step(
+            when: "Day \(trialDays)",
+            what: "\(renewal) for \(forThe(value: value, unit: unit)), unless you cancel before."
+        ))
+        return steps
+    }
+
+    /// "Cancel anytime in Settings. Nothing is charged today." — the second
+    /// sentence only while a free week is what is being started.
+    static func cancelLine(startsFreeWeek: Bool) -> String {
+        startsFreeWeek
+            ? "Cancel anytime in Settings. Nothing is charged today."
+            : "Cancel anytime in Settings."
+    }
+
+    static let recordLine = "If you ever stop, your record stays readable."
+
+    static let reminderToggle = "Remind me before the trial ends"
+
+    static func buttonTitle(startsFreeWeek: Bool) -> String {
+        startsFreeWeek ? "Start my free week" : "Continue"
+    }
+
+    /// Said under the button once the offer has been declined, and the paywall
+    /// stays.
+    static let declinedLine = "Forge needs Forge Pro to keep new days."
+
+    // MARK: The offer, once
+
+    static let offerTitle = "One lower price, offered once."
+
+    /// "$29.99 a year, $2.50 a month, still with seven days free."
+    static func offerLine(price: String, perMonth: String?, trialDays: Int?) -> String {
+        var line = "\(price) a year"
+        if let perMonth { line += ", \(perMonth)" }
+        if let trialDays {
+            line += ", still with \(ForgeCount.spelled(trialDays).lowercased()) days free."
+        } else {
+            line += "."
+        }
+        return line
+    }
+
+    static func offerButton(price: String, startsFreeWeek: Bool) -> String {
+        startsFreeWeek ? "Start my free week at \(price)" : "Continue at \(price)"
+    }
+
+    static let offerDecline = "No thanks"
+
+    // MARK: The locked state
+
+    static let lockedTitle = "New days need Forge Pro."
+    static let lockedLine = "Your record stays yours."
+
+    // MARK: Settings
+
+    /// Founder · Trial, ends [date] · Forge Pro, [plan] · Not subscribed.
+    static func status(_ access: ProAccess, date: (Date) -> String) -> String {
+        switch access {
+        case .unknown: "Checking"
+        case .pro(let plan): "Forge Pro, \(plan.planName)"
+        case .trial(_, let ends): "Trial, ends \(date(ends))"
+        case .founder: "Founder"
+        case .lapsed, .none: "Not subscribed"
+        }
+    }
+
+    /// "$129.99, once. Never renews."
+    static func lifetimeLine(price: String) -> String { "\(price), once. Never renews." }
+
+    // MARK: What renewing means
+
+    /// The auto-renewal terms for the plan about to be bought, with its own
+    /// price and period — what App Review looks for beside the button.
+    static func renewalTerms(
+        planName: String, price: String, value: Int, unit: Product.SubscriptionPeriod.Unit,
+        trialDays: Int?
     ) -> String {
-        let per = perPeriod(value: value, unit: unit) ?? " every \(periodNoun(value: value, unit: unit))"
-        let recurring = "\(price)\(per)"
-        guard let freeTrial else { return recurring }
-        return "\(trialLength(value: freeTrial.value, unit: freeTrial.unit)) free, then \(recurring)"
+        var text = "\(planName) renews at \(price) \(per(value: value, unit: unit)) until you cancel."
+        if let trialDays {
+            text += " The first \(trialDays) days are free; payment is charged to your Apple Account when they end unless you cancel at least 24 hours before."
+        } else {
+            text += " Payment is charged to your Apple Account when you confirm."
+        }
+        text += " Renewal is charged within the 24 hours before each period ends. Manage or cancel in your Apple Account settings."
+        return text
     }
-
-    /// "$99.99 once".
-    static func lifetimeLine(price: String) -> String { "\(price) once" }
 }

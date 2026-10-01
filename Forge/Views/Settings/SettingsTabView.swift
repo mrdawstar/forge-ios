@@ -110,20 +110,25 @@ struct SettingsTabView: View {
 
     // MARK: - Forge Pro
 
-    /// What somebody has, and the two things they may need to do about it.
+    /// What somebody has, and the things they may need to do about it.
     ///
     /// Near the top because it is the one row people come to Settings
     /// specifically to find — to check they have what they paid for, to bring
     /// it back on a new phone, or to cancel. Restore and Manage are required
     /// wherever a subscription is sold, and they are here rather than only on
     /// the paywall because somebody who has already paid never sees that.
+    ///
+    /// **Lifetime is sold here and nowhere else** (DIRECTION_1_1 §1). Not on
+    /// the paywall, where it would sit beside the free week as the thing a
+    /// first-time visitor is invited to weigh; here it is for somebody who
+    /// already knows Forge and wants never to be asked again.
     private var proSection: some View {
         Section {
             LabeledContent("Status") {
-                Text(proStatus)
+                Text(PremiumCopy.status(store.access) { $0.formatted(date: .abbreviated, time: .omitted) })
             }
 
-            if !store.isPremium {
+            if !store.access.hasAI {
                 Button("See Forge Pro") { paywallDoor = .settings }
             }
 
@@ -145,10 +150,28 @@ struct SettingsTabView: View {
             }
             .disabled(store.isRestoring)
 
-            if store.entitlement == .subscribed {
+            if store.access.hasSubscription {
                 Button("Manage Subscription") {
                     Task { await manageSubscriptions() }
                 }
+            }
+
+            if store.entitlement != .lifetime, let lifetime = store.lifetime {
+                Button {
+                    buyLifetime(lifetime)
+                } label: {
+                    LabeledContent {
+                        if store.pending == lifetime.id {
+                            ProgressView()
+                        } else {
+                            Text(lifetime.displayPrice)
+                        }
+                    } label: {
+                        Text("Lifetime")
+                    }
+                }
+                .disabled(store.pending != nil || store.isRestoring)
+                .accessibilityLabel(Text("Lifetime, \(PremiumCopy.lifetimeLine(price: lifetime.displayPrice))"))
             }
         } header: {
             Text("Forge Pro")
@@ -157,17 +180,30 @@ struct SettingsTabView: View {
         }
     }
 
-    private var proStatus: String {
-        guard store.isPremium else { return "Free" }
-        guard let plan = store.activePlan else { return "Forge Pro" }
-        return "Forge Pro · \(plan.planName)"
+    private var proFooter: String {
+        let lifetime = store.lifetime.map { " Lifetime: \(PremiumCopy.lifetimeLine(price: $0.displayPrice))" } ?? ""
+        switch store.access {
+        case .unknown:
+            return "Asking the App Store."
+        case .pro(.lifetime):
+            return "Yours for good. It never renews and is never charged again."
+        case .pro, .trial:
+            return "Renews automatically. Cancel any time in Manage Subscription; your record stays exactly as it is either way." + (store.lifetime != nil ? " Buying Lifetime does not cancel a subscription; cancel it there." : "")
+        case .founder:
+            return "You ran Forge before 1.1, so everything but Forge's AI stays free for good. Forge Pro adds the AI." + lifetime
+        case .lapsed, .none:
+            return "New days need Forge Pro. Your record stays readable whatever you decide." + lifetime
+        }
     }
 
-    private var proFooter: String {
-        switch store.entitlement {
-        case .free: "Forge is free. Pro adds the Weekly Reading, Plan in your own words and seven more accents. Your record is never part of it."
-        case .subscribed: "Renews automatically. Cancel any time in Manage Subscription; your record stays exactly as it is either way."
-        case .lifetime: "Yours for good. It never renews and is never charged again."
+    /// Lifetime, bought from its row. StoreKit's own sheet confirms the price.
+    private func buyLifetime(_ product: Product) {
+        restoreNote = nil
+        Task {
+            if case .bought = await store.purchase(product) {
+                ForgeTelemetry.send(.purchaseCompleted(.lifetime))
+                ForgeHaptics.shared.ritualVerified()
+            }
         }
     }
 
@@ -504,20 +540,20 @@ struct SettingsTabView: View {
                 forge.resetFirstRun(identities: identities)
             }
 
-            // Both sides of every Pro gate without a sandbox account, and the
-            // three doors back to unshown so they can be walked again.
+            // Every state somebody can be in, without a Sandbox account or a
+            // 1.0 install to hand. StoreKit hands the answer back.
             Picker("Forge Pro", selection: Binding(
-                get: { store.debugPremium.map { $0 ? 1 : 0 } ?? -1 },
-                set: { store.debugPremium = $0 == -1 ? nil : $0 == 1 }
+                get: { store.debugAccess },
+                set: { store.debugAccess = $0 }
             )) {
-                Text("StoreKit").tag(-1)
-                Text("On").tag(1)
-                Text("Off").tag(0)
+                Text("StoreKit").tag(ForgeStore.SimulatedAccess?.none)
+                ForEach(ForgeStore.SimulatedAccess.allCases) { simulated in
+                    Text(simulated.rawValue.capitalized).tag(Optional(simulated))
+                }
             }
 
-            Button("Reset Paywall Doors") {
-                PremiumInvitation().reset()
-            }
+            Button("Reset Exit Offer") { ExitOffer().reset() }
+            Button("Reset Rating Prompts") { RatingPrompt().reset() }
 
             // The consent can be walked, but nothing can be sent: the model is
             // switched off in this build (§2r) whatever this says.
@@ -526,15 +562,14 @@ struct SettingsTabView: View {
             }
             Button("Reset AI Consent") { aiConsent.reset() }
 
-            LabeledContent("Doors shown") {
-                Text(PremiumInvitation().shown.map(\.rawValue).joined(separator: ", ").isEmpty
-                     ? "none"
-                     : PremiumInvitation().shown.map(\.rawValue).joined(separator: ", "))
-                    .font(.caption)
+            LabeledContent("Founder record") {
+                Text(Founder.isRecorded(in: ForgeShared.defaults) ? "yes" : "no")
             }
 
+            // Not onboarding: that door has no way out but a purchase, and
+            // the first run is where it is walked — Run First Launch Again.
             Menu("Open Paywall As…") {
-                ForEach(ForgeTelemetry.PaywallDoor.allCases) { door in
+                ForEach(ForgeTelemetry.PaywallDoor.allCases.filter { $0 != .onboarding }) { door in
                     Button(door.rawValue) { paywallDoor = door }
                 }
             }

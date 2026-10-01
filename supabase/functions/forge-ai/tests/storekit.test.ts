@@ -14,6 +14,7 @@ import {
   type VerifyOptions,
 } from "../storekit.ts";
 import {
+  ANNUAL_OFFER,
   annualClaims,
   type Chain,
   lifetimeClaims,
@@ -61,6 +62,24 @@ Deno.test("a current monthly subscription verifies on the same renewable path", 
   await rejects(
     await signTransaction(chain, annualClaims({ productId: MONTHLY, expiresDate: Date.now() - 1000 })),
     "expired",
+  );
+});
+
+Deno.test("the annual offer is a renewable like annual and monthly", async () => {
+  const claims = annualClaims({ productId: ANNUAL_OFFER });
+  const entitlement = await verifyEntitlementJWS(await signTransaction(chain, claims), production);
+  assertEquals(entitlement.productId, "com.dawid.forge.premium.annual.offer");
+  assertEquals(entitlement.kind, "renewable");
+  assertEquals(entitlement.expiresAt?.getTime(), claims.expiresDate);
+  // Expired is expired, at any price.
+  await rejects(
+    await signTransaction(chain, annualClaims({ productId: ANNUAL_OFFER, expiresDate: Date.now() - 1000 })),
+    "expired",
+  );
+  // A renewable's id on a non-consumable transaction is not the offer.
+  await rejects(
+    await signTransaction(chain, lifetimeClaims({ productId: ANNUAL_OFFER })),
+    "unsupported_product",
   );
 });
 
@@ -200,9 +219,11 @@ Deno.test("a product that is not Forge Premium is refused", async () => {
   );
   assertEquals(Object.keys(PREMIUM_PRODUCTS).sort(), [
     "com.dawid.forge.premium.annual",
+    "com.dawid.forge.premium.annual.offer",
     "com.dawid.forge.premium.lifetime",
     "com.dawid.forge.premium.monthly",
   ]);
+  assertEquals(PREMIUM_PRODUCTS["com.dawid.forge.premium.annual.offer"], "renewable");
 });
 
 Deno.test("a Sandbox transaction is refused unless the server allows Sandbox", async () => {

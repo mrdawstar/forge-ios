@@ -5,10 +5,11 @@ import UserNotifications
 
 /// Everything Forge is ever allowed to say.
 ///
-/// Five cases, and a sixth is a product decision rather than a code change:
+/// Six cases, and a seventh is a product decision rather than a code change:
 /// these identifiers are the whole of "at most one pending notification of each
 /// type", so anything that wants to speak has to already be one of them or it
-/// cannot be scheduled at all.
+/// cannot be scheduled at all. The sixth, `trial`, was that decision
+/// (DIRECTION_1_1 §1).
 enum ForgeNotification: String, CaseIterable, Sendable {
     /// The day opening, named after the first thing on it.
     case morning
@@ -24,6 +25,11 @@ enum ForgeNotification: String, CaseIterable, Sendable {
     /// cheapest thing in the whole plan and the only one that speaks about
     /// something other than what is outstanding. See `ReviewStore`.
     case review
+    /// Two days before a free week ends, because the paywall promised it
+    /// ("Day 5: we remind you"). Not part of the day's plan and not behind the
+    /// day's switch: somebody who asked for this reminder gets it whether or
+    /// not they want to hear about their activities. See `TrialReminder`.
+    case trial
 
     /// Stable across launches, and unique per occurrence.
     ///
@@ -703,7 +709,7 @@ final class ForgeNotifications: NSObject, UNUserNotificationCenterDelegate {
         await readAuthorization()
 
         guard isEnabled else {
-            cancelAll()
+            await cancelAll()
             return
         }
         // Only ever after the offer has been made, so a prompt cannot appear at
@@ -714,7 +720,7 @@ final class ForgeNotifications: NSObject, UNUserNotificationCenterDelegate {
             await requestAuthorization()
         }
         guard authorization == .authorized else {
-            cancelAll()
+            await cancelAll()
             return
         }
 
@@ -731,22 +737,60 @@ final class ForgeNotifications: NSObject, UNUserNotificationCenterDelegate {
     /// in the same place, which is this function throwing the lot away and
     /// asking the plan what the week looks like now.
     private func apply(_ plan: [PlannedNotification]) async {
-        cancelAll()
+        await cancelAll()
         for planned in plan {
             try? await center.add(request(for: planned))
         }
     }
 
-    /// Everything, by name and by sweep.
+    /// Everything, by sweep — except the trial reminder.
     ///
-    /// `removeAllPending` rather than a list of identifiers, because the list
-    /// is no longer knowable: an earlier build of Forge registered three fixed
-    /// identifiers that this one has never heard of, and a phone that upgraded
-    /// mid-week is holding them. Anything Forge scheduled and no longer plans
-    /// to, whatever version wrote it, goes here. Nothing else in the app
-    /// schedules a notification, so there is nothing else to lose.
-    private func cancelAll() {
-        center.removeAllPendingNotificationRequests()
+    /// A sweep rather than a list of identifiers, because the list is not
+    /// knowable: an earlier build of Forge registered three fixed identifiers
+    /// that this one has never heard of, and a phone that upgraded mid-week is
+    /// holding them. Anything Forge scheduled and no longer plans to, whatever
+    /// version wrote it, goes here.
+    ///
+    /// **The trial reminder is the one thing it leaves.** It is not part of the
+    /// day's plan, it is not behind the day's switch, and it has its own owner
+    /// (`syncTrialReminder`) — sweeping it away every time an activity moved
+    /// would break the promise the paywall made.
+    private func cancelAll() async {
+        let pending = await center.pendingNotificationRequests().map(\.identifier)
+        let swept = pending.filter { ForgeNotification(identifier: $0) != .trial }
+        center.removePendingNotificationRequests(withIdentifiers: swept)
+    }
+
+    // MARK: The trial reminder
+
+    /// The one identifier the reminder ever has, so scheduling it again replaces
+    /// it rather than adding a second.
+    nonisolated static let trialReminderIdentifier = ForgeNotification.trial.identifier("end")
+
+    /// Put the reminder where `TrialReminder.fireDate` says, or take it away.
+    ///
+    /// Called by `ContentView` whenever the answer could have changed — the
+    /// trial starting, ending, being cancelled or converting, or permission
+    /// being given — and never decides anything itself.
+    func syncTrialReminder(at date: Date?) async {
+        await readAuthorization()
+        center.removePendingNotificationRequests(withIdentifiers: [Self.trialReminderIdentifier])
+        guard let date, authorization == .authorized || authorization == .provisional else { return }
+        let planned = PlannedNotification(
+            kind: .trial, key: "end", when: .once(date), title: "", body: TrialReminder.body
+        )
+        try? await center.add(request(for: planned))
+    }
+
+    /// The free week has started with "Remind me before the trial ends" on.
+    ///
+    /// The person asked for a reminder, so iOS is asked — once, and only if it
+    /// never has been. A refusal is final, the same as everywhere else in
+    /// Forge; nothing here touches the day's own switch.
+    func allowTrialReminder() async {
+        await readAuthorization()
+        guard authorization == .notDetermined else { return }
+        await requestAuthorization()
     }
 
     private func request(for planned: PlannedNotification) -> UNNotificationRequest {
@@ -761,8 +805,9 @@ final class ForgeNotifications: NSObject, UNUserNotificationCenterDelegate {
         // offer waiting to be found rather than an appointment, and a phone that
         // chimes on a Sunday evening about reflection is a phone somebody turns
         // notifications off on.
+        // The trial reminder was asked for by name, so it may be heard.
         content.sound = switch planned.kind {
-        case .morning, .activity: .default
+        case .morning, .activity, .trial: .default
         case .missed, .evening, .review: nil
         }
 

@@ -116,6 +116,7 @@ export async function testTrust(chain: Chain, requireAppleMarkers = true): Promi
 // ---------------------------------------------------------------------------
 
 export const ANNUAL = "com.dawid.forge.premium.annual";
+export const ANNUAL_OFFER = "com.dawid.forge.premium.annual.offer";
 export const LIFETIME = "com.dawid.forge.premium.lifetime";
 export const MONTHLY = "com.dawid.forge.premium.monthly";
 

@@ -171,7 +171,7 @@ struct FirstRunTests {
         let (vm, _) = makeViewModel()
         let covering: [ForgeViewModel.FirstRunStage] = [
             .coldOpen, .question(0), .question(6), .build, .drawing,
-            .transformation, .science, .plan, .metaphor, .doOne,
+            .transformation, .science, .plan, .metaphor, .paywall, .doOne,
         ]
         for stage in covering {
             vm.firstRunStage = stage

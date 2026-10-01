@@ -89,11 +89,14 @@ default. When off, and always under test, `ForgeTelemetry.send` returns before
 anything is built and the SDK's own `analyticsDisabled` is set; its automatic
 session signal is disabled in any case.
 
-The paywall events (`paywall_view`, `paywall_dismissed`, `trial_started`,
-`purchase_completed`, `restore_tapped`) are **wired from 1.1** (Forge Pro). They
-carry only a closed `door` or `plan` value — `plan` is "monthly", "annual" or
-"lifetime", never a price, receipt, transaction id or Apple ID — and are
-anonymous like every other event.
+The paywall events (`paywall_view`, `exit_offer_view`, `exit_offer_accepted`,
+`trial_started`, `purchase_completed`, `restore_tapped`, `founder_detected`)
+are **wired from 1.1** (Forge Pro, the hard paywall — `FORGE_CONTEXT.md` §6).
+They carry only a closed `door` or `plan` value — `door` is "onboarding",
+"locked", "settings" or "ai"; `plan` is "annual", "annual_offer", "monthly" or
+"lifetime" — never a price, receipt, transaction id or Apple ID, and are
+anonymous like every other event. `paywall_dismissed` was retired with the
+three doors.
 
 > ⚠️ **Decide before submitting 1.1:** 1.0's position was that these add
 > nothing to the labels and **Purchases stays not collected**. With the events
@@ -358,25 +361,22 @@ ONE SUNDAY EVENING A WEEK
 Ninety seconds. Your week, one true observation drawn from your own record, and
 two questions in your own words. Skippable forever, and skipping costs nothing.
 
-FREE — AND YOUR RECORD ALWAYS WILL BE
+FORGE PRO — SEVEN DAYS FREE, THEN DECIDE
 
-The whole daily loop. Any number of activities. Your complete history, the
-shape, the heatmap, the trends, the blades, the milestones, rest days, widgets,
-a challenge every day, chapters, the weekly review and Plan's suggestions.
+Keeping new days takes Forge Pro: the daily loop, any number of activities,
+the six stats scored on what you actually do, a blade for every stretch of days
+you keep, a challenge every day, and Plan. Start with a free week.
 
-FORGE PRO
+YOUR RECORD STAYS YOURS
 
-Forge is free. Pro reads your record back to you:
-- Weekly Reading: a written reading of what held and what slipped, from
-  Forge's AI, checked against your own record before you see it.
-  [⚠️ only once remote AI is activated — FORGE_CONTEXT §2r]
-- Plan in your own words: tell Plan the hours you cannot move and what you want
-  fitted around them.
-- Eight accents to dress the app in.
+If you ever stop, nothing is deleted or hidden. Your history, the shape, the
+heatmap, the trends, the blades, the weekly reviews and the widgets stay
+readable for good.
 
-Monthly, or annual with a 7-day free trial, or once for life. Subscriptions
-renew automatically unless cancelled at least 24 hours before the end of the
-period; manage them in your Apple Account settings.
+Annual with a 7-day free trial, or monthly. Forge reminds you two days before
+the trial ends. Subscriptions renew automatically unless cancelled at least 24
+hours before the end of the period; manage or cancel them in your Apple Account
+settings. A one-time Lifetime purchase is in Settings.
 
 Terms of Use: https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
 Privacy Policy: https://forgebetter.app/privacy
@@ -421,8 +421,8 @@ current build. Recorded here so it is a decision rather than an oversight.
 
 ## 6. App Review notes
 
-Rewritten 2026-09-15 against the current build. The previous version described
-an optional account, which no longer exists.
+Rewritten 2026-09-15 against the current build, and again on 2026-10-01 for
+1.1's hard paywall (`FORGE_CONTEXT.md` §6, §17.2). Paste the block below.
 
 ```
 No account is required, and none can be created. Forge has no sign-in, no
@@ -437,16 +437,18 @@ writes), which can be turned off in Settings → Privacy → Share anonymous usa
 No screen depends on the network. Everything a user creates is stored locally
 on the device.
 
-To review it in about a minute:
-1. Launch. A short first run asks which parts of yourself you want to build and
-   which activities to start with, then shows how the sword is pulled.
-2. On the Forge tab, tap an activity to complete it.
-3. When the day's list is done the blade comes loose — press the grip and drag
-   upward to earn the day.
+To review it in about three minutes:
+1. Launch. A short first run asks seven one-tap questions, shows the starting
+   stats and a plan, and asks you to pull the blade once to rehearse it.
+2. The Forge Pro paywall follows (see "Forge Pro" below). Tap "Start my free
+   week" and confirm with the Sandbox account: the 7-day trial costs nothing.
+3. Do the one activity it names and tap "I kept my promise", then drag the blade
+   upward on the Forge tab to earn the first day.
 4. The Blade tab shows the record: blade, chapter, heatmap and milestones.
 5. The Becoming tab shows the six areas every activity is filed under.
-6. The Settings tab has appearance and accent colour, and the Privacy Policy,
-   Terms and Support links.
+6. The Settings tab has Forge Pro (status, Restore Purchases, Manage
+   Subscription, Lifetime), appearance, and the Privacy Policy, Terms and
+   Support links.
 
 HealthKit is read-only and optional. It is used solely to auto-complete
 activities the phone can already measure (steps, distance, workouts), and is
@@ -464,21 +466,37 @@ User-generated content — activity names, chapter names, weekly review answers 
 never leaves the device. There is no social surface, no feed and no sharing
 between users.
 
-Forge Pro (in-app purchase). Forge is free; Pro adds the Weekly Reading, Plan
-in your own words and seven more accents. Three products: Monthly ($9.99),
-Annual ($49.99/year with a 7-day free trial) and Lifetime ($99.99). The whole
-record — history, streak, blades, chapters, reviews — stays free.
+Forge Pro (in-app purchase) — a hard paywall with a free week. A new install
+meets the paywall at the end of the first run, before the first day is kept.
+Keeping new days needs Forge Pro: Annual ($49.99/year with a 7-day free trial,
+preselected) or Monthly ($12.99/month, no trial). The paywall shows the trial as
+a timeline (today everything unlocked, a reminder on day 5, the charge on day 7
+unless cancelled), says "Nothing is charged today", offers a reminder before
+the trial ends, and has Restore Purchases, the Terms of Use (Apple's standard
+EULA) and the Privacy Policy. Every price is read from StoreKit.
 
-To see the paywall immediately, without waiting days or weeks:
-- Settings tab → Forge Pro (the first section) → "See Forge Pro". Restore
-  Purchases and Manage Subscription are in the same section.
-- Settings → Accent → tap any colour other than Forge blue (locked).
-- Forge tab → the week → More → Plan → "Plan in your own words" (locked).
-The paywall also appears on its own at most three times over months of use:
-after the first blade celebration closes (the first one is at the end of the
-first run), as a locked "Weekly Reading" row at the first weekly review, and as
-a card at the first chapter close (six weeks). It never appears at launch or
-during the day. "Not now" closes it at any time.
+There is no close button on that one screen. "Not now" at the bottom shows, the
+first time, one lower annual price offered once ($29.99/year, still with the
+7-day free trial; "No thanks" returns to the paywall); after that it shows one
+line and the paywall stays. A Sandbox purchase or Restore Purchases continues
+into the app. Lifetime ($129.99) is sold only in Settings → Forge Pro.
+
+Nothing already recorded is ever locked: if a subscription ends, the history,
+blades, Becoming, reviews and widgets stay readable, and only keeping new days,
+the daily challenge and the AI features ask for Forge Pro again.
+
+The free trial in Sandbox: the trial is free, and Sandbox runs on Apple's
+accelerated clock — the 1-week trial lasts about 3 minutes and a year about an
+hour. To see what a lapsed subscriber sees, cancel in Settings → Forge Pro →
+Manage Subscription and wait for the period to end: the Forge tab then shows
+"New days need Forge Pro. Your record stays yours." with Continue, and the rest
+of the app stays readable.
+
+Founders: installs that ran Forge 1.0 or 1.0.1 keep everything except the AI
+features free, recognised on the device from their existing record or from the
+App Store's original-purchase record in production. This never applies in
+Sandbox, TestFlight or App Review, so a review device always sees the paywall
+exactly as a new customer does.
 ```
 
 ### Prepared review-note paragraph for the AI activation build
@@ -503,52 +521,75 @@ trial is free), then use either feature.
 
 ## 7. Subscription metadata — **Forge Pro (1.1)**
 
-Forge Pro is sold from 1.1. The decisions are final and are recorded in
-`FORGE_CONTEXT.md` §6; this section is what App Store Connect needs.
+Forge Pro is a hard paywall with a free week (DIRECTION_1_1 §1). The decisions
+are recorded in `FORGE_CONTEXT.md` §6; this section is what App Store Connect
+needs. `PremiumTests.productsAgree` reads this file, `Forge.storekit` and the
+backend's `PREMIUM_PRODUCTS`, and fails if any of them names a product the
+others do not.
 
 ### Products
 
-| | Monthly | Annual | Lifetime |
-|---|---|---|---|
-| Product ID | `com.dawid.forge.premium.monthly` | `com.dawid.forge.premium.annual` | `com.dawid.forge.premium.lifetime` |
-| Type | Auto-renewable subscription | Auto-renewable subscription | Non-consumable |
-| Reference name | Pro Monthly | Pro Annual | Pro Lifetime |
-| Subscription group | **Forge Pro** (id `21B4E8F0` locally) | same group | — |
-| Level in group | 1 | 1 (same level — switching is a crossgrade) | — |
-| Duration | 1 month | 1 year | — |
-| Price (USA, tier base) | **$9.99** | **$49.99** | **$99.99** |
-| Introductory offer | none | **Free trial, 1 week (7 days)**, new subscribers | — |
-| Family Sharing | On | On | On |
-| Display name | Forge Pro — Monthly | Forge Pro — Annual | Forge Pro — Lifetime |
+| | Annual | Annual offer | Monthly | Lifetime |
+|---|---|---|---|---|
+| Product ID | `com.dawid.forge.premium.annual` | `com.dawid.forge.premium.annual.offer` | `com.dawid.forge.premium.monthly` | `com.dawid.forge.premium.lifetime` |
+| Type | Auto-renewable subscription | Auto-renewable subscription | Auto-renewable subscription | Non-consumable |
+| Reference name | Pro Annual | Pro Annual Offer | Pro Monthly | Pro Lifetime |
+| Subscription group | **Forge Pro** | same group | same group | — |
+| Level in group | 1 | 1 | 1 (all three the same level: switching is a crossgrade) | — |
+| Duration | 1 year | 1 year | 1 month | — |
+| Price (USA) | **$49.99** | **$29.99** | **$12.99** | **$129.99** |
+| Introductory offer | **Free trial, 1 week**, new subscribers | **Free trial, 1 week**, new subscribers | none | — |
+| Family Sharing | On | On | On | On |
+| Display name (en-US, ≤ 30) | Forge Pro — Annual | Forge Pro — Annual Offer | Forge Pro — Monthly | Forge Pro — Lifetime |
+| Description (en-US, ≤ 45) | Keep new days and the challenge, yearly. | Keep new days and the challenge, yearly. | Keep new days and the challenge, monthly. | Keep new days and the challenge, for good. |
+| Where it is sold | the paywall, preselected | the exit offer, once, after "Not now" on the onboarding paywall | the paywall | Settings → Forge Pro only |
 
-**Description (all three, ≤ 55 characters in ASC's field):**
-`Weekly Reading, Plan in your words, eight accents.`
+**Subscription group display name (en-US):** Forge Pro.
 
-**Subscription group display name:** Forge Pro. Localise the group for en-US.
+**One thing Apple decides, not Forge.** Every subscription in a group appears in
+the system's own subscription screen (Settings → Apple Account → Subscriptions),
+so an annual subscriber can see the $29.99 offer there and switch to it. That
+is the price of keeping the offer in the same group, which the brief chose; a
+separate group would avoid it and allow somebody to hold two subscriptions at
+once.
 
-**Review screenshot for each IAP:** the paywall (Settings → Forge Pro → See Forge
-Pro) with that plan selected. **Review notes for each IAP:** point at §6's
-"Forge Pro" paragraph.
+**Character limits (App Store Connect):** display name 2–30 characters,
+description at most 45. The table fits both (the longest description is 42);
+`Forge.storekit` carries the same strings.
 
-The monthly product is **new** in App Store Connect and must be created before
-submission; annual and lifetime already exist but their **prices change**
-(29.99 → 49.99 and 74.99 → 99.99) and annual's trial must be set to 1 week free.
-`Forge/Forge.storekit` mirrors all of this for local testing and
-`PremiumTests.storekitFile` fails if the two drift apart in code.
+**Review screenshot for each product** — ready in
+`docs/verification/1.1-s2/review/`, PNG, at sizes App Store Connect accepts for
+iPhone (1206 × 2622 from the iPhone 17 Pro, 1170 × 2532 from the 17e):
+
+| Product | File | What it shows |
+|---|---|---|
+| Annual | `review/annual.png` | the paywall at the end of the first run, Annual selected, "Start my free week" |
+| Annual offer | `review/annual-offer.png` | the exit offer, "Start my free week at $29.99" |
+| Monthly | `review/monthly.png` | the paywall with Monthly selected, "Continue" |
+| Lifetime | `review/lifetime.png` | Settings → Forge Pro, the Lifetime row at $129.99 |
+
+**Review notes for each product** (the *Review Information → Review Notes*
+field; paste the matching one):
+
+- Annual: `The default plan on the paywall shown at the end of the first run (after the seven questions and the rehearsed pull). Preselected. 7-day free trial for new subscribers, then $49.99 a year. Also reachable later from the Forge tab's "Continue" and Settings → Forge Pro → See Forge Pro.`
+- Annual offer: `Shown once per install: tap "Not now" on the paywall at the end of the first run. One lower annual price, still with the 7-day free trial if the subscriber has not already used a free trial in the Forge Pro group. "No thanks" returns to the paywall.`
+- Monthly: `On the same paywall, below Annual. $12.99 a month, no free trial.`
+- Lifetime: `Sold only in Settings → Forge Pro → Lifetime. One-time purchase, never renews. It unlocks the same things as a subscription.`
 
 ### Required on the product page and in the app
 
 App Review checks all of these for auto-renewable subscriptions (Guideline
 3.1.2, Schedule 2 §3.8(b)):
 
-- **In the app, beside the purchase button** — title, length and price of each
-  subscription, the auto-renewal terms, and functional links to the Terms of
-  Use and Privacy Policy. `PaywallView` carries all of them; prices come from
-  `Product.displayPrice`, never typed.
+- **In the app, beside the purchase button** — the plan's name, length and
+  price, the trial and what happens when it ends, the auto-renewal terms, and
+  functional links to the Terms of Use and Privacy Policy. `PaywallView` carries
+  all of them; prices come from `Product.displayPrice`, per-week and per-month
+  figures from `Product.price` in the product's own format, never typed.
 - **Terms of Use.** Forge uses **Apple's standard EULA**
   (`https://www.apple.com/legal/internet-services/itunes/dev/stdeula/`, linked
-  from the paywall as "Terms of Use (EULA)"). Add this line to the end of the
-  **App Description** (§4):
+  from the paywall as "Terms of Use"). Add this line to the end of the **App
+  Description** (§4):
 
   > Terms of Use: https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
 
@@ -556,23 +597,139 @@ App Review checks all of these for auto-renewable subscriptions (Guideline
   Information → License Agreement and change `ForgeLinks.appleEULA`.
 - **Privacy Policy URL** in App Store Connect — already set (§2). The policy
   should gain one sentence: purchases are processed by Apple; Forge receives
-  only whether the device is entitled, and an anonymous `purchase_completed` /
-  `trial_started` signal naming the plan (see §1).
+  only whether the device is entitled, and anonymous `trial_started` /
+  `purchase_completed` signals naming the plan (see §1).
 - **Restore Purchases** — on the paywall and in Settings → Forge Pro.
 - **Manage Subscription** — Settings → Forge Pro, Apple's own sheet.
 
-### Setup checklist
+### App Store Connect checklist — exactly what to create
 
-- [ ] Create `com.dawid.forge.premium.monthly` in group *Forge Pro*, level 1,
-      $9.99, Family Sharing on, localisation, review screenshot
-- [ ] Annual: price → $49.99; introductory offer → Free, 1 week, all territories
-- [ ] Lifetime: price → $99.99
-- [ ] All three IAPs attached to the 1.1 version before submitting it
+Product IDs cannot be changed after they are created and can never be reused,
+even after deletion: type them exactly. Prices are set as **United States
+base price**, and App Store Connect derives every other storefront.
+
+**A. Before anything else**
+
+- [ ] **Business → Agreements**: the Paid Applications agreement is active,
+      with banking and tax complete. Without it no product can be sold or
+      tested in Sandbox.
+
+**B. The subscription group** — *Apps → Forge → Monetization →
+Subscriptions*
+
+- [ ] Group reference name **Forge Pro** (create it if 1.0's cycle did not).
+- [ ] Group localisation: **English (U.S.)**, subscription group display name
+      **Forge Pro**, app name display option **Use App Name**.
+
+**C. Annual** — `com.dawid.forge.premium.annual` (edit if it exists, create
+it otherwise)
+
+- [ ] Reference name **Pro Annual**; product ID as above; duration **1 Year**
+- [ ] Level: **1** (all three subscriptions share level 1, so switching
+      between them is a crossgrade)
+- [ ] Availability: all countries or regions
+- [ ] Subscription Prices → Add → base country **United States**, **$49.99**
+      → accept Apple's derived prices
+- [ ] Subscription Prices → Introductory Offer: all countries or regions,
+      start today, **no end date**, type **Free**, duration **1 Week**.
+      Eligibility is Apple's: one introductory offer per customer per group,
+      which the app reads (`isEligibleForIntroOffer`); nothing to set
+- [ ] Localisation English (U.S.): display name **Forge Pro — Annual**,
+      description **Keep new days and the challenge, yearly.**
+- [ ] Review Information: screenshot `review/annual.png`; review notes
+      "Annual" above
+- [ ] Family Sharing: **on** (see the warning in E)
+
+**D. Annual offer** — `com.dawid.forge.premium.annual.offer` (**new**)
+
+- [ ] Same group; reference name **Pro Annual Offer**; duration **1 Year**;
+      level **1**; all countries or regions
+- [ ] Price: United States **$29.99**
+- [ ] Introductory offer: **Free**, **1 Week**, all countries or regions,
+      start today, no end date
+- [ ] Localisation English (U.S.): display name **Forge Pro — Annual Offer**,
+      description **Keep new days and the challenge, yearly.**
+- [ ] Review Information: screenshot `review/annual-offer.png`; review notes
+      "Annual offer" above
+- [ ] Family Sharing: **on**
+
+**E. Monthly** — `com.dawid.forge.premium.monthly` (create it if it does not
+exist)
+
+- [ ] Same group; reference name **Pro Monthly**; duration **1 Month**;
+      level **1**; all countries or regions
+- [ ] Price: United States **$12.99**
+- [ ] **No** introductory offer
+- [ ] Localisation English (U.S.): display name **Forge Pro — Monthly**,
+      description **Keep new days and the challenge, monthly.**
+- [ ] Review Information: screenshot `review/monthly.png`; review notes
+      "Monthly" above
+- [ ] Family Sharing: **on**. ⚠️ Once Family Sharing is turned on for a
+      product it cannot be turned off again. `Forge.storekit` says on for all
+      four; if that is not the decision, change the file before the switch,
+      not after
+
+**F. Lifetime** — *Monetization → In-App Purchases*,
+`com.dawid.forge.premium.lifetime`, **Non-Consumable** (edit if it exists)
+
+- [ ] Reference name **Pro Lifetime**; all countries or regions
+- [ ] Price: United States **$129.99**
+- [ ] Localisation English (U.S.): display name **Forge Pro — Lifetime**,
+      description **Keep new days and the challenge, for good.**
+- [ ] Review Information: screenshot `review/lifetime.png`; review notes
+      "Lifetime" above
+- [ ] Family Sharing: **on**
+
+Every product should now read **Ready to Submit**; "Missing Metadata" means a
+field above is empty.
+
+**G. The 1.1 version**
+
+- [ ] Upload a build with **build number above 2** (`CURRENT_PROJECT_VERSION`
+      is 3). `AppTransaction.originalAppVersion` is the build number, and the
+      founder rule reads anything ≤ 2 as a 1.0 / 1.0.1 install
+      (`Founder.lastFounderBuild`)
+- [ ] On the version page, **In-App Purchases and Subscriptions** → add all
+      four. A first subscription must be submitted together with an app
+      version; products left off are not reviewed and do not go live
 - [ ] App Description ends with the Terms of Use (EULA) line above
-- [ ] Paid Applications agreement, banking and tax active
-- [ ] Sandbox tester created; walk buy / trial / restore / manage on a device
-- [ ] `forge-ai` redeployed with the monthly id in `PREMIUM_PRODUCTS` before the
-      model is switched on (the repo already has it)
+- [ ] App Review Information → Notes: §6's block, unchanged; demo account
+      empty, "Sign-in required" off
+- [ ] Hosted privacy policy has the purchase sentence above
+- [ ] **App Privacy**: decide the Purchases question in §1 (not collected,
+      or Purchases → Purchase History, Analytics, not linked, not tracking)
+      and make the labels and `PrivacyInfo.xcprivacy` say the same thing
+- [ ] `forge-ai` redeployed with the annual offer in `PREMIUM_PRODUCTS` before
+      the model is switched on (the repo has it)
+
+**H. Sandbox, before submitting**
+
+- [ ] *Users and Access → Sandbox → Test Accounts*: create a tester with an
+      email that is not a real Apple Account, storefront **United States**
+- [ ] On an iPhone with a development or TestFlight build: Settings →
+      Developer → Sandbox Apple Account (on older iOS, Settings → App Store →
+      Sandbox Account), sign in with the tester. Never sign the tester into
+      the real App Store
+- [ ] Sandbox time runs fast: a 1-week trial lasts about 3 minutes, a month
+      about 5, a year about an hour, and a subscription renews a limited
+      number of times before it lapses by itself. The tester's renewal rate
+      can be changed on the device or in App Store Connect
+- [ ] To see the free week again, *Sandbox → Test Accounts → the tester →
+      Clear Purchase History* (intro eligibility is per group, so after one
+      trial the paywall correctly drops every trial word until then)
+- [ ] Walk it: fresh install → first run → paywall with real prices → Not now
+      → exit offer → No thanks → Not now again stays → Start my free week →
+      the reminder permission → the first day. Then let it lapse (cancel in
+      Settings → Forge Pro → Manage Subscription, or wait out the renewals):
+      the Forge tab shows "New days need Forge Pro. Your record stays yours.",
+      the Blade tab stays readable, Continue opens the no-trial paywall.
+      Restore. Buy Monthly. Buy Lifetime from Settings
+- [ ] The founder rule never applies in Sandbox or TestFlight, by design: a
+      tester always meets the paywall. Founders can only be checked once 1.1
+      is live (install 1.0.1 from the App Store, update)
+- [ ] `Forge.storekit` is only Xcode's local test file. Sandbox, TestFlight
+      and the App Store read App Store Connect; if a price or name is ever
+      changed there, change the file too
 
 ## 8. Pre-submission checklist
 
@@ -615,7 +772,7 @@ App Review checks all of these for auto-renewable subscriptions (Guideline
 - [x] Description, subtitle, keywords written (§4)
 - [x] Review notes written (§6) — rewritten 2026-09-15 against the accountless
       build
-- [ ] **Forge Pro (1.1):** the three IAPs are set up and attached to the version
+- [ ] **Forge Pro (1.1):** the four IAPs are set up and attached to the version
       (§7 checklist), the App Description ends with the EULA line, and the
       Purchases label decision in §1 is made
 - [x] Network audit re-done and written down (§1, 2026-09-15) — **one** call in

@@ -1,4 +1,6 @@
+import StoreKit
 import SwiftUI
+import UserNotifications
 
 struct ContentView: View {
     @State private var selectedTab: AppTab = .forge
@@ -31,18 +33,10 @@ struct ContentView: View {
     /// running forever, in a class whose own comment explains why it never
     /// cancels one.
     @State private var store: ForgeStore
-    /// The paywall, when it is up, and the door it came through. Nil nearly
-    /// always. Set only by `offerFirstBladeDoor` here — the other doors are
-    /// opened from inside the sheets they belong to.
-    @State private var paywallDoor: ForgeTelemetry.PaywallDoor?
-    /// The first blade was celebrated inside the first run, so its door waits
-    /// for the first run to finish. In memory only: a force-quit on the closing
-    /// screen loses it, and the door then waits for the next blade instead —
-    /// which is the right way for it to fail, because it cannot fail into
-    /// appearing at launch.
-    @State private var isFirstBladeDoorOwed = false
-    /// Forge Pro's three unprompted doors. See `PremiumInvitation`.
-    private let invitation = PremiumInvitation()
+    /// When Forge may ask for a rating: at most twice, never in the first run,
+    /// never over the day. See `RatingPrompt`.
+    private let ratings = RatingPrompt()
+    @Environment(\.requestReview) private var requestReview
     /// Whether somebody has allowed Forge's AI. Read by the consent screen and
     /// Settings through the environment, and by `RemoteForgeAI` straight from
     /// the suite before anything else. See `AIConsentStore`.
@@ -232,6 +226,10 @@ struct ContentView: View {
                 // a frame.
                 challenges.rollOver()
                 syncAmbient()
+                // A free week that ended, or a subscription that lapsed, while
+                // the app was away says nothing on `Transaction.updates`; the
+                // entitlement is read again whenever the app comes forward.
+                Task { await store.refreshEntitlement() }
             default:
                 break
             }
@@ -352,7 +350,9 @@ struct ContentView: View {
         // the environment only reaches what is *inside* the modifier that sets
         // it — the review and chapter sheets above included.
         .modifier(
-            ForgeProModifier(store: store, consent: aiConsent, door: $paywallDoor) { publishSnapshot() }
+            ForgeProModifier(
+                store: store, consent: aiConsent, notifications: notifications
+            ) { publishSnapshot() }
         )
     }
 
@@ -515,7 +515,7 @@ struct ContentView: View {
             dayStartHour: progress.dayStartHour,
             wakeMinutes: notifications.wakeMinutes,
             completedToday: progress.today.completedCount,
-            plannedToday: progress.today.plannedCount,
+            plannedToday: isPracticeLocked ? 0 : progress.today.plannedCount,
             isTodayEarned: progress.isTodayEarned,
             streak: progress.currentStreak,
             // The count, which is what the morning names. See
@@ -524,7 +524,11 @@ struct ContentView: View {
             // The whole week, not just today: every notification Forge has is
             // about a time somebody put on a day, and six of those seven days
             // are not today.
-            schedule: forgeVM.scheduledActivities,
+            //
+            // Nothing at all while new days are locked. A reminder to do
+            // something the app will not let you keep is the app nagging for
+            // money; the weekly review, which is about the record, still comes.
+            schedule: isPracticeLocked ? [] : forgeVM.scheduledActivities,
             completedIDs: forgeVM.doneIDs,
             // Joined here rather than carried on the activity, so a sentence
             // about who somebody is reaches their own lock screen and nothing
@@ -688,12 +692,11 @@ struct ContentView: View {
             betterReading: remote.isConnected
                 ? { [remote] in try? await remote.reading(brief: readingBrief(facts)) }
                 : nil,
-            // Weekly Reading is Pro. Door 2 is the locked row, shown once, at
-            // the first review that has a reading in it.
-            isPremium: store.isPremium,
-            consentBriefs: AIDisclosureBriefs(brief: aiBrief, readingBrief: readingBrief(facts)),
-            offersReading: invitation.isOpen(.weeklyReading, at: doorMoment),
-            onReadingOffered: { [invitation] in invitation.markShown(.weeklyReading) }
+            // The Weekly Reading is AI: a subscription or a free week, not a
+            // founder. Offered at all only where a model is reachable — see
+            // `WeeklyReviewReading`.
+            hasAI: store.access.hasAI,
+            consentBriefs: AIDisclosureBriefs(brief: aiBrief, readingBrief: readingBrief(facts))
         )
     }
 
@@ -741,10 +744,7 @@ struct ContentView: View {
                 onRetire: { identity in
                     identities.retire(identity.id, at: progress.now)
                 },
-                onLater: { showChapterClose = false },
-                // Door 3, once.
-                offersPro: invitation.isOpen(.chapterClose, at: doorMoment),
-                onProOffered: { [invitation] in invitation.markShown(.chapterClose) }
+                onLater: { showChapterClose = false }
             )
         }
     }
@@ -799,12 +799,6 @@ struct ContentView: View {
     private func finishFirstRun() {
         chapters.openFirst(identityIDs: identities.active.map(\.id))
         forgeVM.finishFirstRun()
-        // The first blade was celebrated inside the first run; its door was
-        // held until now so the paywall never lands on an onboarding screen.
-        if isFirstBladeDoorOwed {
-            isFirstBladeDoorOwed = false
-            offerFirstBladeDoor()
-        }
     }
 
     /// One short sentence, and then the app back. It takes itself away.
@@ -841,49 +835,58 @@ struct ContentView: View {
     }
 
     private func dismissCelebration() {
+        let celebrated = swords.pendingUnlock
         // The store marks the blade celebrated on the way out, so neither button
         // can leave it queued to play again tomorrow.
         swords.dismissCelebration()
-        // The blade they just earned was the last beat of the first run.
+        // The blade they just earned was the last beat of the first run. It
+        // asks for nothing: never a rating in the first run, and nothing is
+        // owed from it (`RatingPrompt`).
         if forgeVM.firstRunStage == .pull {
             forgeVM.firstRunStage = .closing
-            isFirstBladeDoorOwed = true
-        } else {
-            offerFirstBladeDoor()
+        } else if let celebrated {
+            offerRating(after: celebrated)
         }
     }
 
-    // MARK: - Forge Pro's doors
+    // MARK: - The rating
 
-    /// Everything a door depends on, read now.
-    ///
-    /// Until StoreKit has answered, the entitlement is treated as Pro — an
-    /// unknown answer is never a reason to ask somebody for money.
-    private var doorMoment: PremiumInvitation.Moment {
-        PremiumInvitation.Moment(
-            isPremium: store.isPremium || !store.hasReadEntitlement,
-            hasCompletedFirstRun: forgeVM.hasCompletedFirstRun,
-            isDayInProgress: forgeVM.isFirstRunCovering
-                || forgeVM.summary != nil
-                || swords.pendingUnlock != nil
-                || forgeVM.pull > 0.01
-                || forgeVM.honorRitualID != nil
-                || isReturning
-        )
+    /// Whether anything that is the day rather than a pause in it is on screen.
+    private var isDayMomentOnScreen: Bool {
+        forgeVM.isFirstRunCovering
+            || forgeVM.summary != nil
+            || swords.pendingUnlock != nil
+            || forgeVM.pull > 0.01
+            || forgeVM.honorRitualID != nil
+            || isReturning
+            || showReview
+            || showChapterClose
     }
 
-    /// Door 1: the first blade celebration has closed.
+    /// A blade's celebration has closed. Ask for a rating if `RatingPrompt`
+    /// says this is one of its two moments.
     ///
     /// After the celebration's own fade, so the two are never on screen
-    /// together, and re-checked then — a pull started in that half-second, or
-    /// a sheet that came up, closes the door for this time without spending it.
-    private func offerFirstBladeDoor() {
+    /// together, and the moment is read again then — a pull started in that
+    /// half-second, or a sheet that came up, lets this one pass.
+    private func offerRating(after blade: Sword) {
         Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(650))
-            guard paywallDoor == nil, !showReview, !showChapterClose else { return }
-            guard invitation.claim(.firstBlade, at: doorMoment) else { return }
-            paywallDoor = PremiumInvitation.Door.firstBlade.telemetry
+            let moment = RatingPrompt.Moment(
+                isFirstRun: !forgeVM.hasCompletedFirstRun,
+                isDayInProgress: isDayMomentOnScreen
+            )
+            guard ratings.claim(closing: blade, now: progress.now, moment: moment) != nil else { return }
+            requestReview()
         }
+    }
+
+    // MARK: - Forge Pro
+
+    /// New days are locked: lapsed, or never subscribed, after onboarding.
+    /// Read for the notifications, which stop talking about the day.
+    private var isPracticeLocked: Bool {
+        forgeVM.hasCompletedFirstRun && PremiumGate.isLocked(.dayControls, for: store.access)
     }
 }
 
@@ -952,31 +955,61 @@ extension ContentView {
 
 // MARK: - Forge Pro, at the root
 
-/// The store, the root paywall, and the accent gate, applied as one.
+/// The store, the trial reminder and the accent gate, applied as one.
 ///
 /// A modifier for the reason `MomentsModifier` is one: the root's body is at
 /// the edge of what the type checker will do in reasonable time.
 private struct ForgeProModifier: ViewModifier {
     let store: ForgeStore
     let consent: AIConsentStore
-    @Binding var door: ForgeTelemetry.PaywallDoor?
+    let notifications: ForgeNotifications
     /// The accent was put back; the widgets have to hear about it.
     let onAccentReset: () -> Void
 
+    /// When the trial reminder should go off, or nil — re-derived from
+    /// StoreKit every time, so a cancellation or a conversion takes it away.
+    private var trialReminder: Date? {
+        TrialReminder.fireDate(
+            access: store.access,
+            willAutoRenew: store.willAutoRenew,
+            isWanted: TrialReminder.isWanted(),
+            now: .now
+        )
+    }
+
+    /// What the reminder depends on, including whether iOS lets it be heard,
+    /// so permission given a moment after a free week starts schedules it —
+    /// and whether StoreKit has answered yet. Without that, a relaunch after a
+    /// trial ended read "no reminder" both before the answer (when nothing may
+    /// be decided) and after it (when the reminder must go), the task never ran
+    /// a second time, and a reminder for a trial that was over stayed pending.
+    private var trialReminderState: String {
+        TrialReminder.syncKey(
+            hasAnswered: store.hasReadEntitlement,
+            fireDate: trialReminder,
+            authorization: notifications.authorization.rawValue
+        )
+    }
+
     func body(content: Content) -> some View {
         content
-            // Door 1, and any paywall opened from a tab rather than a sheet.
-            .paywall($door)
-            // Accents 2–8 are Pro. Once StoreKit has actually answered — never
-            // on the `.free` placeholder it starts with — an install without
-            // Pro is put back on the free accent.
-            .task(id: store.hasReadEntitlement && !store.isPremium) {
+            // Accents 2–8 go with new days. Once StoreKit has actually
+            // answered — never on the `.unknown` placeholder it starts with —
+            // a lapsed install is put back on the free accent.
+            .task(id: store.access) {
                 guard store.hasReadEntitlement else { return }
                 let appearance = ForgeAppearance.shared
-                let wearable = PremiumGate.wearable(appearance.accent, isPremium: store.isPremium)
+                let wearable = PremiumGate.wearable(appearance.accent, for: store.access)
                 guard wearable != appearance.accent else { return }
                 appearance.accent = wearable
                 onAccentReset()
+            }
+            // "Day 5: we remind you." Only once StoreKit has answered: until
+            // then the trial is not known, and a reminder already pending must
+            // not be taken away on a placeholder.
+            .task(id: trialReminderState) {
+                guard store.hasReadEntitlement else { return }
+                await notifications.syncTrialReminder(at: trialReminder)
             }
             // One entitlement for every screen, including the sheets that open
             // the paywall from inside themselves. Outermost, so it reaches all

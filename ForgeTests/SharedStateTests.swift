@@ -119,8 +119,13 @@ struct SharedStateTests {
             // update stranded them: a fortnight of unlock overlays replayed,
             // and the once-ever Premium invitation came back a second time.
             "forge.celebratedSwords.v1", "forge.premiumInvited.v1",
-            // Forge Pro's three doors. Stranding this would re-open every one.
-            "forge.paywallDoors.v1",
+            // Forge Pro (1.1). Stranding the founder record would put a 1.0
+            // install behind the paywall; the exit offer would come back, the
+            // trial reminder would forget it was turned off, and the rating
+            // prompt would ask a third time. (The three doors' key went with
+            // the doors, §6.)
+            "forge.founder.v1", "forge.exitOffer.v1",
+            "forge.trialReminder.v1", "forge.ratingAsked.v1",
             // The cloud's bookkeeping. Leaving these behind is not data loss,
             // but it does mean re-uploading a whole history to say nothing.
             "forge.sync.owner.v1", "forge.sync.pullCursor.v1",

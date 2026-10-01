@@ -23,6 +23,7 @@
 		0842BB99F38DDC694230F84B /* ForgeViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A5BA2C60CB7BACB7AE29083 /* ForgeViewModel.swift */; };
 		0955961CBA7E443EB579BB85 /* TomorrowSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51763BF354814A7AB2761447 /* TomorrowSheet.swift */; };
 		0DDD33A2EF884EFB96BB0C2A /* Premium.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91E128D20D3D4228A273A5BB /* Premium.swift */; };
+		0DDD33A2EF884EFB96BB0C2B /* RatingPrompt.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91E128D20D3D4228A273A5BC /* RatingPrompt.swift */; };
 		175B5270AE845971AE8EF89C /* SwordSceneLayers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B842FA2AAFA5BD18B836511 /* SwordSceneLayers.swift */; };
 		1971B3C4770241629406251F /* ModelTrustTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70E97592BCB54B5B83ECB271 /* ModelTrustTests.swift */; };
 		257D232BF29D49C784F822A6 /* DayCommitment.swift in Sources */ = {isa = PBXBuildFile; fileRef = D21CCC1C893E4475965BC71B /* DayCommitment.swift */; };
@@ -313,6 +314,7 @@
 		90D59CC264C84ACBB8699288 /* IdentityActivities.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdentityActivities.swift; sourceTree = "<group>"; };
 		910C47D5C8564EDBB26A3DB3 /* AppearanceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppearanceView.swift; sourceTree = "<group>"; };
 		91E128D20D3D4228A273A5BB /* Premium.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Premium.swift; sourceTree = "<group>"; };
+		91E128D20D3D4228A273A5BC /* RatingPrompt.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RatingPrompt.swift; sourceTree = "<group>"; };
 		93A37543A79A6C35526C33D1 /* MilestoneRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MilestoneRow.swift; sourceTree = "<group>"; };
 		95EC677DE076E276F5F7FA6A /* SwordCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwordCardView.swift; sourceTree = "<group>"; };
 		97EDC52A32414F5BBFEC1C39 /* StreakTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreakTests.swift; sourceTree = "<group>"; };
@@ -679,6 +681,7 @@
 				A1F0RGE0AIPLAN0FILE01 /* SchedulePlan.swift */,
 				A1F0RGE0DCHAL00FILE01 /* DailyChallenge.swift */,
 				91E128D20D3D4228A273A5BB /* Premium.swift */,
+				91E128D20D3D4228A273A5BC /* RatingPrompt.swift */,
 				F0A1B2C3D4E5F60718293C01 /* FirstWeek.swift */,
 				D21CCC1C893E4475965BC71B /* DayCommitment.swift */,
 				B9D1FE286C7143B99A03519A /* DaySummary.swift */,
@@ -978,6 +981,7 @@
 				7A1C40E2B1F04C6EA9D34914 /* ChapterStore.swift in Sources */,
 				B48BF1FB62464F0F847EB683 /* ForgeStore.swift in Sources */,
 				0DDD33A2EF884EFB96BB0C2A /* Premium.swift in Sources */,
+				0DDD33A2EF884EFB96BB0C2B /* RatingPrompt.swift in Sources */,
 				0955961CBA7E443EB579BB85 /* TomorrowSheet.swift in Sources */,
 				F85F5F09B8FE46318034AAEC /* DaySummaryView.swift in Sources */,
 				257D232BF29D49C784F822A6 /* DayCommitment.swift in Sources */,
@@ -1056,7 +1060,7 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_TEAM = 5JCLWNH6LG;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
@@ -1076,7 +1080,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Forge/Forge.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_TEAM = 5JCLWNH6LG;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -1101,7 +1105,7 @@
 				CODE_SIGN_ENTITLEMENTS = Forge/Forge.entitlements;
 				"CODE_SIGN_ENTITLEMENTS[sdk=iphonesimulator*]" = Forge/ForgeSimulator.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_TEAM = 5JCLWNH6LG;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_TESTABILITY = YES;
@@ -1189,7 +1193,7 @@
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = ForgeWidgets/ForgeWidgets.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_TEAM = 5JCLWNH6LG;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = ForgeWidgets/Info.plist;
@@ -1219,7 +1223,7 @@
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = ForgeWidgets/ForgeWidgets.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_TEAM = 5JCLWNH6LG;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = ForgeWidgets/Info.plist;
@@ -1246,7 +1250,7 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_TEAM = 5JCLWNH6LG;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;

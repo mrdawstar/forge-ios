@@ -15,6 +15,14 @@ struct ForgeApp: App {
         // Anonymous usage, if the switch in Settings is on. Inert in tests and
         // when it is off — see `ForgeTelemetry`.
         ForgeTelemetry.start()
+        // Founders, before anything else writes: the first time this build
+        // runs, a completed first run or any history in the App Group can only
+        // have been left by 1.0 or 1.0.1. After `ContentView` builds the day's
+        // store, every install holds history — so this is the one moment the
+        // question can be asked. See `Founder`.
+        if Founder.recordOnFirstLaunch(in: ForgeShared.defaults) {
+            ForgeTelemetry.send(.founderDetected)
+        }
         ForgeNotifications.shared.register()
         // A Live Activity outlives the process that started it.
         ForgePresence.shared.adoptRunningActivity()

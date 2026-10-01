@@ -40,10 +40,11 @@ import SwiftUI
 ///
 /// # Forge Pro
 ///
-/// **The free-text field is Pro; the moves are not.** Everything Forge works
-/// out from the record on its own stays free — that is the record read back
-/// as arithmetic. Asking in your own words is the Pro half, and without Pro
-/// the field is a locked row that opens the paywall. See `PremiumGate`.
+/// **The free-text field is AI; the moves are not.** Everything Forge works
+/// out from the record on its own goes with the week it plans. Asking in your
+/// own words is one of the AI features (DIRECTION_1_1 §9) — a subscription or
+/// a free week, not a founder — and without it the field is a locked row that
+/// opens the paywall. See `PremiumGate`.
 struct PlanSheet: View {
     @Bindable var vm: ForgeViewModel
     var brief: AIBrief
@@ -61,7 +62,7 @@ struct PlanSheet: View {
     @State private var paywallDoor: ForgeTelemetry.PaywallDoor?
 
     private var canAskInWords: Bool {
-        PremiumGate.canPlanInWords(isPremium: store?.isPremium ?? false)
+        !PremiumGate.isLocked(.planInWords, for: store?.access ?? .unknown)
     }
 
     @State private var request = ""
@@ -317,7 +318,7 @@ struct PlanSheet: View {
             VStack(alignment: .leading, spacing: 0) {
                 SectionHeading("Or ask for something")
                     .padding(.bottom, ForgeTheme.Space.inner)
-                ProLockedRow(feature: .planInWords) { paywallDoor = .plan }
+                ProLockedRow(feature: .planInWords) { paywallDoor = .ai }
             }
             .padding(.top, ForgeTheme.Space.tight)
         }
