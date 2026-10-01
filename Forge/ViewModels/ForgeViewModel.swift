@@ -740,12 +740,12 @@ final class ForgeViewModel {
     // MARK: - First run
 
     /// Replace the day with the plan somebody just read — every activity on it
-    /// **every day, at the time on its row**.
+    /// **on the days and at the time on its row**.
     ///
     /// Not appended to the defaults: the defaults are our guess, and they have
     /// just read a better one.
     ///
-    /// # Why every day now, when the 1.0 first run pinned its three to today
+    /// # Why its own days, when the 1.0 first run pinned its three to today
     ///
     /// The 1.0 choosing screen was a list of eight rows with nothing on it about
     /// repetition, and taking three used to be somebody agreeing — in their
@@ -753,16 +753,18 @@ final class ForgeViewModel {
     /// of it a repeat picker three screens away. Pinning them to the day was
     /// the honest answer to *that* screen.
     ///
-    /// This screen says it. The plan is shown as a day with a time on every
-    /// row, under a line that says "every day", after a screen whose every
-    /// projection is printed as "if you keep five days a week of the plan
-    /// you're about to see". Writing it as one day would make that sentence
-    /// false on the second morning — the plan it projected would not exist.
-    /// Narrowing any of it later is one tap in the repeat picker (§5 #12: an
-    /// activity is a standing arrangement of weekdays and a time).
+    /// This screen says it. Every row reads "Mon · Wed · Fri · 18:00" or
+    /// "Daily · 21:30", each one opens the repeat picker, and the screen before
+    /// projected exactly those days. So the days are written as shown: training
+    /// on its three, reading on all seven. (1.1 first wrote the whole plan as
+    /// every day — a workout swapped in became seven a week, deep work came on
+    /// Sundays; §17.1.)
+    /// Changing any of it later is the same repeat picker (§5 #12: an activity
+    /// is a standing arrangement of weekdays and a time).
     ///
-    /// Written through `amend`, so each is an ordinary `RitualEdit` and every
-    /// hour is the user's from the first second.
+    /// Written through `amend`, so each is an ordinary `RitualEdit` — the same
+    /// `repeats` and `startMinute` the editor writes — and every day and hour
+    /// is the user's from the first second.
     func adoptPlan(_ entries: [PlanEntry]) {
         let ids = entries.map(\.ritualID).filter { ritual($0) != nil }
         guard !ids.isEmpty else { return }
@@ -771,7 +773,7 @@ final class ForgeViewModel {
         }
         for entry in entries where ids.contains(entry.ritualID) {
             amend(entry.ritualID) {
-                $0.repeats = .daily
+                $0.repeats = entry.repeats
                 $0.startMinute = entry.minute
             }
         }
@@ -1521,6 +1523,20 @@ final class ForgeViewModel {
     /// place in the week as it does in today — see `Ritual.chronological`.
     func rituals(onWeekday weekday: Int) -> [Ritual] {
         Ritual.chronological(activeRituals.filter { $0.happens(on: weekday) })
+    }
+
+    /// What somebody chose to build that tomorrow has something for, in the
+    /// app's own order — all the first run's closing line may promise.
+    ///
+    /// The line reads "Tomorrow, more physical." It could be built from the
+    /// focus alone while the plan was every activity every day; with the plan
+    /// on its own days (§17.1), a call on Wednesdays and Sundays is not
+    /// tomorrow's on a Monday, and the line would promise a part of somebody
+    /// that tomorrow does not ask for.
+    var focusTomorrow: [RitualCategory] {
+        let tomorrow = progress.currentDay.adding(days: 1).weekday
+        let built = Set(rituals(onWeekday: tomorrow).map(\.category))
+        return RitualCategory.dimensions.filter { focus.contains($0) && built.contains($0) }
     }
 
     /// Change one activity's schedule, leaving everything else about it alone.

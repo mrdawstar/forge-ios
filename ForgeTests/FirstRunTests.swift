@@ -106,30 +106,36 @@ struct FirstRunTests {
         }
     }
 
-    @Test("The plan writes the real day: every activity, every day, at its time")
+    @Test("The plan writes the real day: every activity on its own days, at its time")
     func thePlanIsTheDay() {
         let (vm, _) = makeViewModel()
         let answers = Assessment(
             day: vm.progress.currentDay,
             answers: Dictionary(uniqueKeysWithValues: Assessment.Question.allCases.map { ($0, 1) })
         )
-        let plan = OnboardingPlan.propose(focus: [.physical, .relationship], assessment: answers)
+        let plan = OnboardingPlan.propose(focus: Set(RitualCategory.dimensions), assessment: answers)
+        #expect(plan.contains { !$0.repeats.isDaily }, "a real week, not everything every day")
 
         vm.adoptPlan(plan)
 
-        #expect(vm.activeRitualIDs == plan.map(\.ritualID))
-        #expect(vm.totalActive == plan.count)
-        #expect(Set(vm.progress.today.plannedIDs) == Set(plan.map(\.ritualID)), "today's record asks for it")
-        let tomorrow = vm.progress.currentDay.adding(days: 1).weekday
+        let today = vm.progress.currentDay.weekday
+        let onToday = plan.filter { $0.happens(on: today) }.map(\.ritualID)
+        #expect(vm.activeRitualIDs == plan.map(\.ritualID), "the week holds all of it")
+        #expect(!onToday.isEmpty, "something is on today, whatever today is")
+        #expect(vm.totalActive == onToday.count)
+        #expect(Set(vm.progress.today.plannedIDs) == Set(onToday), "today's record asks for today's, and only today's")
+        for weekday in 1...7 {
+            #expect(Set(vm.rituals(onWeekday: weekday).map(\.id))
+                    == Set(plan.filter { $0.happens(on: weekday) }.map(\.ritualID)))
+        }
         for entry in plan {
             let ritual = vm.ritual(entry.ritualID)
             #expect(ritual?.startMinute == entry.minute)
-            #expect(ritual?.repeats.isDaily == true)
-            #expect(ritual?.happens(on: tomorrow) == true, "the plan is tomorrow's too")
+            #expect(ritual?.repeats == entry.repeats, Comment(rawValue: entry.ritualID))
         }
     }
 
-    @Test("The first thing asked for is the smallest thing on the plan")
+    @Test("The first thing asked for is the smallest thing on the plan today")
     func theFirstAskIsTheSmallestOnThePlan() {
         let (vm, _) = makeViewModel()
         let answers = Assessment(
@@ -139,7 +145,10 @@ struct FirstRunTests {
         let plan = OnboardingPlan.propose(focus: Set(RitualCategory.dimensions), assessment: answers)
         vm.adoptPlan(plan)
 
-        let smallest = plan.map(\.ritualID).min { IdentityActivities.effort(of: $0) < IdentityActivities.effort(of: $1) }
+        let today = vm.progress.currentDay.weekday
+        let smallest = plan.filter { $0.happens(on: today) }.map(\.ritualID)
+            .min { IdentityActivities.effort(of: $0) < IdentityActivities.effort(of: $1) }
+        #expect(smallest != nil)
         #expect(vm.firstRunActivity?.id == smallest)
     }
 
@@ -238,12 +247,14 @@ struct FirstDayCopyTests {
     func voice() {
         var lines = [
             FirstRunCopy.coldOpenTitle, FirstRunCopy.coldOpenLine, FirstRunCopy.questionsCaption,
-            FirstRunCopy.suggested, FirstRunCopy.drawingTitle, FirstRunCopy.scienceTitle,
-            FirstRunCopy.planTitle, FirstRunCopy.planSubtitle,
+            FirstRunCopy.suggested, FirstRunCopy.drawingTitle, FirstRunCopy.scienceOverline,
+            FirstRunCopy.scienceTitle, FirstRunCopy.sources,
+            FirstRunCopy.planTitle, FirstRunCopy.planSubtitle, FirstRunCopy.planNothingToday,
         ]
+        lines += RitualCategory.dimensions.map(FirstRunCopy.evidence(for:))
         lines += Assessment.Question.allCases.flatMap { [$0.prompt] + $0.options.map(\.label) }
         lines += Transformation.Stop.allCases.flatMap { [$0.title, $0.footnote] }
-        lines += FirstRunCopy.findings.flatMap { [$0.title, $0.body, $0.mechanic] }
+        lines += FirstRunCopy.findings.flatMap { [$0.unit, $0.principle, $0.mechanic, $0.detail] }
         lines += (0..<4).compactMap {
             Assessment(day: ForgeDay(year: 2026, month: 1, day: 1), answers: [.screenTime: $0]).gainLine
         }
@@ -262,16 +273,50 @@ struct FirstDayCopyTests {
         #expect(FirstRunCopy.findings.count == 3)
         for finding in FirstRunCopy.findings {
             #expect(allowed.contains { finding.citation.hasPrefix($0) }, Comment(rawValue: finding.citation))
+            // The short source on the row names the same paper: its first
+            // author, and its year.
+            let author = String(finding.source.prefix { $0 != " " && $0 != "," })
+            #expect(finding.citation.hasPrefix(author), Comment(rawValue: finding.source))
+            #expect(finding.source.hasSuffix(String(finding.citation.drop { $0 != "(" }.dropFirst().prefix(4))),
+                    Comment(rawValue: finding.source))
             // A number in the prose is a word up to a hundred; only a count
             // over a hundred may be digits.
-            let numbers = finding.body.split { !$0.isNumber }.compactMap { Int($0) }
-            #expect(numbers.allSatisfy { $0 > 100 }, Comment(rawValue: finding.body))
+            for line in [finding.principle, finding.mechanic, finding.detail] {
+                let numbers = line.split { !$0.isNumber }.compactMap { Int($0) }
+                #expect(numbers.allSatisfy { $0 > 100 }, Comment(rawValue: line))
+            }
         }
         #expect(FirstRunCopy.findings.map(\.mechanic) == [
             "Arcs are built around it.",
-            "Every activity gets a time.",
+            "Every activity gets a day and a time.",
             "That's why you pull the sword.",
         ])
+    }
+
+    /// The figures are the one place a number is shown as a figure on this
+    /// screen, so they are held to the papers: the median, and the two counts
+    /// of studies. Nothing rounded, nothing invented, no percentage.
+    @Test("Every figure on Why it works is the paper's own")
+    func scienceFigures() {
+        #expect(FirstRunCopy.findings.map(\.figure) == ["66", "94", "138"])
+        #expect(FirstRunCopy.findings.map(\.unit) == ["Median days", "Studies", "Studies"])
+        #expect(FirstRunCopy.findings[0].detail.contains("median of sixty-six days"))
+        #expect(FirstRunCopy.findings[1].detail.contains("ninety-four studies"))
+        #expect(FirstRunCopy.findings[2].detail.contains("138 studies"))
+        for finding in FirstRunCopy.findings {
+            #expect(!(finding.figure + finding.unit + finding.principle + finding.mechanic).contains("%"))
+        }
+    }
+
+    /// It read "The first of your mental." — the dimension's name used as a
+    /// noun, which nobody says.
+    @Test("The first thing done names what it builds, as a name")
+    func evidenceLine() {
+        #expect(FirstRunCopy.evidence(for: .mental) == "The first one for Mental.")
+        #expect(FirstRunCopy.evidence(for: .physical) == "The first one for Physical.")
+        for dimension in RitualCategory.dimensions {
+            #expect(!FirstRunCopy.evidence(for: dimension).contains("of your"))
+        }
     }
 
     @Test("The closing line promises the plan again, not a new choice")

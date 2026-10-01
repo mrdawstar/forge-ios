@@ -572,7 +572,10 @@ struct ContentView: View {
                 // so the sentence reads the same way the Shape does. Empty for
                 // anybody who skipped the question, and the line falls back to
                 // what it always said.
-                focus: RitualCategory.dimensions.filter(forgeVM.focus.contains)
+                focus: RitualCategory.dimensions.filter(forgeVM.focus.contains),
+                // And of that, only what tomorrow has something for: the plan
+                // has its own days now.
+                tomorrow: forgeVM.focusTomorrow
             ) { finishFirstRun() }
                 .transition(.opacity)
                 .zIndex(2)

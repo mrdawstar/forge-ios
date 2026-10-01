@@ -26,8 +26,8 @@ import SwiftUI
 ///    potential — the six, OVR and the blade each stage earns, every number
 ///    computed by the same model the Becoming tab uses (`Transformation`).
 /// 6. **Why it works.** Three cited findings.
-/// 7. **Your plan.** An activity for each part being built, each with a time.
-///    This writes the day.
+/// 7. **Your plan.** An activity for each part being built, each on its own
+///    days and at a time. This writes the day.
 /// 8. **The pull**, rehearsed with nothing at stake.
 /// 9. *(The paywall, in session S2.)*
 /// 10. **Do one now**, and the first pull on the real home screen. Unchanged.
@@ -60,6 +60,9 @@ struct FirstRunView: View {
     @State private var plan: [PlanEntry] = []
     /// The four stops, computed once from the plan and the answers.
     @State private var frames: [Transformation.Frame] = []
+    /// Which way the questions are going: forward on an answer, back on the
+    /// back button. See `AnswerMotion`.
+    @State private var answersForward = true
 
     /// The one activity the `doOne` beat asks for, held still.
     ///
@@ -117,7 +120,9 @@ struct FirstRunView: View {
                     case .question(let index):
                         question(index)
                             .id(index)
-                            .transition(transition)
+                            .transition(AnswerMotion.transition(
+                                forward: answersForward, reduceMotion: reduceMotion
+                            ))
                     case .build:
                         build.transition(transition)
                     case .drawing:
@@ -129,8 +134,10 @@ struct FirstRunView: View {
                         ScienceBeat { advance(to: .plan) }
                             .transition(transition)
                     case .plan:
-                        PlanBeat(entries: $plan) { commitPlan() }
-                            .transition(transition)
+                        PlanBeat(entries: $plan, today: vm.progress.currentDay.weekday) {
+                            commitPlan()
+                        }
+                        .transition(transition)
                     case .metaphor:
                         metaphor.transition(transition)
                     case .doOne:
@@ -180,10 +187,17 @@ struct FirstRunView: View {
     /// Back, on the question beats only. The first question goes back to the
     /// cold open; every answer already given stays given, and shows as chosen
     /// when its question comes round again.
+    ///
+    /// The direction is set a turn before the move, so the question leaving
+    /// has already been drawn with the transition that sends it right.
     private var backAction: (() -> Void)? {
         guard case .question(let index) = vm.firstRunStage else { return nil }
         return {
-            vm.firstRunStage = index > 0 ? .question(index - 1) : .coldOpen
+            answersForward = false
+            DispatchQueue.main.async {
+                guard vm.firstRunStage == .question(index) else { return }
+                vm.firstRunStage = index > 0 ? .question(index - 1) : .coldOpen
+            }
         }
     }
 
@@ -298,14 +312,16 @@ struct FirstRunView: View {
 
     /// Record the answer, let it be seen to land, and move on.
     ///
-    /// The pause is a fifth of a second: long enough for the chosen row to
-    /// light, short enough that seven questions stay under a minute. If
-    /// somebody pressed back inside it, nothing moves — the stage is checked
-    /// against the question that was answered.
+    /// The pause is `AnswerMotion.hold`, 140 ms: long enough for the chosen
+    /// row to light, short enough that the next question is already arriving
+    /// by the time a finger is off the glass. If somebody pressed back inside
+    /// it, nothing moves — the stage is checked against the question that was
+    /// answered.
     private func answer(_ choice: Int, at index: Int) {
         answers[questions[index]] = choice
+        answersForward = true
         Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(220))
+            try? await Task.sleep(for: AnswerMotion.hold)
             guard vm.firstRunStage == .question(index) else { return }
             if index + 1 < questions.count {
                 vm.firstRunStage = .question(index + 1)
@@ -511,8 +527,8 @@ struct FirstRunView: View {
 
     // MARK: - 7. Your plan
 
-    /// The plan becomes the day: the activities, at their times, every day.
-    /// See `ForgeViewModel.adoptPlan` for why every day.
+    /// The plan becomes the day: the activities, on their days, at their
+    /// times. See `ForgeViewModel.adoptPlan`.
     private func commitPlan() {
         vm.adoptPlan(plan)
         advance(to: .metaphor)
@@ -733,9 +749,10 @@ struct FirstRunView: View {
         }
     }
 
-    /// "The first of your physical.", or nothing at all for somebody who chose
-    /// nothing. Silence is the correct output — a line reading "The first of
-    /// your —" would be the app showing its own plumbing.
+    /// "The first one for Physical.", or nothing at all for somebody who did
+    /// not choose what it builds. Silence is the correct output — a line
+    /// naming a part they never pointed at would be the app showing its own
+    /// plumbing. The words are `FirstRunCopy.evidence(for:)`.
     ///
     /// It names the *dimension* rather than an identity now. That is not a
     /// downgrade: this is the first activity somebody has ever completed in
@@ -743,7 +760,7 @@ struct FirstRunView: View {
     /// again on every screen afterwards — which part of them it built.
     private func evidenceLine(for ritual: Ritual) -> String? {
         guard vm.focus.contains(ritual.category) else { return nil }
-        return "The first of your \(ritual.category.label.lowercased())."
+        return FirstRunCopy.evidence(for: ritual.category)
     }
 }
 
@@ -1007,42 +1024,38 @@ private struct PullToBegin: View {
 /// So what is left is what the opening screen always needed: a still picture,
 /// faded out at its edges so it sits in the room rather than on the glass.
 ///
-/// **Since 1.1 it is the sword in the stone** (`hero`, the plate the paywall
-/// and the Proof Card are drawn from) rather than the bare blade sprite. The
-/// cold open says "every day you keep, the blade comes loose", and a blade on
-/// its own is not in anything it could come loose from. The picture is lit
-/// from the upper left like the rest of the room, and its black is not quite
-/// the room's, so every edge is faded into the dark rather than cut.
+/// **Since 1.1 it is the sword in the stone** rather than the bare blade
+/// sprite. The cold open says "every day you keep, the blade comes loose", and
+/// a blade on its own is not in anything it could come loose from.
+///
+/// # Why it is `hero-plate` and not `hero`, and has no masks
+///
+/// It was `hero` — the plate the paywall and the Proof Card are drawn from —
+/// under two linear gradient masks, and on a phone it read as a picture in a
+/// black box. Measured, the cause was not the edges: `hero`'s background is
+/// near-black, 1 to 12 on 255, and the room behind it is not black where the
+/// plate sits — `FirstRunAmbience` lights it warm from the upper left, 13 to 20
+/// around the plate's top. Drawn over the room, the plate's black *covered*
+/// that light, so the art was a darker patch in a lit room, and the two masks
+/// gave the patch straight, rectangular contours (with Mach bands where their
+/// linear ramps started). On an OLED the plate's 1-to-6 were lit pixels beside
+/// unlit ones, so the box was there even where the room was pure black.
+///
+/// `hero-plate` treats the art's black as empty space rather than paint: a
+/// matte of the stone and the sword, true zero in the empty space around them,
+/// the ray and the dust kept as light over the room, and smooth fades where
+/// that light reaches the frame. Nothing in the plate is darker than the room
+/// except the stone and the sword themselves, and the plate's outer edge
+/// differs from the room by under one level on 255. `docs/art/hero_plate.py`
+/// makes it from `hero`, which is untouched.
 private struct BladePlate: View {
     let height: CGFloat
 
     var body: some View {
-        Image("hero")
+        Image("hero-plate")
             .resizable()
             .aspectRatio(contentMode: .fit)
             .frame(maxHeight: height)
-            .mask(
-                LinearGradient(
-                    stops: [
-                        .init(color: .clear, location: 0),
-                        .init(color: .black, location: 0.12),
-                        .init(color: .black, location: 0.72),
-                        .init(color: .clear, location: 1),
-                    ],
-                    startPoint: .top, endPoint: .bottom
-                )
-            )
-            .mask(
-                LinearGradient(
-                    stops: [
-                        .init(color: .clear, location: 0),
-                        .init(color: .black, location: 0.2),
-                        .init(color: .black, location: 0.8),
-                        .init(color: .clear, location: 1),
-                    ],
-                    startPoint: .leading, endPoint: .trailing
-                )
-            )
             .accessibilityHidden(true)
     }
 }
@@ -1285,9 +1298,13 @@ struct FirstRunClosingView: View {
     /// Handed straight to the primer, which draws the scheduler's own sentences
     /// from it — see `NotificationPrimerView`.
     var notificationState: ForgeNotificationState
-    /// What they said they wanted to build, if anything. The closing line
-    /// names it.
+    /// What they said they wanted to build, if anything. The headline reads
+    /// it; the line names what of it is on tomorrow.
     var focus: [RitualCategory] = []
+    /// The part of `focus` tomorrow has something for
+    /// (`ForgeViewModel.focusTomorrow`), which is all the line may promise.
+    /// Nil is all of `focus` — what a plan with everything every day gives.
+    var tomorrow: [RitualCategory]? = nil
     let onFinish: () -> Void
 
     @State private var isAsking = false
@@ -1312,9 +1329,10 @@ struct FirstRunClosingView: View {
     /// It says what is left of today, and what tomorrow holds. In 1.0 the three
     /// chosen activities were pinned to the day they were chosen on, so
     /// tomorrow was a day to plan ("Tomorrow, you choose again"). Since 1.1 the
-    /// plan is every day's — see `ForgeViewModel.adoptPlan` — so tomorrow is
-    /// the same plan again, and the line says so rather than promising a
-    /// choice the app has already made with them.
+    /// plan is a standing week — see `ForgeViewModel.adoptPlan` — so tomorrow
+    /// is the same plan again, and the line says so rather than promising a
+    /// choice the app has already made with them. It names only what of the
+    /// focus tomorrow actually has something for (`tomorrow`).
     ///
     /// **The two halves are in that order on purpose.** What is left of today
     /// comes first, because the blade being out is about to make somebody think
@@ -1326,9 +1344,9 @@ struct FirstRunClosingView: View {
         return "\(ForgeCount.spelled(remaining)) more, today. \(tomorrow)"
     }
 
-    /// What they chose, said the way a person would say it.
+    /// What they chose and tomorrow holds, said the way a person would say it.
     private var named: String? {
-        let names = focus.map { $0.label.lowercased() }
+        let names = (tomorrow ?? focus).map { $0.label.lowercased() }
         switch names.count {
         case 0: return nil
         case 1: return names[0]
