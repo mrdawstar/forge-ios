@@ -2632,10 +2632,10 @@ frozen first task) and draws the frame around the beats; the new beats are in
 | `coldOpen` | `BladePlate`, "Every day you keep, the blade comes loose." / "You pull it free." and **Begin**. No bar yet. |
 | `question(i)` | Seven one-tap questions (`Assessment.Question`), the caption over the first. The tap is the answer and the move on, with a light tick; only the first tap on a screen counts. A thin bar runs from the first question to the pull; back exists on the question beats only and keeps every answer. |
 | `build` | `FocusHexagon` and the six rows, uncapped, preselected once with the two lowest baselines — "Suggested from your answers." until the choice changes. **Skip** sits in the bar once nothing is chosen, and skipping still leaves a plan. |
-| `drawing` | `DrawingBeat`: the starting shape draws itself in 2.4 s, the vertices lighting in their colours with a rising haptic, and one line on time from the screen-time answer. A tap, or the VoiceOver action, skips it; Reduce Motion fades it in. |
+| `drawing` | `DrawingBeat`: the starting shape draws itself in 2.4 s (3.0 s since the polish pass below), the vertices lighting in their colours with a rising haptic, and one line on time from the screen-time answer. A tap, or the VoiceOver action, skips it; Reduce Motion fades it in. |
 | `transformation` | `TransformationBeat`: the four stops, below. |
-| `science` | `ScienceBeat`: three findings as cards, each ending in the mechanic built on it, the citation small: Lally et al. (2010), Gollwitzer & Sheeran (2006), Harkin et al. (2016), three of the four papers DIRECTION allows. |
-| `plan` | `PlanBeat`: three to six activities, each with a time. A row opens `PlanEntryEditor`: a time wheel and the dimension's other starters. `// ARC-PICKER (session S3)` marks where Arcs go. |
+| `science` | `ScienceBeat` (redesigned in the polish pass below): three findings, each ending in the mechanic built on it, the citation small: Lally et al. (2010), Gollwitzer & Sheeran (2006), Harkin et al. (2016), three of the four papers DIRECTION allows. |
+| `plan` | `PlanBeat`: three to six activities, each with its days (since the polish pass below) and a time. A row opens `PlanEntryEditor`: the repeat picker, a time wheel and the dimension's other starters. `// ARC-PICKER (session S3)` marks where Arcs go. |
 | `metaphor` | `PullToBegin`, unchanged. `// PAYWALL (session S2)` marks, in its `onFree`, where the paywall goes. |
 | `doOne`, `pull`, `closing` | Unchanged: the frozen `firstTask`, the handover in its own runloop turn, the first real pull. |
 
@@ -2708,7 +2708,8 @@ blend; the state word waiting for a direction.
 - **Four stops, one model:** `BlendedShape.read` over `DayRecord`s made in
   memory (`Transformation.simulate`). *Now*: no record. *In 7 days* and *in 30
   days*: the proposed plan, planned every day and kept five days of seven,
-  spread evenly and starting today (five and twenty-one kept). *Full
+  spread evenly and starting today (five and twenty-one kept). *Since the
+  polish pass below: each activity on its own days, floored at the answers.* *Full
   potential*: every dimension's first starter planned and kept for 28 days — a
   hundred in all six — with the last blade there is.
 - **The blade comes from the days kept:** Rough, Shaped (5), Quenched (21),
@@ -2717,7 +2718,8 @@ blend; the state word waiting for a direction.
 - **Footnotes:** "From your answers." / "Projected if you keep five days a week
   of the plan you're about to see." / "All six built and kept." Nothing on the
   screen says "will".
-- **One honest wrinkle, left true.** Five days of seven reads 71, so a planned
+- **One honest wrinkle, left true** — *fixed in the polish pass below, which
+  floors the projection at the starting numbers.* Five days of seven reads 71, so a planned
   dimension answered at 75 is projected to settle at 71 by 30 days, because that
   is what the record would show (`seventyFiveSettles`). Every lower baseline
   only rises (`monotonicForPlanned`), and an unplanned dimension is never raised.
@@ -2736,7 +2738,8 @@ blend; the state word waiting for a direction.
   people, reading and anything about tomorrow (`eveningActivities`) from 19:00.
   Laid out back to back, five minutes apart, on five-minute marks, so `untangle`
   has nothing to say on day one.
-- **The plan is written as the day, every day, at its times**
+- **The plan is written as the day, every day, at its times** — *since the
+  polish pass below, on each activity's own days*
   (`ForgeViewModel.adoptPlan`). This replaces 1.0's `chooseStarters`, which
   pinned the choice to today only (§2b). The beat says "Every day, at these
   times", and a plan somebody set times for and found gone tomorrow would make
@@ -2802,16 +2805,109 @@ and `assessment_completed` in TelemetryDeck's Test Mode.
 
 #### For the owner
 
-- **The 75 answer settles at 71** on the 30-day stop (above). If a number going
+- *Resolved in the polish pass below.* **The 75 answer settles at 71** on the 30-day stop (above). If a number going
   down on that stop reads wrong, change the assumption or the copy; do not
   bend the model for the screen.
-- **The plan is daily now,** where 1.0 pinned the first choice to today only.
+- *Superseded by the polish pass below (the plan is a week).* **The plan is daily now,** where 1.0 pinned the first choice to today only.
 - **The first science card names Arcs** ("Arcs are built around it."), as
   the session brief asked, before session S3 builds them. Until S3 ships, the
   first run names a feature the build does not have yet.
 - **The hosted privacy policy** needs the two phrases added to
   `docs/launch/privacy-policy.md` (§1 and §6: the starting answers stay on the
   phone and are never sent) before the 1.1 submission.
-- **Pre-existing, not changed here:** the do-one beat's line reads "The first
+- *Fixed in the polish pass below.* **Pre-existing, not changed here:** the do-one beat's line reads "The first
   of your mental." (`evidenceLine`, 1.0's wording). It reads oddly for Mental
   and Physical; worth a look when the beat is next touched.
+
+#### Polish pass (2026-10-01, branch `fix/s1-onboarding-polish`)
+
+After the owner ran S1 on a phone. The assessment and its stored answers,
+`BlendedShape`, `ForgeShape`, telemetry, the four stops, the pull and the
+handover are unchanged.
+
+- **The cold open's art sat in a box.** Measured: `hero.png`'s background is
+  near-black (1–12 on 255) and `FirstRunAmbience` lights the room where the
+  plate sits (13–20 at its top edge). Drawn over the room, the plate's black
+  *covered* that light, and two separable linear masks gave the dark patch
+  straight contours and Mach bands; on an OLED its 1–6 were lit pixels beside
+  unlit ones. Now `BladePlate` draws **`hero-plate`** with no masks — made from
+  the untouched `hero` by `docs/art/hero_plate.py`: a matte of the sword and the
+  stone, true zero in the empty space, the ray and dust kept as light over the
+  room, smoothstep edges. The plate's edge is within one level of the room; the
+  dip at the old top edge (14 → 6) is gone. Paywall and Proof Card keep `hero`.
+- **Answering** (`AnswerMotion`, shared with Becoming's assessment sheet): the
+  row and its tick land at once, a 140 ms hold (was 220), then a 28 pt push in
+  the sequence's direction while the old question leaves the other way in
+  140 ms — it was a 0.5 s cross-dissolve with both questions half-visible.
+  Recorded: the next question is readable ~0.36 s after the tap (was ~0.7),
+  settled ~0.6 s (was ~0.8). Back reverses it; Reduce Motion fades with no
+  travel. The sheet gained the first run's guard against back inside the hold.
+- **The drawing**: 3.0 s (was 2.4), a vertex every 330 ms (was 300), the
+  polygon over 2.1 s (was 1.9), so the whole shape rests ~1 s (was ~0.5).
+- **Why it works**, redesigned around one read: a figure from each paper (66
+  median days, 94 studies, 138 studies), the principle in a line, the Forge
+  mechanic after a turn arrow (Arcs; a day and a time for every activity; the
+  sword), author and year small. Fuller findings and full references sit under
+  **Sources**. About forty words on screen, from about a hundred and ten.
+- **75 → 71, reproduced and fixed.** Strongest answers → Read, Call, Wake →
+  "In 30 days" read Discipline and Mental 71 under a starting 75, and OVR 72
+  under 73. `Transformation.floored`: at 7 and 30 days each dimension shows
+  `max(baseline, projected)`, and a floored one is never "slipping". Only the
+  projection: the Becoming tab still reads the record, so five kept days in
+  seven from 75 reads ~71 once the record speaks. Now 73 → 73 → 74 → 100.
+  `Transformation.capped` also holds 7 days to the 30-day number (a weekly
+  plan's first week could round a dimension to 77 above a 30-day 76).
+- **"The first of your mental."** → "The first one for Mental."
+  (`FirstRunCopy.evidence(for:)`).
+- **The plan is a week, on the model Forge already had** — `RitualRepeat`
+  (a weekday set), `startMinute`, written through `RitualEdit.repeats`, read by
+  `happens(on:)`, edited in `RepeatPicker` (§5 #12). No new field, key or
+  migration: `PlanEntry.repeats` lives in memory until `adoptPlan` writes it.
+  `OnboardingPlan.cadences`: training Mon · Wed · Fri; learning, writing,
+  teaching, the craft Tue · Thu · Sat; hardest thing first, deep work, study
+  weekdays; a call Wed · Sun; a meal or a phone-free hour weekends; letter,
+  help, make the plan, numbers, message, ask, ship once a week; everything else
+  daily. A proposal is only ever the six first starters (walk, read, wake,
+  breathe daily; hardest thing first weekdays; call Wed · Sun), so every
+  proposed week has something on every day, today included. Rows read
+  "Mon · Wed · Fri · 7:30"; the editor's Days row opens `RepeatPicker`; a swap
+  brings the new activity's days unless the days were changed there; Continue
+  waits while nothing is on today.
+  - The projection uses the schedule: each simulated day plans only what is on
+    that weekday, and each activity keeps five of every seven of its own
+    planned days, laid back from the end of the stop — twenty-eight days hold
+    four of every weekday, so the reading no longer depends on the install day.
+    A rest day is neither kept nor missed. Footnote: "Projected if you keep
+    five of every seven days on the plan you're about to see."
+  - The call is twice a week, not weekly: the Shape counts a dimension fully
+    present from eight days in twenty-eight (`presenceFloor`), so weekly capped
+    Relationship at half and made the blend's seven days read above thirty.
+  - The closing line names only what of the focus tomorrow has something for
+    (`ForgeViewModel.focusTomorrow`): a Wed · Sun call is not Monday's tomorrow.
+
+**Verified.** `xcodebuild test` on the iPhone 17 Pro simulator: **697 tests in
+56 suites**, failing only the 16 environmental issues §17.0 lists (12 in
+"Forge Pro: StoreKit", 4 in AIPrep). One run tested stale binaries (683 tests,
+nothing relinked); `xcodebuild clean` fixed it — check the count. On the
+simulator, end to end: 17 Pro at the default size and at AX3, the 17e,
+Reduce Motion (no travel; the whole shape at once), the nothing-on-today guard,
+a swap to Work out (Mon · Wed · Fri), the committed week (Saturday holds the
+weekend rows), the first pull, the closing line and Becoming. Sheets in
+`docs/verification/1.1-s1-polish/`.
+
+**Not verified — on a real iPhone:** the plate on an OLED in a dark room; the
+answer tick and the drawing's rising haptics at the new timing; VoiceOver on the
+science rows, the plan rows and the Days row.
+
+**Files.** Nothing added to `project.pbxproj`: the new image is an imageset in
+the existing catalog. Added outside the build: `docs/art/hero_plate.py`,
+`docs/verification/1.1-s1-polish/`.
+
+**For the owner.**
+- The call is proposed Wed · Sun rather than weekly (above). Weekly is one entry
+  in `OnboardingPlan.cadences`; expect Relationship to project lower.
+- A strong answer now stays flat across the projection, but the Becoming tab
+  will show the record's ~71 after four weeks of five kept days in seven.
+- Training lands in the morning slot (`OnboardingPlan.isEvening` is unchanged);
+  a swap keeps the row's time, so a longer activity swapped in can run into the
+  next row's start (pre-existing).
