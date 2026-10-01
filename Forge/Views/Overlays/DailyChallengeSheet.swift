@@ -331,9 +331,11 @@ struct DailyChallengeSheet: View {
     }
 
     /// The one sentence the screen closes on, and the whole of what used to be a
-    /// section: nothing here is counted, and skipping costs nothing.
+    /// section. It said "nothing here is counted" until 1.1 made a finished
+    /// challenge count (DIRECTION_1_1 §7): done, it is a kept day for its stat;
+    /// skipped, it is still nothing.
     private var footnote: some View {
-        Text("One challenge a day. Nothing here is counted, and skipping costs nothing.")
+        Text("One challenge a day. Done, it counts toward its stat. Skipping costs nothing.")
             .font(.caption)
             .foregroundStyle(.tertiary)
             .multilineTextAlignment(.center)
@@ -360,7 +362,7 @@ struct DailyChallengeSheet: View {
         case .completed:
             settled(
                 "Done.",
-                detail: completedLine,
+                detail: "\(completedLine) It counts toward \(challenge.focus.label) today.",
                 symbol: "checkmark",
                 tint: ForgeTheme.accent
             )
@@ -546,6 +548,7 @@ private struct ChallengeCard: View {
                 .padding(.top, 8)
                 .padding(.horizontal, 6)
 
+
             // Why this one, when the day is why. It is the difference between a
             // challenge and a fortune cookie: the app read the day somebody had
             // already planned and aimed at it, and saying so out loud is what
@@ -554,30 +557,37 @@ private struct ChallengeCard: View {
             // Absent when the day said nothing — which is most first weeks — and
             // that silence is the point. A line claiming the day was read on a
             // day it was not would cost more than it buys.
-            if let reason = challenge.reason {
-                Text("Chosen for \(reason).")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-                    .multilineTextAlignment(.center)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.top, 12)
-            } else if !isToday {
-                Text(challenge.focus.meaning)
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-                    .multilineTextAlignment(.center)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.top, 12)
-            }
+            //
+            // **Which stat it feeds, on every card**, in that stat's colour: a
+            // finished challenge is a kept day for its dimension in the Shape
+            // (DIRECTION_1_1 §7), so "Counts toward Discipline" is true of
+            // every card and said on every one. It took the place of the
+            // dimension's meaning on the cards that are not today's — the tag
+            // above already names the dimension, and what it is *for* now is
+            // the more useful half — and it joins today's reason on one line,
+            // so the card is no taller than it was (`pager` is a fixed height).
+            caption
+                .font(.caption)
+                .multilineTextAlignment(.center)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 12)
 
             Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity, alignment: .top)
         .opacity(isToday ? 1 : 0.94)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(Text("\(kicker). \(challenge.focus.label), \(challenge.difficulty.label). \(challenge.title). \(challenge.detail)"))
+        .accessibilityLabel(Text("\(kicker). \(challenge.focus.label), \(challenge.difficulty.label). \(challenge.title). \(challenge.detail) \(ChallengeStore.countsToward(challenge))."))
+    }
+
+    /// "Chosen for a day of deep work. Counts toward Ambition." — the reason
+    /// where there is one, and the stat always, in its colour.
+    private var caption: Text {
+        let counts = Text(ChallengeStore.countsToward(challenge) + ".")
+            .foregroundStyle(challenge.focus.category.color.opacity(isToday ? 1 : 0.8))
+        guard let reason = challenge.reason else { return counts }
+        return Text("Chosen for \(reason). ").foregroundStyle(.tertiary) + counts
     }
 
     /// Where the card came from, said out loud — the question this screen exists

@@ -48,6 +48,8 @@ struct BecomingTabView: View {
     /// Every week somebody has written about. Read only — nothing on this tab
     /// answers a review, it only keeps them where they can be found.
     var reviews: ReviewStore
+    /// The gear: Settings is a sheet since Arcs took its tab.
+    var onSettings: () -> Void = {}
 
     /// Which dimension is open on the list, and lit on the polygon.
     @State private var inspecting: RitualCategory?
@@ -82,6 +84,11 @@ struct BecomingTabView: View {
             }
             .scrollIndicators(.hidden)
             .navigationTitle("Becoming")
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    SettingsButton(action: onSettings)
+                }
+            }
             .sheet(isPresented: $isChoosing) { FocusEditor(forge: forge) }
             .sheet(isPresented: $isReadingWeeks) { WeeklyReviewHistory(reviews: reviews) }
             .fullScreenCover(isPresented: $isAssessing) { AssessmentSheet(forge: forge) }

@@ -28,6 +28,11 @@ enum FirstRunCopy {
 
     static let planTitle = "Your plan"
     static let planSubtitle = "On these days, at these times. Tap one to change it."
+    /// Under an Arc's rows, which are the Arc's own and change later, in the
+    /// week, like everything else.
+    static let arcPlanSubtitle = "On these days, at these times. All of it is yours to move once you begin."
+    /// Above the Arc choice on the plan beat.
+    static let arcPickerTitle = "Start with an Arc"
     /// Under the plan when an edit has left nothing on today. The next two
     /// beats — do one now, the first pull — are today's.
     static let planNothingToday = "Nothing here is on today. Add today to one of them to begin now."

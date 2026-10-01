@@ -109,6 +109,8 @@ struct ForgeNotificationState: Equatable {
     /// Which weekday the review is offered on, or nil when there is nothing to
     /// review yet. See `ForgeNotificationPlan.review(for:)`.
     var reviewWeekday: Int?
+    /// The Arc being run, or nil. See `ForgeNotificationPlan.arcMornings`.
+    var arc: ArcNotice? = nil
     var calendar: Calendar = .current
 
     /// The sentence an activity is evidence for, if any.
@@ -140,6 +142,29 @@ struct ForgeNotificationState: Equatable {
                     < ($1.element.startMinute ?? .max, $1.offset)
             }
             .map(\.element)
+    }
+}
+
+/// What the morning needs to know about a running Arc: its name, its first
+/// day and length, and the days its phases begin. Values, so the plan stays a
+/// pure function of the day.
+struct ArcNotice: Equatable, Sendable {
+    struct Phase: Equatable, Sendable {
+        let name: String
+        let firstDay: Int
+    }
+
+    let name: String
+    let startDay: ForgeDay
+    let length: Int
+    /// Every phase after the first — the first begins on day one, and day one
+    /// is not a change of anything.
+    let phases: [Phase]
+
+    /// Which day of the Arc a day is, or nil outside it.
+    func number(of day: ForgeDay) -> Int? {
+        let number = day.days(since: startDay) + 1
+        return (1...length).contains(number) ? number : nil
     }
 }
 
@@ -208,20 +233,28 @@ enum ForgeNotificationPlan {
     /// so nothing can be left behind.
     static func make(for state: ForgeNotificationState) -> [PlannedNotification] {
         var plan: [PlannedNotification] = []
+        // While an Arc runs the mornings are dated rather than repeating — see
+        // `arcMornings` — and the week's own repeating ones stand aside, or a
+        // morning would arrive twice.
+        let datedMornings = state.arc != nil
         if let uniform = uniformWeekday(for: state) {
             // Every day of the week holds the same day, so it is scheduled once
             // and repeats daily — see `at(_:on:for:)`. Seven identical copies
             // would be seven of the sixty-odd requests iOS will hold, spent on
             // saying the same thing.
-            plan = day(uniform, for: state)
+            plan = day(uniform, for: state, morning: !datedMornings)
         } else {
             // Monday first, so a plan that has to be cut keeps a recognisable
             // week rather than a fortnight of Sundays.
             for weekday in [2, 3, 4, 5, 6, 7, 1] {
-                plan += day(weekday, for: state)
+                plan += day(weekday, for: state, morning: !datedMornings)
             }
         }
         plan = Array(plan.prefix(limit))
+        // Outside the cap, like the two below: a week of them is seven
+        // requests, and they replace the week's own mornings rather than
+        // joining them.
+        if datedMornings { plan += arcMornings(for: state) }
 
         // The two that are about *today* specifically, and are therefore single
         // instants rather than repeats. They go on the end so the cap above can
@@ -245,23 +278,25 @@ enum ForgeNotificationPlan {
     /// a screen that says so — see the planner's empty state.
     private static func day(
         _ weekday: Int,
-        for state: ForgeNotificationState
+        for state: ForgeNotificationState,
+        morning includesMorning: Bool = true
     ) -> [PlannedNotification] {
         let activities = state.activities(on: weekday)
         guard !activities.isEmpty else { return [] }
 
         let timed = activities.filter { $0.startMinute != nil }
-        var plan = [morning(weekday, first: activities.first, firstTimed: timed.first, for: state)]
+        let opening = morning(weekday, first: activities.first, firstTimed: timed.first, for: state)
+        var plan = includesMorning ? [opening] : []
 
         // Each activity at the hour it was given, and only those that have one.
         // An activity with no time is not an appointment — Forge has never
         // pretended otherwise — so it is named by the morning and left alone.
         for activity in timed {
             guard let minute = activity.startMinute else { continue }
-            // The morning already speaks at this minute. Two notifications
-            // arriving together is the one thing that would make either of them
-            // feel automated.
-            guard minute != plan[0].when.minuteOfDay else { continue }
+            // The morning already speaks at this minute — a dated one as much
+            // as a repeating one. Two notifications arriving together is the
+            // one thing that would make either of them feel automated.
+            guard minute != opening.when.minuteOfDay else { continue }
             plan.append(
                 PlannedNotification(
                     kind: .activity,
@@ -308,6 +343,80 @@ enum ForgeNotificationPlan {
             title: first.flatMap(state.identity) ?? standing(daysKept: state.daysKept),
             body: opening(first: first, firstTimed: firstTimed, at: minute)
         )
+    }
+
+    // MARK: A running Arc
+
+    /// How far ahead the dated mornings reach.
+    static let arcHorizon = 7
+
+    /// The mornings of a running Arc: "Day 12 of 90" in each (DIRECTION_1_1
+    /// §5), and on the two days that are different, what is different.
+    ///
+    /// # Why they are dated, and why only a week of them
+    ///
+    /// The day number changes every morning, and a repeating request is one
+    /// sentence forever — "Day 12 of 90" would still be arriving on day forty.
+    /// So while an Arc runs the mornings are single instants, one per day for
+    /// the next seven, each carrying its own number; every open of the app
+    /// lays the next seven down again. A week of the app unopened ends in a
+    /// quiet phone rather than a wrong number, which is the honest failure.
+    ///
+    /// # The phase and the last day
+    ///
+    /// The morning a phase begins says so — "Build starts today." — and the
+    /// last day says it is the last. **They replace that morning rather than
+    /// join it**, so each is one notification, never a second one at the same
+    /// minute. A day past the end inside the week gets an ordinary morning.
+    /// Nothing here counts what has not been done: no streak, nothing that
+    /// can be lost.
+    static func arcMornings(for state: ForgeNotificationState) -> [PlannedNotification] {
+        guard let arc = state.arc else { return [] }
+        var plan: [PlannedNotification] = []
+        for offset in 0..<arcHorizon {
+            let date = state.currentDay.adding(days: offset)
+            let activities = state.activities(on: date.weekday)
+            let number = arc.number(of: date)
+            let phase = number.flatMap { day in arc.phases.first { $0.firstDay == day } }
+            let isLast = number == arc.length
+            guard !activities.isEmpty || phase != nil || isLast else { continue }
+
+            let timed = activities.filter { $0.startMinute != nil }
+            let wake = state.wakeHour * 60 + state.wakeMinute
+            let minute = min(wake, timed.first?.startMinute ?? wake)
+            let midnight = date.startOfDay(in: state.calendar)
+            guard let at = state.calendar.date(
+                bySettingHour: minute / 60, minute: minute % 60, second: 0, of: midnight
+            ), at > state.now else { continue }
+
+            let first = opening(first: activities.first, firstTimed: timed.first, at: minute)
+            let title: String
+            let body: String
+            if let number, let phase {
+                title = "\(phase.name) starts today."
+                body = "\(arc.name), day \(number) of \(arc.length). What changes is on the Arcs tab."
+            } else if let number, isLast {
+                title = "The last day of \(arc.name)."
+                body = "Day \(number) of \(arc.length). \(first)"
+            } else if let number {
+                title = activities.first.flatMap(state.identity) ?? standing(daysKept: state.daysKept)
+                body = "Day \(number) of \(arc.length). \(first)"
+            } else {
+                title = activities.first.flatMap(state.identity) ?? standing(daysKept: state.daysKept)
+                body = first
+            }
+
+            plan.append(
+                PlannedNotification(
+                    kind: .morning,
+                    key: "arc.\(date.year)-\(date.month)-\(date.day)",
+                    when: .once(at),
+                    title: title,
+                    body: body
+                )
+            )
+        }
+        return plan
     }
 
     /// What the app can say about somebody who has named nobody.

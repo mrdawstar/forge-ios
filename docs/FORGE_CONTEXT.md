@@ -34,10 +34,11 @@ say.
 The shape of the product today:
 
 ```
-Forge     the day, the sword scene, Plan, the challenge
-Blade     the record: blade, ladder, chapter, heatmap, milestones, analytics
+Forge     the day, the sword scene, Plan, the challenge, the running Arc's line
+Arcs      the running Arc, the four to start, the ones finished (1.1, §17.3)
 Becoming  the direction: the Shape, what you chose to build, the six
-Settings  rest days, appearance, the week, notifications, sound, planning, legal
+Blade     the record: blade, ladder, chapter, Arcs finished, heatmap, analytics
+⚙︎         Settings, a sheet from the gear on Becoming and Blade (1.1, §10)
 ```
 
 **There is no account.** Not "optional", not "signed out by default" — there is
@@ -2398,19 +2399,37 @@ TelemetryDeck's — see §2p.
 ## 10. Navigation / information architecture
 
 ```
-TabView (native, Liquid Glass)
+TabView (native, Liquid Glass) — Forge · Arcs · Becoming · Blade (1.1)
 ├── Forge     the day + sword scene. TODAY / WEEK modes, control bar
 │             (Today/Week · challenge), draggable panel. Plan and Copy Day
-│             open from the week's own ⋯ menu — see §2j.1
-├── Blade     the record: blade + ladder, chapter, heatmap, your milestones,
-│             one row into all analytics
+│             open from the week's own ⋯ menu — see §2j.1. While an Arc runs,
+│             one line above the controls ("Winter Arc · Day 12 of 90 ·
+│             Trial 3 of 7") that opens the Arcs tab
+├── Arcs      the running Arc's card (day, phase, pace, this week's trial, a
+│             phase's changes to review, the next phase, Save the proof,
+│             Leave), the four to start (Winter first in the winter), the
+│             ones finished. Each opens ArcDetailView → the join sheet
 ├── Becoming  the direction: the Shape (hexagon), one row saying what you chose
 │             to build, the six inspectable (the chosen ones marked), one next
-│             step, and — only for somebody who has them — the identities
-└── Settings  rest days, appearance, the week, notifications, sound and feel,
-              planning, About (Support · Privacy Policy · Terms), DEBUG.
-              **There is no Account section** — see §2n
+│             step, and — only for somebody who has them — the identities.
+│             Gear → Settings
+└── Blade     the record: blade (winters engraved) + ladder, chapter (waits
+              while an Arc runs), the Arcs finished, heatmap, your milestones,
+              one row into all analytics. Gear → Settings
+
+Settings      no longer a tab. One sheet (`ContentView.showSettings`), opened
+              from the gear in the Becoming and Blade navigation bars
+              (`AppTab.settingsHosts`, `SettingsButton`), closed with Done.
+              Contents unchanged: Forge Pro, rest days, appearance, the week,
+              notifications, sound and feel, planning, About (Support ·
+              Privacy Policy · Terms), DEBUG. **There is no Account
+              section** — see §2n
 ```
+
+Arcs took Settings' place in the bar in 1.1 (§17.3): a program somebody is
+ninety days into is worth a tab, and the screen where rest days are set is
+visited a few times a year. Arcs sit next to the day because they are made of
+days.
 
 The panel on the Forge tab has **five states**, decided in one place
 (`ForgeTabView.content`): the week, an empty day, the list, the pull prompt, and
@@ -2423,8 +2442,9 @@ day summary, blade unlock celebration, and the three moments — return, weekly
 review, chapter close.
 
 Deep links (`ForgeLink`), notifications and widgets **all land on the Forge tab**
-and dismiss any open sheet — they're all about the same day, so arriving
-anywhere else would need a tap to undo.
+and dismiss any open sheet — Settings included since it became one
+(`landOnHome`) — they're all about the same day, so arriving anywhere else
+would need a tap to undo.
 
 ## 11. Deliberately removed or rejected — and why
 
@@ -3260,3 +3280,296 @@ from a production `AppTransaction` (only reachable once 1.1 is live: install
 - The annual offer shares the group, so it is visible in the system's own
   subscription screen to an annual subscriber (§7, "One thing Apple decides").
 - The hosted privacy policy still needs its purchase sentence (§7).
+
+### 17.3 Arcs (2026-10-01)
+
+Session S3, branch `feat/arcs`, against DIRECTION_1_1 §5 (Arcs) and §7 (the
+daily challenge counts). §10 is updated for the new tab bar.
+
+#### What shipped
+
+- **Four Arcs** (`ArcCatalog`, `Models/Arc.swift`), definitions in code and
+  never stored:
+  - **Lock In 7**: the plan as it is, for seven days, with the daily
+    challenge each day. Adds nothing to the week. One trial (five challenges).
+    Completed at five of seven; the onboarding default.
+  - **Monk Mode 30**: deep work at 9:00 on weekdays (90 → 120 → 150 min over
+    Clear 1–10, Deepen 11–20, Hold 21–30), training at 7:00 on weekdays, five
+    lines at 22:00, phone out of the bedroom at 22:30, no short-form video.
+    Five weekly trials.
+  - **Discipline 66**: a fixed wake-up and three activities somebody picks,
+    every day for 66 days, one phase and no ramp (Lally et al. 2010). Ten
+    trials.
+  - **Winter Arc 90**: Foundation 1–14, Build 15–42, Harden 43–70, Finish
+    71–90. Wake-up and a phone-free first half hour, training 4 → 5 days and
+    30 → 45 → 60 min, steps 8,000 → 10,000, deep work 60 → 90 → 120 min,
+    reading 10 → 20 pages ("Read" counts for it), phone out of the bedroom,
+    one real conversation a week. Thirteen trials. Put first and said to
+    "start today" from 1 October to 31 January (`isWinterSeason`); startable
+    any day. Its record name carries the winter's year ("Winter Arc 2026";
+    one begun in January belongs to the October before).
+  - Every Arc but Lock In 7 is Completed at four of every five days.
+- **One active Arc at a time.** Start today or Start Monday; leave at any time.
+- **The Arcs tab**, the Arc line on the Forge tab, finished Arcs on the Blade
+  record and the Arcs tab, the winter mark engraved on the blade, the onboarding
+  Arc picker, the Arc share card, Arc mornings, and the challenge counting in
+  the Shape.
+- **Paywall**: `PremiumFeatures.arcs` is on, so the row "The Arcs: Winter Arc,
+  Monk Mode 30, Discipline 66." shows. Starting and running an Arc is
+  `PremiumGate(.arcs)`; what is finished stays readable (§5 #1).
+
+#### Persistence: stated facts only
+
+`ArcEnrollment` (`Models/ArcEnrollment.swift`), a list under
+`forge.arcs.v1` in the App Group, via `ArcStore`. It stores only what somebody
+said or what Forge did at their say-so: the Arc, the start day, the wake time,
+Discipline 66's picks, `added` (what joining actually wrote into the week, read
+back from the week afterwards), `isApplied` (false only between Start Monday and
+that Monday), `phaseAnswers` (true applied, false "Keep mine"), `tallies` (the
+hand-counted trials), `leftOn`, `joinedAt`. **No day counts.** The decoder is
+tolerant per field and per row (`decodeAll`): an unknown Arc id drops that row,
+never the list.
+
+#### Day and progress are derived on read (§5 #2)
+
+`ArcReading.read` reads an enrollment against the `DayRecord`s every time:
+status (upcoming, active, finished, left), day N of M, kept and counted, phase,
+this week's trial and its count, Completed or not.
+
+- **Forge's own day.** The start day is a `ForgeDay` on the 04:00 clock, so a
+  join at 01:30 belongs to the day before. `endDay = startDay + length - 1`.
+  Day maths goes through `ForgeDay.adding(days:)`, which re-normalises across
+  DST; the tests cross both 2026 US clock changes.
+- **Counted days** are the Arc's days so far, minus rest days (§5 #11, in
+  neither number); **today joins both only once it is kept**, so a day in
+  progress is never a miss.
+- **On track is the Arc's own goal** (four of every five; five of seven for
+  Lock In 7), the same line Completed is drawn at. Pace copy: "On track. 4 of 5
+  days kept." / "Not on track yet. 3 of 5 days kept; four of every five is the
+  pace."
+- **The ending**: past the end day it is "Completed, 72 of 90 days" at the goal
+  and "Finished, 61 of 90 days" below it. There is no third word, and nothing
+  says failed or lost.
+- **Trials** run in weeks of seven from day one, the last cut at the end. Most
+  are read off the record (an activity's days, days on which everything the
+  Arc asked was done, days kept, challenges finished). The few Forge cannot
+  see (a cold shower, a book shut) are a `tally` marked by hand with an undo,
+  clamped to the trial's count.
+
+#### Joining shows exactly what it adds, and only appends (§5 #7, #9)
+
+`ArcStore.preview` builds an `ArcJoin`: "Added to your week" (each with its
+time, days and length), "Already in your week" (counted as they are, including
+`alsoCounts` matches: an existing "Read" does Winter's reading), and "Nothing
+is removed." Start writes exactly those additions through the week's own
+`apply(SchedulePlan)`. Start Monday writes nothing until that Monday's first
+open (`applyIfDue` on launch, foreground and the day turning). Arc clock times
+are decided once, on joining, from the wake time; phases never move a clock.
+Leaving offers to keep everything or to take off **exactly `added`**: nothing
+that was already in the week is ever removed. An Arc that has not started yet
+is withdrawn rather than left.
+
+#### Phase changes are a reviewable diff, never silent
+
+When the current phase asks for something the week does not have yet,
+`ArcStore.phaseOffer()` puts a card on the Arc ("Week 3: Build · Four changes
+to your week") listing each change with the old and new value (days, minutes,
+a target such as 8,000 → 10,000). **Apply N** writes them in one explicit tap
+(`applyPhase`, recomputed against the week as it is at that moment); **Keep
+mine** answers the phase and moves nothing. Either way the phase is not offered
+again. The changes are computed against the week as it stands, so an activity
+somebody has already raised or moved does not show a change. A pre-existing
+activity whose days differ shows its change on day one, as the join sheet said
+it would. The next phase is previewed under the card. `SchedulePlan` gained a
+target change (`RitualEdit.tail`) for this.
+
+#### The Arc and the chapter: one time-boxed stretch at a time
+
+While an Arc runs, the chapter is suspended: `isChapterDue` is false, and the
+Blade tab says "Chapters wait while Winter Arc runs." The chapter's window is
+untouched and is offered again once the Arc is over. The alternatives were
+both worse: two clocks with an end date on one screen, or an Arc that closes a
+chapter, which would tie two records together.
+
+#### The daily challenge counts (DIRECTION_1_1 §7)
+
+- A finished challenge is a `KeptChallenge` in `ProgressStore`
+  (`forge.challengesKept.v1`): day, id, focus. `ChallengeStore` writes it when
+  the state reaches `completed` and removes it on every move away (undo, skip,
+  taking another), so the Shape never holds a finish the sheet no longer
+  shows. Nothing is kept about a skip.
+- `ForgeShape.crediting` adds a synthetic `challenge.<dimension>` completion to
+  **a read-only copy** of that day's record, planned and done, weighted 1.0 to
+  that one dimension. The Shape takes the strongest contribution to a
+  dimension per day, so **at most one kept day per dimension per day**. The
+  stored history, heatmap, day counts and rates are untouched. `BlendedShape`
+  reads the same credited copy.
+- Every challenge card says "Counts toward Discipline." in that dimension's
+  colour. Done reads "It counts toward Discipline today." The footnote is now
+  "One challenge a day. Done, it counts toward its stat. Skipping costs
+  nothing."
+
+#### Notifications
+
+While an Arc runs (and new days are not locked), the morning is **dated**
+rather than weekly: one request per day for the next seven
+(`ForgeNotificationPlan.arcMornings`), each "Day N of M. First: …", relaid on
+every open. The weekly mornings stand aside, so a morning never arrives
+twice. The morning a phase begins reads "Build starts today." and the last day
+reads "The last day of Winter Arc."; each replaces that morning. Seven days
+without opening the app means quiet mornings, not a wrong number. No streak or
+loss wording.
+
+#### The Forge tab, the record and the share card
+
+- **Arc line**: "Winter Arc · Day 12 of 90 · Trial 3 of 7" above the day's
+  controls, only while an Arc runs, the first run is finished and new days are
+  not locked. Never over the rehearsed pull. It opens the Arcs tab, and its
+  height comes out of the scene, not the panel.
+- **Finished Arcs** are on the Blade record ("ARCS") and under "Finished" on
+  the Arcs tab, each with its mark (`ArcMark`). A left Arc is not drawn; its
+  kept days are in the record like any others.
+- **Winter mark**: every Winter Arc run to its end (Completed or Finished) is
+  engraved on the blade (`WinterEngraving`), on the Blade tab and on the Arc
+  card.
+- **Arc share card**: the third door into `PracticeArtifact` (Save the proof on
+  the running Arc), `ArcProofCard`: "WINTER ARC · DAY 43 OF 90", the blade, the
+  six-colour hexagon with the six numbers and OVR, the date and
+  forgebetter.app, at 1080 × 1920 and 1080 × 1080.
+  `FirstWeekTests.proofCardDoors` now allows three doors.
+
+#### Onboarding
+
+The plan beat has "Start with an Arc": four small covers, **Lock In 7 first and
+chosen**, Winter Arc second and marked "STARTS TODAY" in season. Lock In 7
+shows the plan as it was. Any other Arc shows its own rows instead
+(read-only), and the rows switch back and forth with the choice. Continue
+writes exactly what is shown: Lock In 7 adopts the plan, and any other Arc
+adopts its rows (a new install has nothing of its own to keep). The first run
+records the Arc as started today with `added` = those rows
+(`ArcStore.startFromFirstRun`; a first run walked twice replaces its own
+earlier answer).
+
+#### Navigation
+
+`Forge · Arcs · Becoming · Blade` (§10). Settings left the bar for a sheet
+opened from a gear on Becoming and Blade (`AppTab.settingsHosts`). Deep links,
+notifications and widgets still land on Forge and now close Settings too
+(`landOnHome`). The Arcs tab icon is `mountain.2.fill`. The flag stays the
+daily challenge's.
+
+#### Cover assets
+
+`arc-lockin`, `arc-monk`, `arc-66`, `arc-winter` image sets in
+`Forge/Assets.xcassets`, the four supplied PNGs unchanged. `ArcCover` draws a
+typographic cover if one is missing, and `ArcTests` checks all four resolve.
+
+#### DEBUG
+
+Settings → DEBUG: an Arc picker, "Started days ago" (0–120) and "Start Arc N
+Days Ago", which withdraws the running Arc and starts this one as if joined
+then. Past its length it lands finished, mark and all. "Clear Arcs";
+"Run First Launch Again" clears Arcs too. **The simulated Forge Pro state now
+survives a relaunch** (`ForgeStore.debugAccessKey`,
+`forge.debug.simulatedAccess.v1`) until it is set back to StoreKit, so a debug
+build can be walked across relaunches without a purchase. All `#if DEBUG`.
+
+#### Fixed while verifying
+
+- **The notification primer drew the wrong rows for any Arc with a
+  wake-up.** The wake-up sits at the wake time, so the primer added an
+  activity row at the same minute as the morning. The plan never sends that
+  row. Rows were also keyed by their time label, so SwiftUI drew the first
+  row's twin in its place: "Wake up" three times. Now the primer shows only
+  what the plan sends, keyed by position.
+  Test: `NotificationPlanTests.primerNeverDrawsTwoAtOneMinute`.
+- **"On track" disagreed with "Completed".** The pace line used five of seven
+  for every Arc, while Completed is four of five, so a Winter Arc at 75% read
+  "Not on track yet" and still ended Completed, and the copy named the wrong
+  pace. On track is now the Arc's own goal. Test:
+  `ArcReadingTests.onTrackMeansCompleted` (every Arc, every number of kept
+  days: on track on the last day ⇔ Completed after it).
+- **The leave dialog promised what the record does not draw.** "The Arc stays
+  on your record as far as you took it" became "Your week stays exactly as it
+  is, and every day you kept stays on your record."
+- **The Arc share card**: the hexagon's lines crossed OVR, and the
+  RELATIONSHIP label touched the outline. It now has the same dark pool
+  `OverallCore` has in the app, a slightly smaller polygon, and labels outside
+  the outline. The square card is centred instead of leaving its lower third
+  empty.
+
+#### Implementation traps
+
+- Editing a Simulator's App Group plist on disk does not stick: `cfprefsd`
+  writes its cached copy back over it. Write through
+  `xcrun simctl spawn <udid> defaults write <path-without-.plist> <key> …`
+  with the app terminated. Plain `plutil` reads dots in a key such as
+  `forge.debug.simulatedAccess.v1` as a key path.
+- A simulated Pro access hides every paywall door: `PaywallView` closes on
+  appear when `isDone`. Set the DEBUG Forge Pro picker to None to look at one.
+- A build made outside Xcode's scheme run (the headless simulator build) has
+  no `Forge.storekit`, so the paywall says "The App Store can't be reached
+  right now." That is the build, not the paywall.
+- The challenge sheet opens at `.medium`. With the "Counts toward" line, Mark
+  it done sits below that detent on the 17 Pro, as the buttons already did
+  before S3 (the card height is fixed). Not changed.
+
+#### Files added to `project.pbxproj`
+
+Forge target: `Models/Arc.swift`, `Models/ArcEnrollment.swift`,
+`Engine/ArcStore.swift`, `Views/Arcs/ArcComponents.swift`,
+`Views/Arcs/ArcDetailView.swift`, `Views/Arcs/ArcsTabView.swift`. ForgeTests:
+`ArcTests.swift`. The four cover image sets are in the asset catalogue (no
+project entries).
+
+#### Verified
+
+- `xcodebuild test` on the iPhone 17 Pro simulator, clean derived data, final
+  code: **TESTCOUNT**, all passing.
+- **iPhone 17 Pro, by hand**: onboarding Arc picker (Lock In 7 chosen, Winter
+  "STARTS TODAY"). Winter → its eight rows, back to Lock In 7 → the plan's
+  three, Winter again → Continue → the rehearsed pull with no Arc line → the
+  paywall's Arcs row → the first real pull → the Arc line "Winter Arc · Day 1
+  of 90". The Arcs tab: the active card, one-at-a-time ("Leave Winter Arc to
+  start this one."), leave and take off. Monk Mode: detail, join sheet (five
+  added, "Nothing is removed."), active card, leave keeping its activities.
+  Winter join on top of them: "Already in your week" and Start Monday's sheet.
+  Discipline 66: picks gating Start (0 of 3), one pick already in the week,
+  started, and day 1 offered the pre-existing Deep work's change, applied. The
+  pending notifications: one dated 06:30 morning a day, no repeating ones.
+  DEBUG Winter at 14 days → day 15, Build detected, a four-change diff shown,
+  not applied, applied on Apply. At 42 days → day 43, Harden offered, Keep
+  mine kept the week. A tally marked and undone. At 120 days → no active card,
+  "Winter Arc 2026 · Finished, 36 of 90 days" on the Blade record and the
+  Arcs tab, the snowflake on the blade, the chapter back. Lock In 7's join
+  sheet ("Adds nothing to your week."). The daily challenge: paged to a
+  Discipline card, took it, Mark it done → "It counts toward Discipline
+  today." → Becoming Discipline 30 → 33, OVR 46 → 47 → I haven't done it yet
+  → 30 / 46 → Not today → "Skipped today." → relaunch, still skipped. Arc
+  state survived relaunches. The share card at 9:16 and 1:1. The locked-door
+  paywall with the Arcs row. Settings from both gears.
+- **iPhone 17e**: the onboarding picker (third cover scrolls), Discipline 66's
+  rows and Winter's eight rows (scroll under the pinned Continue), the
+  onboarding paywall's Arcs row, the first run committing Winter with exactly
+  the eight in `added`, the Forge tab's Arc line, the active card, the Build
+  phase diff with Apply / Keep mine, the leave dialog, Monk Mode's detail and
+  its join sheet (two added, three already in the week). Nothing clipped or
+  overlapping.
+- The 04:00 rollover and DST were not walked by hand. `ArcTests` and
+  `ChallengeTests` cover them.
+- Captures in `docs/verification/1.1-s3/`: contact sheets for each phone, the
+  two Arc cards, and every individual screen in `raw/`.
+
+#### Not verified, on a real iPhone
+
+The dated Arc mornings arriving on the lock screen over a real week (only the
+pending list and the plan's tests were checked), Start Monday turning on a
+real Monday morning, and the share sheet's Save Image to Photos (Save to Files
+was used).
+
+#### For the owner
+
+- The Arc copy and the trials are in `Models/Arc.swift`. Read them once in
+  your own voice before submission.
+- APP_STORE.md's description and screenshots do not mention Arcs yet. That
+  belongs to the 1.1 listing work.

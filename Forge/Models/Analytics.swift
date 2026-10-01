@@ -810,7 +810,7 @@ extension ProgressStore {
     /// projections run it over days that have not happened (`Transformation`),
     /// and a second copy of the scoring for them would be a second answer.
     func forgeShape(of activities: [Ritual]) -> ForgeShape {
-        ForgeShape.read(byDay, today: currentDay, activities: activities)
+        ForgeShape.read(byDay, today: currentDay, activities: activities, challenges: challengeCredit)
     }
 }
 
@@ -836,9 +836,18 @@ extension ForgeShape {
     /// It used to leave today out altogether, which was honest and inert — the
     /// one number that is supposed to move with what you do sat still until
     /// four the next morning.
+    ///
+    /// # The daily challenge
+    ///
+    /// `challenges` is each day's finished challenge and the dimension it was
+    /// aimed at (`ProgressStore.challengeCredit`). A finished challenge counts
+    /// as a kept day for its dimension (DIRECTION_1_1 §7) — see `crediting`,
+    /// which writes it into the days read here and nowhere else.
     static func read(
-        _ byDay: [ForgeDay: DayRecord], today: ForgeDay, activities: [Ritual]
+        _ byDay: [ForgeDay: DayRecord], today: ForgeDay, activities: [Ritual],
+        challenges: [ForgeDay: RitualCategory] = [:]
     ) -> ForgeShape {
+        let byDay = crediting(byDay, challenges: challenges)
         let last = today.adding(days: -1)
         let windowStart = today.adding(days: -window)
         let midpoint = today.adding(days: -half)
@@ -873,8 +882,57 @@ extension ForgeShape {
         return ForgeShape(dimensions: dimensions)
     }
 
+    /// Every activity's contribution to every dimension — and the daily
+    /// challenge's, which is a whole day for the one dimension it was aimed at
+    /// and nothing for the other five. See `crediting`.
     static func allWeights(of activities: [Ritual]) -> [String: [RitualCategory: Double]] {
-        activities.reduce(into: [:]) { $0[$1.id] = $1.dimensionWeights }
+        activities.reduce(into: challengeWeights) { $0[$1.id] = $1.dimensionWeights }
+    }
+
+    // MARK: The daily challenge
+
+    /// The id a finished challenge goes under inside a reading — never in the
+    /// stored record. One per dimension rather than per challenge, which is
+    /// what makes a challenge worth at most one day of its dimension.
+    static func challengeID(for dimension: RitualCategory) -> String {
+        "challenge.\(dimension.rawValue)"
+    }
+
+    static let challengeWeights: [String: [RitualCategory: Double]] = Dictionary(
+        uniqueKeysWithValues: RitualCategory.dimensions.map { (challengeID(for: $0), [$0: 1.0]) }
+    )
+
+    /// The record with each finished challenge written into its own day **as
+    /// something that day asked for and got**, in its dimension.
+    ///
+    /// Both halves, and that is the arithmetic of "counts as a kept day": a
+    /// challenge done on a day that planned nothing in its dimension adds a day
+    /// that was asked and kept, and one done on a day whose own activity in it
+    /// was missed turns that day into a kept one. Never more than one day: the
+    /// Shape takes the **strongest** contribution to a dimension on a day, so a
+    /// challenge beside three Physical activities still makes one Physical day.
+    ///
+    /// Only ever a copy for reading. Nothing here is written back, so the
+    /// stored history never holds an id that is not an activity, and the
+    /// heatmap, the day's count and every rate stay exactly what they were —
+    /// the challenge feeds the six and nothing else.
+    static func crediting(
+        _ byDay: [ForgeDay: DayRecord], challenges: [ForgeDay: RitualCategory]
+    ) -> [ForgeDay: DayRecord] {
+        guard !challenges.isEmpty else { return byDay }
+        var credited = byDay
+        for (day, dimension) in challenges where dimension != .all {
+            let id = challengeID(for: dimension)
+            var record = credited[day] ?? DayRecord(day: day)
+            if !record.plannedIDs.contains(id) { record.plannedIDs.append(id) }
+            if !record.completedIDs.contains(id) {
+                record.completions.append(
+                    DayRecord.Completion(ritualID: id, method: .honor, at: day.startOfDay())
+                )
+            }
+            credited[day] = record
+        }
+        return credited
     }
 
     static func weights(

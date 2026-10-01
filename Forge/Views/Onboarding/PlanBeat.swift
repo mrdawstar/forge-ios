@@ -242,14 +242,28 @@ private struct FindingRow: View {
 /// day.
 struct PlanBeat: View {
     @Binding var entries: [PlanEntry]
+    /// The Arc the plan starts with (DIRECTION_1_1 §5). Lock In 7 — the
+    /// default — is the plan as it is; any other brings its own rows.
+    @Binding var arc: ArcID
+    /// The rows an Arc other than Lock In 7 brings. Read-only here: they are
+    /// the Arc's, and they are the week's to change once it has begun.
+    let arcRows: [ArcJoin.Addition]
     /// Today's weekday, `Calendar` numbering, from the civil day.
     let today: Int
+    /// The civil day, for whether it is the winter.
+    let day: ForgeDay
     let onContinue: () -> Void
 
     @State private var editing: PlanEntry?
     @State private var scrollHeight: CGFloat = 0
 
-    private var hasToday: Bool { entries.contains { $0.happens(on: today) } }
+    private var isPlanAsItIs: Bool { arc == .lockIn }
+
+    private var hasToday: Bool {
+        isPlanAsItIs
+            ? entries.contains { $0.happens(on: today) }
+            : arcRows.contains { RitualRepeat(weekdays: $0.weekdays).includes(today) }
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -264,31 +278,39 @@ struct PlanBeat: View {
                         Text(FirstRunCopy.planTitle)
                             .font(.title.weight(.semibold))
                             .accessibilityAddTraits(.isHeader)
-                        Text(FirstRunCopy.planSubtitle)
+                        Text(isPlanAsItIs ? FirstRunCopy.planSubtitle : FirstRunCopy.arcPlanSubtitle)
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                             .fixedSize(horizontal: false, vertical: true)
+                            .contentTransition(.opacity)
                     }
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 32)
                     .padding(.bottom, 18)
 
-                    // ARC-PICKER (session S3): the Arc choice (Lock In 7 first)
-                    // goes here, above the list it appends to — DIRECTION_1_1
-                    // §5. An Arc shows what it adds before it adds it (§5 #7
-                    // and #9).
+                    // The Arc, above the list it decides. Lock In 7 first and
+                    // chosen; Winter Arc lit through the winter. An Arc shows
+                    // what it adds before it adds it (§5 #7 and #9): the rows
+                    // below are exactly what Continue writes.
+                    ArcPicker(selection: $arc, day: day)
+                        .padding(.bottom, 16)
 
                     VStack(spacing: 8) {
-                        ForEach(entries) { entry in
-                            if let ritual = entry.ritual {
-                                PlanRow(ritual: ritual, entry: entry) {
-                                    ForgeHaptics.shared.tap()
-                                    editing = entry
+                        if isPlanAsItIs {
+                            ForEach(entries) { entry in
+                                if let ritual = entry.ritual {
+                                    PlanRow(ritual: ritual, entry: entry) {
+                                        ForgeHaptics.shared.tap()
+                                        editing = entry
+                                    }
                                 }
                             }
+                        } else {
+                            ForEach(arcRows) { ArcPlanRow(addition: $0) }
                         }
                     }
                     .padding(.horizontal, 20)
+                    .animation(.forgeRow, value: arc)
 
                     Spacer(minLength: 0)
                 }
@@ -339,6 +361,134 @@ struct PlanBeat: View {
             entries[index] = changed
             entries.sort { $0.minute < $1.minute }
         }
+    }
+}
+
+// MARK: - Start with an Arc
+
+/// The four Arcs as a row of small covers, one chosen. Lock In 7 comes first
+/// and is chosen when the beat opens — it is the plan as it is, for seven days,
+/// with the daily challenge — and Winter Arc is lit, and said to start today,
+/// from the first of October to the end of January.
+private struct ArcPicker: View {
+    @Binding var selection: ArcID
+    let day: ForgeDay
+
+    private var programs: [ArcProgram] {
+        // The starter first, then the winter while it is the winter.
+        let order: [ArcID] = ArcCatalog.isWinterSeason(day)
+            ? [.lockIn, .winter, .monk, .discipline]
+            : [.lockIn, .monk, .discipline, .winter]
+        return order.map(ArcCatalog.program)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(FirstRunCopy.arcPickerTitle)
+                .font(.headline)
+                .padding(.horizontal, 20)
+                .accessibilityAddTraits(.isHeader)
+
+            ScrollView(.horizontal) {
+                HStack(spacing: 10) {
+                    ForEach(programs) { program in
+                        chip(program)
+                    }
+                }
+                .padding(.horizontal, 20)
+            }
+            .scrollIndicators(.hidden)
+
+            Text(ArcCatalog.program(selection).summary)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, 20)
+                .contentTransition(.opacity)
+                .animation(.forgeFade, value: selection)
+        }
+    }
+
+    private func chip(_ program: ArcProgram) -> some View {
+        let chosen = selection == program.id
+        let inSeason = program.isSeasonal && ArcCatalog.isWinterSeason(day)
+        return Button {
+            ForgeHaptics.shared.tap()
+            withAnimation(.forgeSelection) { selection = program.id }
+        } label: {
+            VStack(alignment: .leading, spacing: 6) {
+                ArcCover(program: program, showsName: false, height: 72)
+                    .frame(width: 112)
+                Text(program.name)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
+                Text(inSeason ? "STARTS TODAY" : program.lengthLabel.uppercased())
+                    .font(ForgeTheme.overline)
+                    .kerning(ForgeTheme.overlineKerning)
+                    .foregroundStyle(inSeason ? AnyShapeStyle(ForgeTheme.accent) : AnyShapeStyle(.secondary))
+            }
+            .padding(8)
+            .frame(width: 128, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: ForgeTheme.Radius.control, style: .continuous)
+                    .fill(chosen ? ForgeTheme.accent.opacity(0.12) : .clear)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: ForgeTheme.Radius.control, style: .continuous)
+                    .strokeBorder(
+                        chosen ? ForgeTheme.accent : (inSeason ? ForgeTheme.accent.opacity(0.4) : Color.white.opacity(0.08)),
+                        lineWidth: chosen ? 1.5 : 1
+                    )
+            )
+            .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(Text("\(program.name), \(program.lengthLabel)\(inSeason ? ", starts today" : "")"))
+        .accessibilityAddTraits(chosen ? .isSelected : [])
+    }
+}
+
+/// One of an Arc's activities on the first run's plan: what it is and when.
+/// Read-only — the Arc's own, until the week makes it somebody's.
+private struct ArcPlanRow: View {
+    let addition: ArcJoin.Addition
+
+    private var dimension: RitualCategory {
+        Ritual.find(addition.id)?.category ?? .discipline
+    }
+
+    var body: some View {
+        HStack(spacing: 14) {
+            Image(systemName: addition.symbol)
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(ForgeTheme.cream.opacity(0.9))
+                .frame(width: 40, height: 40)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(addition.name)
+                    .font(.body.weight(.medium))
+                    .fixedSize(horizontal: false, vertical: true)
+                Text(addition.schedule)
+                    .font(.subheadline.weight(.semibold))
+                    .monospacedDigit()
+                    .foregroundStyle(ForgeTheme.cream)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 8)
+
+            Image(systemName: dimension.symbol)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(dimension.color)
+                .accessibilityHidden(true)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .frame(minHeight: 64)
+        .glassEffect(.regular, in: .rect(cornerRadius: ForgeTheme.Radius.control))
+        .accessibilityElement(children: .combine)
     }
 }
 

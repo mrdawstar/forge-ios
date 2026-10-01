@@ -43,6 +43,9 @@ import SwiftUI
 /// read.
 struct FirstRunView: View {
     @Bindable var vm: ForgeViewModel
+    /// Where the plan beat's Arc is recorded once Continue is pressed. See
+    /// `commitPlan`.
+    var arcs: ArcStore
 
     /// What has been bought, for the paywall beat. Optional so a preview with
     /// no store still runs — and walks past the beat.
@@ -63,6 +66,9 @@ struct FirstRunView: View {
     /// transformation projects it and the plan beat edits it, so both screens
     /// are about the same plan.
     @State private var plan: [PlanEntry] = []
+    /// The Arc the plan starts with. Lock In 7 is chosen when the beat opens:
+    /// it is the plan above, as it is, for seven days (DIRECTION_1_1 §5).
+    @State private var arcChoice: ArcID = .lockIn
     /// The four stops, computed once from the plan and the answers.
     @State private var frames: [Transformation.Frame] = []
     /// Which way the questions are going: forward on an answer, back on the
@@ -139,7 +145,13 @@ struct FirstRunView: View {
                         ScienceBeat { advance(to: .plan) }
                             .transition(transition)
                     case .plan:
-                        PlanBeat(entries: $plan, today: vm.progress.currentDay.weekday) {
+                        PlanBeat(
+                            entries: $plan,
+                            arc: $arcChoice,
+                            arcRows: arcRun.additions,
+                            today: vm.progress.currentDay.weekday,
+                            day: vm.progress.currentDay
+                        ) {
                             commitPlan()
                         }
                         .transition(transition)
@@ -534,10 +546,32 @@ struct FirstRunView: View {
 
     // MARK: - 7. Your plan
 
+    /// What an Arc other than Lock In 7 would make of the plan — its rows,
+    /// and Discipline 66's three. Empty for Lock In 7, which is the plan.
+    private var arcRun: (additions: [ArcJoin.Addition], picks: [String]) {
+        guard arcChoice != .lockIn else { return ([], []) }
+        return ArcPlan.firstRun(ArcCatalog.program(arcChoice), plan: plan, find: vm.ritual)
+    }
+
     /// The plan becomes the day: the activities, on their days, at their
     /// times. See `ForgeViewModel.adoptPlan`.
+    ///
+    /// **And the Arc begins, today.** Lock In 7 is this plan, so the day is
+    /// written exactly as it was before Arcs existed and the Arc adds nothing
+    /// of its own. Any other Arc's rows are what the beat showed instead, and
+    /// they are what is written — a new install has nothing yet to keep.
     private func commitPlan() {
-        vm.adoptPlan(plan)
+        if arcChoice == .lockIn {
+            vm.adoptPlan(plan)
+            arcs.startFromFirstRun(.lockIn, wake: nil, picks: [], added: [])
+        } else {
+            let run = arcRun
+            vm.adoptPlan(run.additions)
+            arcs.startFromFirstRun(
+                arcChoice, wake: ArcProgram.defaultWake,
+                picks: run.picks, added: run.additions.map(\.id)
+            )
+        }
         advance(to: .metaphor)
     }
 

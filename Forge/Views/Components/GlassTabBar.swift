@@ -22,16 +22,29 @@ enum AppTab: String, CaseIterable, Hashable {
     /// said they were becoming and what the record says about it — and the
     /// shelf is a section of that rather than a peer of it. See
     /// `BecomingTabView`.
-    case forge, blade, becoming, settings
+    ///
+    /// # Forge · Arcs · Becoming · Blade (1.1)
+    ///
+    /// **Arcs took Settings' place in the bar** (DIRECTION_1_1 §5): a program
+    /// somebody is ninety days into is worth a tab, and the screen where rest
+    /// days and the wake time are set is visited a few times a year. Arcs sit
+    /// next to the day because they are made of days; Becoming and Blade keep
+    /// their order after it. Settings is a gear in the Becoming and Blade
+    /// navigation bars (`settingsHosts`), and every screen in it is where it
+    /// was. Deep links, notifications and widgets still land on Forge.
+    case forge, arcs, becoming, blade
 
     var label: String { rawValue.capitalized }
+
+    /// The tabs whose navigation bar carries the gear that opens Settings.
+    static let settingsHosts: [AppTab] = [.becoming, .blade]
 
     var iconKey: String {
         switch self {
         case .forge: return "sword"
+        case .arcs: return "mountain"
         case .blade: return "chart"
         case .becoming: return "path"
-        case .settings: return "gear"
         }
     }
 
@@ -44,6 +57,10 @@ enum AppTab: String, CaseIterable, Hashable {
         // SF Symbols has no sword; the forge itself reads better here and
         // leaves the trophy glyph to the sword-collection screens.
         case .forge: return "flame.fill"
+        // A climb with a top: an Arc has a start and an end. Not a flag — the
+        // daily challenge is the flag, and two flags in one app would be one
+        // mark meaning two things.
+        case .arcs: return "mountain.2.fill"
         case .becoming: return "hexagon"
         default: return ForgeIcons.symbol(for: iconKey)
         }

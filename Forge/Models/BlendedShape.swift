@@ -188,12 +188,19 @@ struct BlendedShape: Equatable, Sendable {
     /// Pure: the live Becoming tab and the onboarding's projections call the
     /// same function, one over the real record and one over days that have not
     /// happened yet.
+    ///
+    /// `challenges` is each day's finished daily challenge, which counts as a
+    /// kept day for its dimension here exactly as it does in `ForgeShape` — so
+    /// it is written into the days once, at the top, and both halves of the
+    /// blend read the same credited record. See `ForgeShape.crediting`.
     static func read(
         _ byDay: [ForgeDay: DayRecord],
         today: ForgeDay,
         activities: [Ritual],
-        assessment: Assessment?
+        assessment: Assessment?,
+        challenges: [ForgeDay: RitualCategory] = [:]
     ) -> BlendedShape {
+        let byDay = ForgeShape.crediting(byDay, challenges: challenges)
         let shape = ForgeShape.read(byDay, today: today, activities: activities)
 
         guard let assessment else {

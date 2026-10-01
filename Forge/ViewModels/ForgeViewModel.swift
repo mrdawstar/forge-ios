@@ -375,6 +375,7 @@ final class ForgeViewModel {
             // because untagging is a thing somebody can do. See
             // `RitualEdit.identityID`.
             if let identityID = edit.identityID { found.identityID = identityID }
+            if let target = edit.target { found.target = target }
         }
         return found
     }
@@ -785,6 +786,30 @@ final class ForgeViewModel {
         publishPlanned()
     }
 
+    /// The first run's plan when it is an Arc's: the Arc's activities become
+    /// the day, each on its days, at its hour and its length.
+    ///
+    /// The same replacement `adoptPlan` makes, for the same reason — the
+    /// defaults are a guess and somebody has just read the plan — and through
+    /// the same `amend`, so every day, hour and length is an ordinary edit
+    /// from the first second. An untimed one (steps, a day without clips)
+    /// stays untimed.
+    func adoptPlan(_ additions: [ArcJoin.Addition]) {
+        let ids = additions.map(\.id).filter { ritual($0) != nil }
+        guard !ids.isEmpty else { return }
+        withAnimation(.forgeRow) {
+            activeRitualIDs = ids
+        }
+        for addition in additions where ids.contains(addition.id) {
+            amend(addition.id) {
+                $0.repeats = RitualRepeat(weekdays: addition.weekdays)
+                $0.startMinute = addition.minute
+                if addition.minutes > 0, addition.minutes != $0.minutes { $0.setLength(addition.minutes) }
+            }
+        }
+        publishPlanned()
+    }
+
     /// Pin activities to the day they arrived on, and no other.
     ///
     /// The same commitment the 1.0 first run refused to make on anybody's
@@ -1090,6 +1115,22 @@ final class ForgeViewModel {
         }
     }
 
+    /// Take several out of the day in one pass — what leaving an Arc does when
+    /// somebody asks for its activities to go with it.
+    ///
+    /// The same act as `removeRitual`, once for the lot, so the week redraws
+    /// once and `publishPlanned` writes the day down once. Only what it is
+    /// handed goes: an Arc hands it exactly what joining added, never an
+    /// activity that was in the week before it (`ArcEnrollment.added`).
+    func removeRituals(_ ids: [String]) {
+        let leaving = Set(ids)
+        guard !leaving.isEmpty, activeRitualIDs.contains(where: leaving.contains) else { return }
+        withAnimation {
+            activeRitualIDs.removeAll { leaving.contains($0) }
+            for id in ids { progress.undo(id) }
+        }
+    }
+
     func moveRitual(from: Int, to: Int) {
         activeRitualIDs.move(fromOffsets: IndexSet(integer: from), toOffset: to)
     }
@@ -1249,6 +1290,7 @@ final class ForgeViewModel {
             customRituals[index].repeats = draft.repeats
             customRituals[index].categoryOverride = draft.category
             customRituals[index].identityID = draft.identityID
+            customRituals[index].target = draft.target
             return
         }
 
@@ -1281,6 +1323,7 @@ final class ForgeViewModel {
         // that was tagged has to be storable as a decision rather than as an
         // absence. See `RitualEdit.identityID`.
         if draft.identityID != original.identityID { edit.identityID = .some(draft.identityID) }
+        if draft.target != original.target { edit.target = draft.target }
         libraryEdits[id] = edit.isEmpty ? nil : edit
     }
 
@@ -1456,7 +1499,10 @@ final class ForgeViewModel {
             progress.byDay,
             today: progress.currentDay,
             activities: activeRituals,
-            assessment: assessment
+            assessment: assessment,
+            // A finished daily challenge is a kept day for its dimension, in
+            // the blend as in the record (DIRECTION_1_1 §7).
+            challenges: progress.challengeCredit
         )
     }
 
@@ -1779,7 +1825,9 @@ final class ForgeViewModel {
 
                 case .duration(let id, _, let minutes, _):
                     guard ritual(id) != nil else { continue }
-                    amend(id) { $0.minutes = max(0, minutes) }
+                    // The target follows when it only ever said the length —
+                    // see `ActivityDraft.setLength`.
+                    amend(id) { $0.setLength(minutes) }
                     applied += 1
 
                 case .days(let id, _, let weekdays, _):
@@ -1793,7 +1841,7 @@ final class ForgeViewModel {
                     ForgeTelemetry.send(.activityAdded(.plan))
                     applied += 1
 
-                case .adopt(let id, _, _, let weekdays, let minute):
+                case .adopt(let id, _, let minutes, let weekdays, let minute):
                     // Has to resolve, and has to not already be in the day.
                     // Both guards are about the same failure: a plan somebody
                     // read ten minutes ago, applied after adding the same
@@ -1804,9 +1852,24 @@ final class ForgeViewModel {
                     // After `addRitual`, which pins an unscheduled activity to
                     // today — the plan's own days are the deliberate answer and
                     // must win over that default.
+                    //
+                    // The length too, now that something proposes one other
+                    // than the library's: an Arc takes "Work out" up at thirty
+                    // minutes, not the twenty it ships with. `DayPlanner`
+                    // proposes the library's own length, so for it this changes
+                    // nothing.
                     amend(id) {
                         if !weekdays.isEmpty { $0.repeats = RitualRepeat(weekdays: weekdays) }
                         if let minute { $0.startMinute = minute }
+                        if minutes > 0, minutes != $0.minutes { $0.setLength(minutes) }
+                    }
+                    applied += 1
+
+                case .goal(let id, _, let goal, let target, _):
+                    guard ritual(id) != nil else { continue }
+                    amend(id) {
+                        $0.goal = goal
+                        if let target { $0.target = target }
                     }
                     applied += 1
                 }

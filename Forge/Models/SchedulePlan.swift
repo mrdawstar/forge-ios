@@ -81,6 +81,14 @@ enum ScheduleChange: Identifiable, Equatable, Sendable {
     /// runs over time split between the two. The planner recommends out of the
     /// library, so it needs a change that says "this one, the real one".
     case adopt(id: String, name: String, minutes: Int, weekdays: Set<Int>, minute: Int?)
+    /// Raise or lower the standard it is kept to: the target in the row's
+    /// right-hand column — "10,000", "20 pages" — and, for something a phone
+    /// can one day measure, the number behind it (`Ritual.target`).
+    ///
+    /// Added for the Arcs, whose phases move a standard rather than a clock
+    /// (8,000 steps to 10,000, ten pages to twenty). It carries what it
+    /// replaces, like every case here, so the review reads "10,000, was 8,000".
+    case goal(id: String, name: String, goal: String, target: Int?, was: String)
 
     var id: String {
         switch self {
@@ -89,6 +97,7 @@ enum ScheduleChange: Identifiable, Equatable, Sendable {
         case .days(let id, _, _, _): "days.\(id)"
         case .create(let draft): "create.\(draft.label)"
         case .adopt(let id, _, _, _, _): "adopt.\(id)"
+        case .goal(let id, _, _, _, _): "goal.\(id)"
         }
     }
 
@@ -99,6 +108,8 @@ enum ScheduleChange: Identifiable, Equatable, Sendable {
         case .create(let draft):
             draft.label
         case .adopt(_, let name, _, _, _):
+            name
+        case .goal(_, let name, _, _, _):
             name
         }
     }
@@ -133,6 +144,10 @@ enum ScheduleChange: Identifiable, Equatable, Sendable {
             if let minute { parts.append(ClockMinute.label(minute)) }
             parts.append(RitualRepeat(weekdays: weekdays).label.lowercased())
             return parts.joined(separator: " · ")
+
+        case .goal(_, _, let goal, _, let was):
+            guard !was.isEmpty, was != goal else { return goal }
+            return "\(goal), was \(was)"
         }
     }
 
@@ -142,7 +157,41 @@ enum ScheduleChange: Identifiable, Equatable, Sendable {
         case .duration: "timer"
         case .days: "calendar"
         case .create, .adopt: "plus"
+        case .goal: "target"
         }
+    }
+
+    /// The change as a before and an after — "Work out 30 → 45 min",
+    /// "Hit your steps 8,000 → 10,000" — which is how an Arc's phase reads on
+    /// its card. Nil for the two that add something, which have no before.
+    var diffLine: String? {
+        switch self {
+        case .time(_, let name, let minute, let was):
+            guard let was else { return "\(name) at \(ClockMinute.label(minute))" }
+            return "\(name) \(ClockMinute.label(was)) \u{2192} \(ClockMinute.label(minute))"
+        case .duration(_, let name, let minutes, let was):
+            guard was > 0 else { return "\(name) \(ClockMinute.duration(minutes) ?? "")" }
+            // "60 → 90 min" rather than "1 h → 1 h 30": both halves in one
+            // unit, said once at the end, is how a ramp is read — the Arcs are
+            // written in minutes.
+            return "\(name) \(was) \u{2192} \(minutes) min"
+        case .days(_, let name, let weekdays, let was):
+            return "\(name) \(RitualRepeat(weekdays: was).label) \u{2192} \(RitualRepeat(weekdays: weekdays).label)"
+        case .goal(_, let name, let goal, _, let was):
+            guard !was.isEmpty else { return "\(name) \(goal)" }
+            return "\(name) \(Self.shortened(was, against: goal)) \u{2192} \(goal)"
+        case .create, .adopt:
+            return nil
+        }
+    }
+
+    /// "10 pages → 20 pages" said as "10 → 20 pages": the shared unit is
+    /// dropped from the first half when both halves end in it.
+    private static func shortened(_ was: String, against goal: String) -> String {
+        let wasParts = was.split(separator: " ")
+        let goalParts = goal.split(separator: " ")
+        guard wasParts.count == 2, goalParts.count == 2, wasParts[1] == goalParts[1] else { return was }
+        return String(wasParts[0])
     }
 }
 
@@ -217,6 +266,11 @@ struct SchedulePlan: Identifiable, Equatable, Sendable {
                         minutes: minutes, weekdays: weekdays
                     )
                 )
+
+            case .goal:
+                // A standard is not part of the week's shape: nothing about
+                // when or how long moves, so the preview is unchanged by it.
+                continue
             }
         }
         return result

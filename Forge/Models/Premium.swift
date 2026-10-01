@@ -287,13 +287,14 @@ enum Founder {
 /// Which of the features Forge Pro names exist in this build.
 ///
 /// A paywall row only names a feature in the build (DIRECTION_1_1 §1), so the
-/// paywall reads this rather than a list of promises. **Sessions S3, S5 and S6
-/// turn `arcs`, `health` and `askForge` on** when they ship the feature, and
-/// the row appears with it. The two that exist now are flags too, so the rule
+/// paywall reads this rather than a list of promises. **Sessions S5 and S6 turn
+/// `health` and `askForge` on** when they ship the feature, and the row appears
+/// with it, as `arcs` did in S3. The ones that exist are flags too, so the rule
 /// is one rule.
 struct ForgeFeatures: Equatable, Sendable {
-    /// Lock In 7, Monk Mode 30, Discipline 66, Winter Arc. Session S3.
-    var arcs = false
+    /// Lock In 7, Monk Mode 30, Discipline 66, Winter Arc. Built in session S3
+    /// (FORGE_CONTEXT §17.3).
+    var arcs = true
     /// The six, scored from what is actually done. Built.
     var stats = true
     /// A blade for every stretch of days kept. Built.
@@ -323,7 +324,8 @@ enum PaywallRow: CaseIterable, Sendable {
 
     var symbol: String {
         switch self {
-        case .arcs: "flag.pattern.checkered"
+        // The Arcs tab's own mark, so the row and the tab say one thing.
+        case .arcs: "mountain.2"
         case .stats: "hexagon"
         case .blades: "flame"
         case .health: "heart"

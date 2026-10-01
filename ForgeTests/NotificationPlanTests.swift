@@ -208,6 +208,27 @@ struct NotificationPlanTests {
         }
     }
 
+    /// Found walking a Winter Arc first run: its wake-up sits at the wake time,
+    /// so the primer drew a second 6:30 notification the plan never sends —
+    /// and, keyed by its time, drew the first row's twin in its place.
+    @MainActor
+    @Test("The primer shows one notification at the minute the day opens")
+    func primerNeverDrawsTwoAtOneMinute() {
+        let wake = activity("wake", "Wake up", at: 6 * 60 + 30, on: [today])
+        let day = state(completedToday: 1, plannedToday: 7, schedule: [wake])
+
+        let rows = NotificationPrimerView.examples(
+            firstActivity: wake,
+            openingMinute: 6 * 60 + 30,
+            state: day
+        )
+        #expect(rows.count == 2)
+        #expect(Set(rows.map(\.time)).count == rows.count)
+        #expect(rows[0].body == "First: Wake up.")
+        // The plan agrees: the morning alone at that minute.
+        #expect(plan(day).filter { $0.when.minuteOfDay == 6 * 60 + 30 }.count == 1)
+    }
+
     // MARK: - Activities
 
     @Test("Every activity with an hour is spoken for at that hour")

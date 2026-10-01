@@ -922,3 +922,205 @@ struct ChallengeReasonTests {
         #expect(decoded.reason == nil)
     }
 }
+
+// MARK: - The challenge counts
+
+/// DIRECTION_1_1 §7: a finished challenge is a kept day for its dimension in
+/// the Shape and in the blend — derived on read, one day per dimension however
+/// much was done in it, and taken back by every move away from finished.
+@Suite("Daily challenge: it counts")
+struct ChallengeCreditTests {
+
+    private let today = ForgeDay(year: 2026, month: 10, day: 20)
+
+    private func activity(_ id: String) -> Ritual { Ritual.find(id)! }
+
+    private func day(_ back: Int, done: [String] = [], planned: [String]? = nil) -> DayRecord {
+        let date = today.adding(days: -back)
+        return DayRecord(
+            day: date,
+            completions: done.map { DayRecord.Completion(ritualID: $0, method: .honor, at: date.startOfDay()) },
+            plannedIDs: planned ?? done
+        )
+    }
+
+    private func dimension(_ shape: ForgeShape, _ category: RitualCategory) -> ForgeShape.Dimension {
+        shape.dimensions.first { $0.category == category }!
+    }
+
+    @Test("A finished challenge is a kept day for its dimension")
+    func countsAsAKeptDay() {
+        // Nothing in Relationship is planned at all; eight challenges are.
+        let records = Dictionary(uniqueKeysWithValues: (1...8).map { back in
+            let record = day(back, done: ["water"])
+            return (record.day, record)
+        })
+        let credit = Dictionary(uniqueKeysWithValues: (1...8).map { (today.adding(days: -$0), RitualCategory.relationship) })
+
+        let without = ForgeShape.read(records, today: today, activities: [activity("water")])
+        let with = ForgeShape.read(records, today: today, activities: [activity("water")], challenges: credit)
+
+        #expect(dimension(without, .relationship).kept == 0)
+        #expect(dimension(with, .relationship).kept == 8)
+        #expect(dimension(with, .relationship).asked == 8)
+        #expect(dimension(with, .relationship).score == 100)
+        // The others do not move.
+        #expect(dimension(with, .physical).score == dimension(without, .physical).score)
+    }
+
+    @Test("Still one day per dimension, however much was done in it")
+    func oncePerDay() {
+        // Three physical activities and a physical challenge on the same day.
+        let busy = day(1, done: ["walk", "workout", "run"])
+        let credited = ForgeShape.read(
+            [busy.day: busy], today: today,
+            activities: ["walk", "workout", "run"].map(activity),
+            challenges: [busy.day: .physical]
+        )
+        #expect(dimension(credited, .physical).kept == 1)
+        #expect(dimension(credited, .physical).asked == 1)
+    }
+
+    @Test("A planned day that was missed is kept by its challenge")
+    func turnsAMissIntoAKeep() {
+        let missed = day(1, done: [], planned: ["workout"])
+        let activities = [activity("workout")]
+        let before = ForgeShape.read([missed.day: missed], today: today, activities: activities)
+        let after = ForgeShape.read(
+            [missed.day: missed], today: today, activities: activities,
+            challenges: [missed.day: .physical]
+        )
+        #expect(dimension(before, .physical).kept == 0)
+        #expect(dimension(after, .physical).kept == 1)
+        #expect(dimension(after, .physical).asked == 1)
+    }
+
+    @Test("Today's challenge moves the Shape the moment it is finished")
+    func todayCounts() {
+        let credited = ForgeShape.read([:], today: today, activities: [], challenges: [today: .mental])
+        #expect(dimension(credited, .mental).kept == 1)
+    }
+
+    @Test("The blend credits it the same way")
+    func blendCounts() {
+        let assessment = Assessment(day: today.adding(days: -3), answers: [:])
+        let credit = [today.adding(days: -1): RitualCategory.ambition, today.adding(days: -2): .ambition]
+        let plain = BlendedShape.read([:], today: today, activities: [], assessment: assessment)
+        let credited = BlendedShape.read([:], today: today, activities: [], assessment: assessment, challenges: credit)
+        #expect(credited.record.dimensions.first { $0.category == .ambition }?.kept == 2)
+        #expect(plain.record.dimensions.first { $0.category == .ambition }?.kept == 0)
+    }
+
+    @Test("Nothing about it reaches the stored record")
+    func neverStored() {
+        let record = day(1, done: ["water"])
+        let credited = ForgeShape.crediting([record.day: record], challenges: [record.day: .physical])
+        #expect(credited[record.day]?.plannedIDs.contains("challenge.physical") == true)
+        #expect(record.plannedIDs == ["water"], "the original is untouched")
+    }
+
+    // MARK: The store keeps it, and lets it go
+
+    private func stores() -> (ChallengeStore, ProgressStore, UserDefaults) {
+        let suite = UserDefaults(suiteName: "forge.tests.challenge.\(UUID().uuidString)")!
+        let progress = ProgressStore(defaults: suite)
+        return (ChallengeStore(progress: progress, defaults: suite), progress, suite)
+    }
+
+    @Test("Finishing keeps it; undo, skip, accept and take each let it go")
+    func keptAndReleased() {
+        let (challenges, progress, _) = stores()
+        let day = challenges.today.day
+
+        challenges.complete()
+        #expect(progress.challengesKept[day]?.id == challenges.today.challenge.id)
+        #expect(progress.challengeCredit[day] == challenges.today.challenge.focus.category)
+
+        challenges.undoCompletion()
+        #expect(progress.challengesKept[day] == nil)
+
+        challenges.complete()
+        challenges.skip()
+        #expect(progress.challengesKept[day] == nil)
+
+        challenges.complete()
+        challenges.accept()
+        #expect(progress.challengesKept[day] == nil)
+
+        challenges.complete()
+        let another = challenges.browsable().first { $0.id != challenges.today.challenge.id }!
+        challenges.take(another)
+        #expect(progress.challengesKept[day] == nil)
+        #expect(challenges.today.state == .accepted)
+    }
+
+    /// Relaunching mid-day reads the same challenge, the same state and the
+    /// same kept day back.
+    @Test("A relaunch mid-day keeps what was finished")
+    func relaunch() {
+        let (challenges, progress, suite) = stores()
+        challenges.complete()
+        let id = challenges.today.challenge.id
+
+        let progressAgain = ProgressStore(defaults: suite)
+        let again = ChallengeStore(progress: progressAgain, defaults: suite)
+        #expect(again.today.state == .completed)
+        #expect(again.today.challenge.id == id)
+        #expect(progressAgain.challengesKept[progress.currentDay]?.id == id)
+    }
+
+    /// Four in the morning: a new challenge, offered, and yesterday's finish
+    /// still counting for yesterday.
+    @Test("The day turning over keeps yesterday's and offers a new one")
+    func rollover() {
+        let (challenges, progress, _) = stores()
+        let yesterday = progress.currentDay
+        challenges.complete()
+
+        progress.debugDayOffset = 1
+        challenges.rollOver()
+        #expect(challenges.today.day == yesterday.adding(days: 1))
+        #expect(challenges.today.state == .offered)
+        #expect(progress.challengesKept[yesterday] != nil)
+        #expect(progress.challengesKept[challenges.today.day] == nil)
+    }
+
+    /// A challenge finished on the build before this one, today, is brought
+    /// into the record when this build first reads it.
+    @Test("Today's finish from before the update is kept on first read")
+    func upgradeKeepsToday() throws {
+        let suite = UserDefaults(suiteName: "forge.tests.challenge.\(UUID().uuidString)")!
+        let progress = ProgressStore(defaults: suite)
+        let today = ChallengeDay(
+            day: progress.currentDay,
+            challenge: ChallengeCatalog.physical[0],
+            state: .completed,
+            completedAt: .now
+        )
+        suite.set(try JSONEncoder().encode(today), forKey: "forge.challenge.v1")
+        _ = ChallengeStore(progress: progress, defaults: suite)
+        #expect(progress.challengesKept[progress.currentDay]?.focus == .physical)
+    }
+
+    @Test("The kept list reads what it can and drops the rest")
+    func tolerant() {
+        let json = #"""
+        [
+          {"day": {"year": 2026, "month": 10, "day": 1}, "id": "ch.phy.walk", "focus": "physical", "at": 800000000},
+          {"day": {"year": 2026, "month": 10, "day": 2}, "focus": "fitness"},
+          {"id": "no.day", "focus": "mental"},
+          {"day": {"year": 2026, "month": 10, "day": 3}, "id": "x"}
+        ]
+        """#
+        let kept = KeptChallenge.decodeAll(Data(json.utf8))
+        #expect(kept.map(\.day.day) == [1, 2])
+        // An old aim lands where the challenge's own decoder sends it.
+        #expect(kept[1].focus == .physical)
+    }
+
+    @Test("The card says which stat it feeds")
+    func countsToward() {
+        let challenge = ChallengeCatalog.discipline[0]
+        #expect(ChallengeStore.countsToward(challenge) == "Counts toward Discipline")
+    }
+}

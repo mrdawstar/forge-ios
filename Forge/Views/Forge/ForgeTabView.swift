@@ -5,10 +5,14 @@ struct ForgeTabView: View {
     var swords: SwordStore
     /// Today's challenge. Everybody has one; see `ChallengeStore`.
     var challenges: ChallengeStore
+    /// The Arc being run, for the one line above the day. See `ArcLine`.
+    var arcs: ArcStore
     /// What Forge would tell a model about this person, built by the root — see
     /// `AIBrief`.
     var brief: AIBrief
     var ai: ForgeAI
+    /// The line goes to the Arcs tab.
+    var onArcs: () -> Void = {}
 
     @State private var isExpanded = false
     @State private var dragOffset: CGFloat = 0
@@ -137,7 +141,28 @@ struct ForgeTabView: View {
 
     private var sheetMaxH: CGFloat {
         guard available > 0 else { return baseMaxH }
-        return max(sheetMinH, min(baseMaxH, available - controlBarH - sceneFloor))
+        let arcLine = showsArcLine ? arcLineH : 0
+        return max(sheetMinH, min(baseMaxH, available - controlBarH - arcLine - sceneFloor))
+    }
+
+    // MARK: - The Arc
+
+    /// The Arc's line and the 8 under it, which come out of the scene's share
+    /// rather than the panel's — the same accounting the control bar gets.
+    private let arcLineH: CGFloat = 28 + 8
+
+    /// The running Arc and how it stands, or nil.
+    private var arcStanding: (program: ArcProgram, reading: ArcReading)? {
+        guard let current = arcs.current else { return nil }
+        let reading = arcs.reading(current)
+        guard reading.isRunning else { return nil }
+        return (current.program, reading)
+    }
+
+    /// One line, and only while an Arc runs and the day's controls are up —
+    /// never over the first run's own pull, which has one thing to say.
+    private var showsArcLine: Bool {
+        vm.hasCompletedFirstRun && !isLocked && arcStanding != nil
     }
 
     /// What the panel is currently showing.
@@ -308,6 +333,16 @@ struct ForgeTabView: View {
                         .padding(.bottom, 8)
                         .transition(.opacity)
                 } else {
+                    // "Winter Arc · Day 12 of 90 · Trial 3 of 7", above the
+                    // controls and the day it is made of. The challenge
+                    // capsule stays exactly where it was.
+                    if showsArcLine, let arc = arcStanding {
+                        ArcLine(program: arc.program, reading: arc.reading, action: onArcs)
+                            .padding(.horizontal, 20)
+                            .padding(.bottom, -4)
+                            .transition(.opacity)
+                    }
+
                     ForgeControlBar(
                         mode: $mode,
                         challengeState: challenges.today.state,
