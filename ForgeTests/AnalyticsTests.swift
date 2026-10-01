@@ -906,6 +906,46 @@ struct WeightedDimensionTests {
     func mostActivitiesStaySingle() {
         #expect(activity("teeth").dimensionWeights.count == 1)
     }
+
+    /// The projection test that found this compared two reads of the same
+    /// plan and got 21.75 against 21.750000000000004: the days had been added
+    /// up in each dictionary's own order. Weights of a tenth, two tenths and
+    /// three tenths are the kind whose sum depends on the order.
+    @Test("The same record adds up to the same number, however its dictionary was built")
+    func creditIsSummedInDayOrder() {
+        let last = ForgeDay(year: 2026, month: 10, day: 1)
+        let weights: ForgeShape.Weights = ["a": 0.1, "b": 0.2, "c": 0.3, "d": 0.7]
+        let ids = ["a", "b", "c", "d"]
+        let records = (0..<28).map { back -> DayRecord in
+            let day = last.adding(days: -back)
+            let id = ids[back % ids.count]
+            return DayRecord(
+                day: day,
+                completions: [DayRecord.Completion(ritualID: id, method: .honor, at: day.startOfDay())],
+                plannedIDs: [id]
+            )
+        }
+
+        var forwards: [ForgeDay: DayRecord] = [:]
+        for record in records { forwards[record.day] = record }
+        var backwards: [ForgeDay: DayRecord] = [:]
+        backwards.reserveCapacity(4096)
+        for record in records.reversed() { backwards[record.day] = record }
+
+        // Oldest day first, by hand.
+        var expected = 0.0
+        for record in records.sorted(by: { $0.day < $1.day }) {
+            expected += weights[record.plannedIDs[0]] ?? 0
+        }
+
+        let first = last.adding(days: -27)
+        for byDay in [forwards, backwards] {
+            for planned in [true, false] {
+                let total = ForgeShape.creditedDays(byDay, weights, from: first, to: last, planned: planned)
+                #expect(total.bitPattern == expected.bitPattern, Comment(rawValue: "\(total) against \(expected)"))
+            }
+        }
+    }
 }
 
 // MARK: - What to add

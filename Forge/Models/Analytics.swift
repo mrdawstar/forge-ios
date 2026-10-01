@@ -899,17 +899,25 @@ extension ForgeShape {
     /// — the exact exploit the whole model is built to refuse — so a day is
     /// worth at most one, and worth less when the only thing feeding the
     /// dimension that day was a secondary.
+    ///
+    /// **Added up oldest day first, never in the dictionary's order.** A
+    /// `Dictionary`'s order differs from one instance to the next, and adding
+    /// fractional weights is not associative, so the same record summed twice
+    /// could disagree in the last bit — 21.75 against 21.750000000000004 — and
+    /// a score sitting on a half would then round both ways. The same record
+    /// must always read the same number (§5.2).
     static func creditedDays(
         _ byDay: [ForgeDay: DayRecord],
         _ weights: Weights, from first: ForgeDay, to last: ForgeDay, planned: Bool
     ) -> Double {
         guard !weights.isEmpty, first <= last else { return 0 }
-        return byDay.values.reduce(into: 0.0) { total, record in
-            guard record.day >= first, record.day <= last else { return }
-            let ids = planned ? Set(record.plannedIDs) : record.completedIDs
-            let best = ids.compactMap { weights[$0] }.max() ?? 0
-            total += best
-        }
+        return byDay.values
+            .filter { $0.day >= first && $0.day <= last }
+            .sorted { $0.day < $1.day }
+            .reduce(into: 0.0) { total, record in
+                let ids = planned ? Set(record.plannedIDs) : record.completedIDs
+                total += ids.compactMap { weights[$0] }.max() ?? 0
+            }
     }
 
     /// The first day on or before `last` that planned anything feeding this

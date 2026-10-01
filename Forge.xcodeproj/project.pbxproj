@@ -307,6 +307,7 @@
 		82FE4FC762A4234251CE0F9E /* ForgeHaptics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForgeHaptics.swift; sourceTree = "<group>"; };
 		860013BA22C8F3842D13E210 /* SwordUnlockOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwordUnlockOverlay.swift; sourceTree = "<group>"; };
 		8A2E68BE8FA5432291C22816 /* Forge.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Forge.entitlements; sourceTree = "<group>"; };
+		8A2E68BE8FA5432291C22817 /* ForgeSimulator.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ForgeSimulator.entitlements; sourceTree = "<group>"; };
 		8B842FA2AAFA5BD18B836511 /* SwordSceneLayers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwordSceneLayers.swift; sourceTree = "<group>"; };
 		8D562B3E40B6C9EC53F38F07 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		90D59CC264C84ACBB8699288 /* IdentityActivities.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdentityActivities.swift; sourceTree = "<group>"; };
@@ -636,6 +637,7 @@
 				D56A78E589A56D9B62D51434 /* ContentView.swift */,
 				0267D67B5530DD9F353F2E18 /* ForgeApp.swift */,
 				8A2E68BE8FA5432291C22816 /* Forge.entitlements */,
+				8A2E68BE8FA5432291C22817 /* ForgeSimulator.entitlements */,
 				7A1C40E2B1F04C6EA9D34007 /* Info.plist */,
 				7A1C40E2B1F04C6EA9D34401 /* PrivacyInfo.xcprivacy */,
 				7A1C40E2B1F04C6EA9D34020 /* Shared */,
@@ -1097,6 +1099,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Forge/Forge.entitlements;
+				"CODE_SIGN_ENTITLEMENTS[sdk=iphonesimulator*]" = Forge/ForgeSimulator.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = 5JCLWNH6LG;

@@ -180,6 +180,67 @@ struct PremiumProductTests {
         #expect(PremiumEntitlement.plan(among: [.annual, .lifetime]) == .lifetime)
     }
 
+    /// `Product.purchase()` returns before `currentEntitlements` lists what it
+    /// sold. The purchase counts until the list has it, and no longer.
+    @Test("A purchase counts until StoreKit lists it, and not after it lapses")
+    func recentPurchaseCarries() {
+        let now = Date(timeIntervalSince1970: 1_000_000)
+        let trial = RecentPurchase(product: .annual, expirationDate: now.addingTimeInterval(7 * 86_400))
+
+        // Nothing just bought: the list is the answer.
+        let nothing = ForgeStore.owned(listed: [], recent: nil, now: now)
+        #expect(nothing.owned.isEmpty)
+        #expect(nothing.recent == nil)
+        #expect(ForgeStore.owned(listed: [.monthly], recent: nil, now: now).owned == [.monthly])
+
+        // Bought, not listed yet: counted, and still carried.
+        let unlisted = ForgeStore.owned(listed: [], recent: trial, now: now)
+        #expect(unlisted.owned == [.annual])
+        #expect(unlisted.recent == trial)
+        #expect(PremiumEntitlement.resolve(unlisted.owned) == .subscribed)
+
+        // Listed: the list is the answer again, and the carry ends.
+        let listed = ForgeStore.owned(listed: [.annual], recent: trial, now: now)
+        #expect(listed.owned == [.annual])
+        #expect(listed.recent == nil)
+
+        // Past its expiry without ever being listed: it no longer counts.
+        let later = now.addingTimeInterval(8 * 86_400)
+        let lapsed = ForgeStore.owned(listed: [], recent: trial, now: later)
+        #expect(lapsed.owned.isEmpty)
+        #expect(lapsed.recent == nil)
+
+        // Lifetime does not lapse, and outranks what is listed beside it.
+        let lifetime = RecentPurchase(product: .lifetime, expirationDate: nil)
+        let both = ForgeStore.owned(listed: [.monthly], recent: lifetime, now: later)
+        #expect(PremiumEntitlement.resolve(both.owned) == .lifetime)
+        #expect(both.recent == lifetime)
+    }
+
+    /// `Forge/ForgeSimulator.entitlements` exists for one reason: storekitd
+    /// accepts an `SKTestSession` only from an app carrying get-task-allow
+    /// (FORGE_CONTEXT §14). Anything else that differed from the shipping
+    /// entitlements would be the Simulator testing a different app.
+    @Test("The Simulator build's entitlements are the shipping ones plus get-task-allow")
+    func simulatorEntitlements() throws {
+        let app = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("Forge")
+        func read(_ name: String) throws -> [String: Any] {
+            let data = try Data(contentsOf: app.appendingPathComponent(name))
+            return try #require(
+                try PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any]
+            )
+        }
+        let shipping = try read("Forge.entitlements")
+        var simulator = try read("ForgeSimulator.entitlements")
+
+        #expect(shipping["get-task-allow"] == nil, "a shipping build must never ask for it")
+        #expect(simulator.removeValue(forKey: "get-task-allow") as? Bool == true)
+        #expect(NSDictionary(dictionary: simulator).isEqual(to: shipping))
+    }
+
     @Test("A live monthly subscription is proof of purchase for the model")
     func monthlyProof() {
         let now = Date(timeIntervalSince1970: 1_000_000)
