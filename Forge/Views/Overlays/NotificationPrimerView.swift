@@ -67,7 +67,9 @@ struct NotificationPrimerView: View {
                 .padding(.horizontal, 32)
 
             VStack(spacing: 10) {
-                ForEach(examples, id: \.time) { example in
+                // By position: two rows can share a minute's label, and an id
+                // that repeats draws the first row twice.
+                ForEach(Array(examples.enumerated()), id: \.offset) { _, example in
                     ExampleRow(time: example.time, title: example.title, message: example.body)
                 }
             }
@@ -158,21 +160,24 @@ struct NotificationPrimerView: View {
         let speaks = start ?? openingMinute + 90
         let follows = speaks + max(minutes, ForgeNotificationPlan.missedGrace)
 
-        return [
-            Example(
-                time: ClockMinute.label(opens),
-                title: identity ?? ForgeNotificationPlan.standing(daysKept: state.daysKept),
-                body: ForgeNotificationPlan.opening(
-                    first: activity,
-                    firstTimed: start == nil ? nil : activity,
-                    at: opens
-                )
-            ),
-            Example(
-                time: ClockMinute.label(speaks),
-                title: name,
-                body: ForgeNotificationPlan.begin(identity, minutes: minutes)
-            ),
+        let morning = Example(
+            time: ClockMinute.label(opens),
+            title: identity ?? ForgeNotificationPlan.standing(daysKept: state.daysKept),
+            body: ForgeNotificationPlan.opening(
+                first: activity,
+                firstTimed: start == nil ? nil : activity,
+                at: opens
+            )
+        )
+        let begins = Example(
+            time: ClockMinute.label(speaks),
+            title: name,
+            body: ForgeNotificationPlan.begin(identity, minutes: minutes)
+        )
+        // The plan never speaks twice at one minute: an activity at the hour
+        // the day opens is said by the morning alone (`ForgeNotificationPlan.day`).
+        // A wake-up at the wake time — every Arc that asks for one — is that day.
+        return (speaks == opens ? [morning] : [morning, begins]) + [
             Example(
                 time: ClockMinute.label(follows),
                 title: name,

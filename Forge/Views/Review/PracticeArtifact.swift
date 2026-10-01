@@ -242,11 +242,13 @@ struct ArcProofCard: View {
                     six(side: hexagon)
                         .padding(.top, 10)
                 } else {
+                    // Centred between the title and the date: pinned under
+                    // the title it left a third of the square empty.
+                    Spacer(minLength: 0)
                     HStack(spacing: 30) {
                         sword(width: bladeWidth, height: bladeHeight, spriteHeight: spriteHeight)
                         six(side: hexagon)
                     }
-                    .padding(.top, 40)
                 }
 
                 Spacer(minLength: 0)
@@ -292,16 +294,25 @@ struct ArcProofCard: View {
             StatHexagon(values: values, showsGlyphs: false, animation: nil) {
                 VStack(spacing: 2) {
                     Text("\(proof.overall)")
-                        .font(.system(size: side * 0.15, weight: .semibold))
+                        .font(.system(size: side * 0.12, weight: .semibold))
                         .monospacedDigit()
                         .foregroundStyle(.white)
                     Text("OVR")
-                        .font(.system(size: side * 0.035, weight: .semibold))
+                        .font(.system(size: side * 0.032, weight: .semibold))
                         .tracking(3)
                         .foregroundStyle(ForgeTheme.cream.opacity(0.75))
                 }
+                // The same pool of dark `OverallCore` sits on in the app: the
+                // polygon runs through the middle, and without it its edges
+                // crossed the number on the saved card.
+                .background {
+                    Circle()
+                        .fill(ForgeTheme.bg.opacity(0.72))
+                        .frame(width: side * 0.29, height: side * 0.29)
+                        .blur(radius: side * 0.036)
+                }
             }
-            .frame(width: side * 0.66, height: side * 0.66)
+            .frame(width: side * 0.6, height: side * 0.6)
 
             ForEach(Array(RitualCategory.dimensions.enumerated()), id: \.element) { index, dimension in
                 let score = proof.scores.indices.contains(index) ? proof.scores[index] : nil
@@ -317,7 +328,9 @@ struct ArcProofCard: View {
                 }
                 .position(
                     HexagonGeometry.point(
-                        index, radius: side * 0.43,
+                        // Outside the outline, so the widest label —
+                        // RELATIONSHIP — clears the vertex beside it.
+                        index, radius: side * 0.45,
                         centre: CGPoint(x: side / 2, y: side / 2)
                     )
                 )

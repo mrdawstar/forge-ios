@@ -254,23 +254,52 @@ struct ArcReadingTests {
 
     private let start = ForgeDay(year: 2026, month: 10, day: 5)
 
-    @Test("Five of every seven is on track, four is not")
+    @Test("On track is the Arc's own goal: four of five, five of seven for Lock In 7")
     func pace() {
-        let enrollment = ArcEnrollment(arc: .winter, startDay: start, isApplied: true)
-        let today = start.adding(days: 7)
-        let five = history((0..<7).map { record(start.adding(days: $0), kept: $0 < 5) })
-        let four = history((0..<7).map { record(start.adding(days: $0), kept: $0 < 4) })
+        let winter = ArcEnrollment(arc: .winter, startDay: start, isApplied: true)
+        let today = start.adding(days: 5)
+        let four = history((0..<5).map { record(start.adding(days: $0), kept: $0 < 4) })
+        let three = history((0..<5).map { record(start.adding(days: $0), kept: $0 < 3) })
 
-        let onPace = reading(enrollment, five, today: today)
-        #expect(onPace.kept == 5)
-        #expect(onPace.counted == 7)
+        let onPace = reading(winter, four, today: today)
+        #expect(onPace.kept == 4)
+        #expect(onPace.counted == 5)
         #expect(onPace.isOnTrack)
-        #expect(onPace.paceLine == "On track. 5 of 7 days kept.")
+        #expect(onPace.paceLine == "On track. 4 of 5 days kept.")
 
-        let behind = reading(enrollment, four, today: today)
+        let behind = reading(winter, three, today: today)
         #expect(!behind.isOnTrack)
-        #expect(behind.paceLine.hasPrefix("Not on track yet."))
+        #expect(behind.paceLine == "Not on track yet. 3 of 5 days kept; four of every five is the pace.")
         #expect(!behind.paceLine.localizedCaseInsensitiveContains("fail"))
+
+        let lockIn = ArcEnrollment(arc: .lockIn, startDay: start, isApplied: true)
+        let week = start.adding(days: 7)
+        let five = history((0..<7).map { record(start.adding(days: $0), kept: $0 < 5) })
+        let fourOfSeven = history((0..<7).map { record(start.adding(days: $0), kept: $0 < 4) })
+        #expect(reading(lockIn, five, today: week).isOnTrack)
+        #expect(reading(lockIn, fourOfSeven, today: week).paceLine.hasSuffix("five of every seven is the pace."))
+    }
+
+    /// Found in the Simulator: the pace line said five of every seven for
+    /// every Arc, so a Winter Arc kept at 72 per cent read "On track" all the
+    /// way to "Finished". On track and Completed are one line now.
+    @Test("On track to the last day ends Completed")
+    func onTrackMeansCompleted() {
+        for program in ArcCatalog.all {
+            let enrollment = ArcEnrollment(arc: program.id, startDay: start, isApplied: true)
+            for keptDays in 0...program.length {
+                // The last day is among the kept, so it counts on the last
+                // day itself as well as after it: today joins only once kept.
+                let days = (0..<program.length).map {
+                    record(start.adding(days: $0),
+                           kept: $0 < keptDays - 1 || (keptDays > 0 && $0 == program.length - 1))
+                }
+                let last = reading(enrollment, history(days), today: start.adding(days: program.length - 1))
+                let after = reading(enrollment, history(days), today: start.adding(days: program.length))
+                #expect(last.isOnTrack == after.isCompleted,
+                        Comment(rawValue: "\(program.name), \(keptDays) kept"))
+            }
+        }
     }
 
     /// A day in progress is never a miss.

@@ -167,10 +167,11 @@ extension ArcEnrollment: Codable {
 ///
 /// # On track, and finished
 ///
-/// On track is at least five of every seven days kept since the start. Once
-/// the end day has passed the Arc is finished, and it is **Completed** at its
-/// goal — eighty per cent, five of seven for Lock In 7 — and otherwise simply
-/// **Finished, 61 of 90 days**. Nothing here is a failure, and nothing says so.
+/// On track is the Arc's own goal, held since the start — four of every five,
+/// five of seven for Lock In 7 — so a run that was on track every day ends
+/// Completed. Once the end day has passed the Arc is finished, and it is
+/// **Completed** at that goal and otherwise simply **Finished, 61 of 90
+/// days**. Nothing here is a failure, and nothing says so.
 struct ArcReading: Equatable, Sendable {
     enum Status: Equatable, Sendable {
         /// Joined for a start day that has not come.
@@ -199,10 +200,14 @@ struct ArcReading: Equatable, Sendable {
     /// Finished, and at its goal.
     let isCompleted: Bool
 
-    /// At least five of every seven days kept since the start. True while
-    /// nothing has been counted yet: an Arc cannot be behind on its first
-    /// morning.
-    var isOnTrack: Bool { counted == 0 || kept * 7 >= counted * 5 }
+    /// What Completed asks of this Arc: four of every five, or Lock In 7's
+    /// five of seven.
+    var goal: ArcGoal { ArcCatalog.program(arc).completesAt }
+
+    /// At the Arc's goal since the start, the same line Completed is drawn
+    /// at, so "on track" never ends in anything less. True while nothing has
+    /// been counted yet: an Arc cannot be behind on its first morning.
+    var isOnTrack: Bool { counted == 0 || goal.isMet(kept: kept, counted: counted) }
 
     var isRunning: Bool { status == .active }
 
@@ -220,7 +225,9 @@ struct ArcReading: Equatable, Sendable {
     var paceLine: String {
         guard counted > 0 else { return "Nothing counted yet. Today counts once it is kept." }
         let days = "\(kept) of \(counted) \(counted == 1 ? "day" : "days") kept"
-        return isOnTrack ? "On track. \(days)." : "Not on track yet. \(days); five of every seven is the pace."
+        guard !isOnTrack else { return "On track. \(days)." }
+        let pace = "\(ForgeCount.spelled(goal.kept).lowercased()) of every \(ForgeCount.spelled(goal.of).lowercased())"
+        return "Not on track yet. \(days); \(pace) is the pace."
     }
 
     /// Read one enrollment against the record, as of `today`.

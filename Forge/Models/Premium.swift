@@ -287,9 +287,9 @@ enum Founder {
 /// Which of the features Forge Pro names exist in this build.
 ///
 /// A paywall row only names a feature in the build (DIRECTION_1_1 §1), so the
-/// paywall reads this rather than a list of promises. **Sessions S3, S5 and S6
-/// turn `arcs`, `health` and `askForge` on** when they ship the feature, and
-/// the row appears with it. The two that exist now are flags too, so the rule
+/// paywall reads this rather than a list of promises. **Sessions S5 and S6 turn
+/// `health` and `askForge` on** when they ship the feature, and the row appears
+/// with it, as `arcs` did in S3. The ones that exist are flags too, so the rule
 /// is one rule.
 struct ForgeFeatures: Equatable, Sendable {
     /// Lock In 7, Monk Mode 30, Discipline 66, Winter Arc. Built in session S3

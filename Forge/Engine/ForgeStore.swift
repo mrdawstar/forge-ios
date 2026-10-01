@@ -166,6 +166,17 @@ final class ForgeStore {
     init(defaults: UserDefaults = ForgeShared.defaults, readsAppTransaction: Bool = true) {
         self.defaults = defaults
         isFounderRecorded = Founder.isRecorded(in: defaults)
+        #if DEBUG
+        // A simulated state survives a relaunch, so a debug build can be walked
+        // across one — a first run past its paywall, a day reopened at noon —
+        // without a purchase the Simulator cannot complete (FORGE_CONTEXT §17.3).
+        // Observers do not run in an initialiser, so both halves are set here.
+        if let raw = defaults.string(forKey: Self.debugAccessKey),
+           let restored = SimulatedAccess(rawValue: raw) {
+            debugAccess = restored
+            simulated = restored.access(now: .now)
+        }
+        #endif
         // Claimed before anything is loaded. A purchase approved on another
         // device, a renewal, a refund or a family-sharing change all arrive
         // here, and the listener has to be running before the first await or
@@ -521,10 +532,16 @@ final class ForgeStore {
     }
 
     /// Which state is being simulated. The trial's end is fixed at the moment
-    /// it is chosen, so `access` is one value until the choice changes.
+    /// it is chosen, so `access` is one value until the choice changes. Kept
+    /// in `defaults` until it is handed back to StoreKit.
     var debugAccess: SimulatedAccess? {
-        didSet { simulated = debugAccess?.access(now: .now) }
+        didSet {
+            simulated = debugAccess?.access(now: .now)
+            defaults.set(debugAccess?.rawValue, forKey: Self.debugAccessKey)
+        }
     }
+
+    static let debugAccessKey = "forge.debug.simulatedAccess.v1"
 
     private(set) var simulated: ProAccess?
     #endif

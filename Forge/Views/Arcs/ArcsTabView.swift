@@ -107,7 +107,9 @@ struct ArcsTabView: View {
         }
         let count = current.added.count
         guard count > 0 else {
-            return "Your days stay exactly as they are. The Arc stays on your record as far as you took it."
+            // Not "the Arc stays on your record": only an Arc run to its end
+            // is drawn there (`ArcStore.finished`). The days kept inside it are.
+            return "Your week stays exactly as it is, and every day you kept stays on your record."
         }
         let things = count == 1 ? "the one activity" : "the \(ForgeCount.spelled(count).lowercased()) activities"
         return "Your days kept stay yours. You can keep \(things) it added, or take them off your week."
