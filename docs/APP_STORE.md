@@ -1,8 +1,10 @@
 # Forge — App Store submission
 
 > Everything App Store Connect asks for, written down so it is decided once
-> rather than improvised in the form. Last updated **2026-09-25** — anonymous
-> usage (TelemetryDeck) added; §1 changed. Before that, **2026-09-15**: the
+> rather than improvised in the form. Last updated **2026-10-03** — Forge's AI
+> switched on with Ask Forge (`FORGE_CONTEXT.md` §17.6): §1's labels, §2's
+> privacy paragraph and §6's review note changed. Before that, **2026-09-25** —
+> anonymous usage (TelemetryDeck) added; §1 changed. Before that, **2026-09-15**: the
 > submission after the Guideline 2.1 reply, where the account was removed
 > outright (§1 and §6).
 >
@@ -28,38 +30,44 @@ receives no identifier it could join to anything. `grep` for
 
 ### Data linked to you
 
-**None.** — *changed 2026-09-15, and this is the biggest change on the page.*
+**Three rows, all from Forge's AI, since 1.1** (`FORGE_CONTEXT.md` §17.6). Each
+is collected only for Forge Pro users, only after they press **Allow** on the
+in-app disclosure (revocable in Settings → Planning), and only when they press
+something that asks: Plan's "Work it out", the review's "Read my week", or a
+message in Ask Forge.
 
-**Forge 1.0 has no account.** There is no sign-in control anywhere in the app,
-`Forge/Info.plist` carries no Supabase project, nothing in the running app
-constructs an auth or a sync service, and `AuthenticationServices` is not even
-linked into the Release binary. Every row that used to be here — email address,
-user id, other user content, purchases, diagnostics — existed only for a
-signed-in account, and there is no longer any way to become one.
+| Data type | Purpose | Linked | Tracking | What it is |
+|---|---|---|---|---|
+| **User Content → Other User Content** | App Functionality | Yes | No | The `AIBrief`: activity names, times, lengths and days; identity statements and the chapter's intention; counts of days kept. For a Weekly Reading, one week's counts per weekday, activity and identity. For Plan, the request typed. For **Ask Forge**, the message and the conversation before it (at most the last eight messages), the six scores and OVR as shown on Becoming, the running Arc's id, day and phase, and today's list with which are done (`CoachBrief`). Never weekly-review answers, dates, any past day's record, health readings, names, email, location or contacts. Forge's server stores none of it; OpenAI is asked not to (`store: false`). |
+| **Purchases → Purchase History** | App Functionality | Yes | No | The Apple-signed StoreKit 2 transaction (`X-Forge-Transaction`), verified offline by the backend to confirm Forge Pro; its `originalTransactionId` keys the per-purchase daily quotas (`ai_usage_by_transaction`, `ai_coach_usage_by_transaction`). |
+| **Identifiers → User ID** | App Functionality | Yes | No | The anonymous Supabase user id minted on the first AI request — no email, password, name or provider. Used only to authenticate and rate-limit (`ai_usage`, `ai_coach_usage`). |
 
-The rows are recorded below rather than deleted, because each one names a thing
-that comes straight back the day sync does:
+**Why "linked".** Every request travels under the anonymous user id, which
+identifies an account even though the account has no name, email or password;
+Apple's definition counts that. This is the conservative reading the §2r note
+asked to be decided before activation. "Not linked" is arguable for the user
+content (OpenAI receives it with no identifier, and Forge's server keeps none of
+it); if that reading is chosen instead, change this table **and**
+`PrivacyInfo.xcprivacy` together — `AskForgeGateTests.manifest` holds the
+manifest to "linked".
+
+**There is still no visible account.** No sign-in control, no email, no
+password; nothing in the running app constructs the dormant `ForgeBackend`,
+`AuthService` or `SyncService` (`BackendRegressionTests.theAppShipsWithNoAccount`
+reads the source to hold it). The rows the old 1.0 account collected stay
+recorded below, because each comes straight back the day sync does:
 
 | Was collected | Only when | Would come back with |
 |---|---|---|
 | Email address | signed in | `AuthService` / Supabase GoTrue |
-| User ID | signed in | Supabase `auth.users` uuid |
-| Other user content — activity names, identity statements, chapters, reviews | signed in **and** entitled | `SyncService` |
-| Purchases | signed in | `premium_status` row |
+| User ID (of a visible account) | signed in | Supabase `auth.users` uuid |
+| Other user content — activity names, identity statements, chapters, reviews (sync) | signed in **and** entitled | `SyncService` |
+| Purchases (the `premium_status` row) | signed in | `premium_status` row |
 | Other Diagnostics — device model, iOS version, app version | signed in | `UserService.registerDevice` |
 
-`PrivacyInfo.xcprivacy` declares **nothing linked to the user** — its only two
-rows are the anonymous-usage ones below — and
-`BackendRegressionTests.theAppShipsWithNoAccount` fails the test run if the
-project ever comes back into `Info.plist`. The nutrition labels in App Store
-Connect must say **Data Not Linked to You: Product Interaction, Other
-Diagnostic Data** and nothing else, and match it — a manifest disagreeing with
-the labels is the one mismatch App Store Connect checks automatically.
-
-> ⚠️ **The day sync is switched back on, this whole section comes back with it**,
-> along with the manifest, the labels, the App Review notes and a privacy policy
-> that describes an account again. That is five places, which is why the test
-> exists.
+In App Store Connect: **Data Linked to You: User Content (Other User Content),
+Purchases (Purchase History), Identifiers (User ID)** — each App Functionality,
+not used for tracking. `PrivacyInfo.xcprivacy` declares the same three.
 
 ### Data not linked to you
 
@@ -98,63 +106,39 @@ They carry only a closed `door` or `plan` value — `door` is "onboarding",
 anonymous like every other event. `paywall_dismissed` was retired with the
 three doors.
 
-> ⚠️ **Decide before submitting 1.1:** 1.0's position was that these add
-> nothing to the labels and **Purchases stays not collected**. With the events
-> now actually sent, the conservative reading of Apple's definition ("an
-> individual's purchases or purchase tendencies") is to declare **Purchases →
-> Purchase History, Analytics, not linked, not tracking**, and add the matching
-> row to `PrivacyInfo.xcprivacy`. Whichever is chosen, the labels and the
-> manifest must say the same thing.
+> ⚠️ **Decide before submitting 1.1:** with the paywall events sent, the
+> conservative reading of Apple's definition ("an individual's purchases or
+> purchase tendencies") also counts them as **Purchases → Purchase History**
+> for **Analytics**. Since 1.1's AI, Purchase History is already declared (App
+> Functionality, linked — §1 above), so the choice is only whether to add
+> **Analytics** to that row's purposes in App Store Connect and to the
+> `PrivacyInfo.xcprivacy` entry. A label is one row per type, so it cannot be
+> both linked and not linked; the AI's "linked" governs.
 
-### Forge's AI — prepared, **not active in this build** (`FORGE_CONTEXT.md` §2r)
+### Forge's AI — active since 1.1 (`FORGE_CONTEXT.md` §17.6)
 
-Forge Pro's AI features (the Weekly Reading and Plan in your own words) are
-**built on the iOS side and switched off**. What that means for the labels:
-
-**This build — submit with the labels above, unchanged.** Remote AI is disabled:
-`RemoteForgeAI.isModelEnabled` is `false`, which forces the endpoint to nil, and
-there is no Supabase project in `Info.plist` to build one from — two locks, each
-held by a test (`NoNetworkTests`, `AIPrepTests`, `BackendRegressionTests`). No
-AI brief, no request text and no purchase proof leaves the phone; Plan is
-arithmetic on the device (`DayPlanner`, `LocalForgeAI`), the challenge comes
-from the shipped catalogue, and the weekly review's observation is written by
-rules over the user's own record. The consent screen exists in the binary but
-cannot be reached, because it is only raised when a request would actually be
-made.
-
-**The day AI is activated — replace the labels with these.** Everything below
-is collected only for Forge Pro users, only after they press **Allow** on the
-in-app disclosure (explicit consent, revocable in Settings → Planning), only
-when they press a button that asks for it, and is processed by **Forge's backend
-(Supabase edge function `forge-ai`) and OpenAI** behind it. None of it is used
-for advertising or tracking, sold, or combined with other companies' data.
-
-| Data type | Purpose | Linked | Tracking | What it is |
-|---|---|---|---|---|
-| **User Content → Other User Content** | App Functionality | No | No | The `AIBrief`: activity names, times, lengths and days; what the user said they are becoming (identity statements) and the chapter's intention; counts of days kept; for a Weekly Reading, one week's counts per weekday, activity and identity; for Plan, the request the user typed. Never weekly-review answers, dates, health data, names, email, location or contacts. |
-| **Purchases → Purchase History** | App Functionality | No¹ | No | The Apple-signed StoreKit 2 transaction (`X-Forge-Transaction`), verified offline by the backend to confirm Forge Pro. Used for entitlement and the per-purchase spend cap (`ai_usage_by_transaction`, keyed on `originalTransactionId`). |
-| **Identifiers → User ID** | App Functionality | No¹ | No | The anonymous Supabase user id minted lazily for the first AI request — no email, password, name or provider. Used only to authenticate and rate-limit calls. |
-
-¹ *Decide before activating.* Neither is joined to a name, email or account,
-which supports "not linked"; the conservative reading of Apple's definition
-treats any persistent identifier as linked. Pick one, and make
-`PrivacyInfo.xcprivacy` say the same (add `NSPrivacyCollectedDataTypeOtherUserContent`,
-`…PurchaseHistory` and `…UserID` with purpose `AppFunctionality`,
-`NSPrivacyCollectedDataTypeTracking = false`).
-
-What stays true after activation: the app holds **no OpenAI key** (the only one
-is the server secret `OPENAI_API_KEY`), the app never contacts OpenAI directly,
-responses are requested with `store: false`, OpenAI does not train on API data
-by default, and every model-written sentence is labelled as such on screen.
-Anthropic / Claude is not used anywhere.
+*Was "prepared, not active" (§2r); switched on in session S6.* The three rows
+above are what it collects. What stays true: the app holds **no OpenAI key**
+(the only one is the server secret `OPENAI_API_KEY`), the app never contacts
+OpenAI directly, responses are requested with `store: false`, OpenAI does not
+train on API data by default, every model-written reply, reading and plan is
+labelled as such on screen, a proposal to change the week is only applied from
+Plan's review, and Anthropic / Claude is not used anywhere. A message to Ask
+Forge that suggests a crisis is answered on the phone with the 988 lifeline and
+is **not sent**.
 
 ### Data not collected
 
 **Everything else.** Health & Fitness, Location, Contacts, Photos, Browsing
 History, Search History, Crash Data, Performance Data, Sensitive Info, Financial
-Info, Physical Address, Phone Number, Name, Email Address, User ID, Device ID,
-Purchases, User Content, Customer Support, Advertising Data, and every Usage
-Data and Diagnostics row other than the two above.
+Info, Physical Address, Phone Number, Name, Email Address, Device ID, Customer
+Support, Advertising Data, every User Content row other than Other User Content
+(no Emails or Text Messages, Photos or Videos, Audio, Gameplay Content), and
+every Usage Data and Diagnostics row other than the two above.
+
+**Customer Support specifically.** Ask Forge's *Report* opens a pre-filled
+email in the person's own mail app; the app sends nothing. Mail they choose to
+send is ordinary support email, not data collected by the app.
 
 **Health data specifically.** Since 1.1 (session S5, `FORGE_CONTEXT.md`
 §17.5) Forge reads **steps, workout minutes, sleep and mindful minutes** from
@@ -164,7 +148,9 @@ it is **read on the device and not collected**: a reading is used the moment it
 arrives to decide whether an activity is done and then dropped. Readings are
 never written to disk, never synced, never sent to telemetry
 (`ForgeTelemetry.Event` has no case that could hold one) and never included in
-an `AIBrief` — there is no field on that struct that could hold one. What Forge
+an `AIBrief` — there is no field on that struct that could hold one. Ask Forge's
+`CoachBrief` carries whether each of today's activities is done — a completion,
+which a Health-checked activity can be — and never a reading. What Forge
 keeps is the completion it caused (an activity id, banked as `health` in the
 day's record) and `HealthLedger` (the primer's answer, which activities were
 offered, which were ticked today): decisions, never values. Health & Fitness is
@@ -183,25 +169,28 @@ same in a comment beside its collected-data list.
 
 ### What the app does over the network, in full
 
-Re-audited 2026-09-25, when anonymous usage was added (§2p). Every path, and
-what starts it:
+Re-audited 2026-10-03, when Forge's AI was switched on (§17.6); before that
+2026-09-25, when anonymous usage was added (§2p). Every path, and what starts
+it:
 
 | Path | Starts when | Sends |
 |---|---|---|
 | StoreKit product load | Launch, and on any transaction | Apple's own; no user data |
 | TelemetryDeck (`nom.telemetrydeck.com`) | One of the events in `ForgeTelemetry.Event`, only while **Share anonymous usage** is on | Event name, its closed parameters, `days_since_install`, the SDK's device, locale and session fields, and an anonymised, double-hashed install id |
+| Forge's AI (`eslaeueyeuaejdnqfasv.supabase.co`): `POST /auth/v1/signup` once, a token refresh when it expires, `POST /functions/v1/forge-ai` | A Forge Pro user who allowed AI presses "Work it out", "Read my week" or sends a message in Ask Forge — in that order of checks: the switch, consent, the StoreKit proof, then the anonymous identity (`RemoteForgeAI.connect`) | The request content in §1's first row, the anonymous JWT and the StoreKit JWS. Never at launch, on opening a screen, or in the background |
 
-**That is the whole table.** There is nothing else. Sign-in, token refresh,
-sync, device registration and the entitlement row all required a Supabase
-project and a session, and there is neither: `SupabaseConfig.fromBundle()`
-answers nil, so no `HTTPClient` can be constructed, so no request can be formed.
-The StoreKit call is Apple's own, carries no Forge data, sells nothing, and
-fails silently to `.unavailable` with no UI attached.
+**That is the whole table.** The visible account's sign-in, sync, device
+registration and entitlement row are still unreachable: nothing in the running
+app constructs `ForgeBackend`, so the project in `Info.plist` is only ever used
+by `AnonymousIdentity` and `AIEndpoint`. The StoreKit call is Apple's own,
+carries no Forge data, and fails silently to `.unavailable` with no UI attached.
 
-**One host, held by tests.** `ForgeNetwork.allowedHosts` is exactly
-`nom.telemetrydeck.com`; `URLSessionTransport` refuses any other host before a
-socket is opened, and `NoNetworkTests` / `BackendRegressionTests` fail the run if
-the list grows or if a request to any other host gets through. TelemetryDeck's
+**Two hosts, held by tests.** `ForgeNetwork.allowedHosts` is exactly
+`nom.telemetrydeck.com` and Forge's project host (which joins only because the
+switch is on and the project is configured, `ForgeNetwork.aiHost`);
+`URLSessionTransport` refuses any other host before a socket is opened, and
+`NoNetworkTests` / `BackendRegressionTests` fail the run if the list changes or
+if a request to any other host gets through. TelemetryDeck's
 SDK arrives as a Swift package and is the one third-party code in the app; as a
 static library it will not appear in `otool -L` — re-check that on the next
 Release build and correct this line if it does.
@@ -276,22 +265,28 @@ transmitted. The sections about signing in, about what the server stores, and
 about the account-deletion route should be **deleted**, not softened — there is
 no server-side data and no account to delete.
 
-It must **not** describe AI processing while remote AI is switched off (§1,
-"Forge's AI — prepared, not active"). Publish the paragraph below **on the day
-the model is switched on**, and not before — a policy that describes
-transmission the app cannot perform is as wrong as one that omits transmission
-it can.
+**1.1 is the activation build** (§1, `FORGE_CONTEXT.md` §17.6). Publish
+`docs/launch/privacy-policy.md` section **7B** — which describes Ask Forge, the
+Weekly Reading and Plan in your own words exactly as 1.1 sends them — in place
+of 7A **on the day 1.1 goes live**, and not before: the live 1.0.1 makes no AI
+request, and a policy that describes transmission the app cannot perform is as
+wrong as one that omits transmission it can. The short form, for anywhere a
+paragraph is wanted:
 
-**Ready to publish at activation — "Forge's AI features":**
+**"Forge's AI features" (1.1):**
 
-> Forge Pro includes optional AI features: the Weekly Reading and Plan in your
-> own words. They are off until you choose to use one and press **Allow** on the
-> in-app explanation, and you can turn them off at any time in Settings →
-> Planning. When you use one, Forge sends what that feature needs to Forge's own
-> server (hosted on Supabase): the names, times and days of your activities,
-> counts of the days you kept, the statements you wrote about who you are
-> becoming and your chapter's intention, and — for Plan — the request you
-> typed; for the Weekly Reading, one week's counts. The request is made under
+> Forge Pro includes optional AI features: Ask Forge, the Weekly Reading and
+> Plan in your own words. They are off until you choose to use one and press
+> **Allow** on the in-app explanation, and you can turn them off at any time in
+> Settings → Planning. When you use one, Forge sends what that feature needs to
+> Forge's own server (hosted on Supabase): the names, times and days of your
+> activities, counts of the days you kept, the statements you wrote about who
+> you are becoming and your chapter's intention; for Plan, the request you
+> typed; for the Weekly Reading, one week's counts; and for Ask Forge, your
+> message with the conversation before it (at most eight messages), your six
+> stats and overall score, where you are in a running Arc, and today's list
+> with which are done. The Ask Forge conversation is kept on your phone, and
+> can be cleared there. The request is made under
 > an anonymous identifier with no name or email, together with Apple's signed
 > proof of your Forge Pro purchase, which our server verifies. Our server asks
 > OpenAI to write the answer; the app never contacts OpenAI directly and
@@ -300,7 +295,9 @@ it can.
 > requests per purchase and per anonymous identifier to limit use, and does not
 > keep the content you sent. None of this is used for advertising or tracking,
 > sold, or combined with data from other companies. Your weekly review answers,
-> dates, health data, location and contacts are never sent. If you do not allow
+> dates, any past day's record, health readings, location and contacts are
+> never sent, and a message to Ask Forge that suggests a crisis is answered on
+> your phone with the 988 Suicide & Crisis Lifeline and is not sent. If you do not allow
 > AI, or turn it off, every feature keeps working on your phone.
 
 ---
@@ -439,12 +436,13 @@ registration and no password anywhere in the app. Launch it and the full app is
 immediately available — there are no demo credentials to supply because there is
 nothing to sign in to.
 
-Forge works entirely offline. Besides Apple's own StoreKit product lookup at
-launch, the only network traffic is anonymous usage statistics sent to
+Forge works offline. Besides Apple's own StoreKit product lookup at launch,
+the network is used for two things: anonymous usage statistics sent to
 TelemetryDeck (which screens and actions are used — never anything the user
-writes), which can be turned off in Settings → Privacy → Share anonymous usage.
-No screen depends on the network. Everything a user creates is stored locally
-on the device.
+writes), which can be turned off in Settings → Privacy → Share anonymous usage;
+and Forge Pro's optional AI features, described below, only after the user
+allows them. No screen depends on the network. Everything a user creates is
+stored locally on the device.
 
 To review it in about three minutes:
 1. Launch. A short first run asks seven one-tap questions, shows the starting
@@ -469,14 +467,38 @@ feature working; activities are then completed by tapping. To see it: add "Hit
 your steps" from the + on the Forge tab, close the sheet, and the screen
 appears.
 
-This build contains no AI processing. Forge Pro's AI features are prepared but
-switched off in this version: the app holds no model key and makes no model
-request. The Plan feature (opened from the week, under the More button) works
-out every suggestion on the device from the user's own activities and history.
+Forge Pro includes three optional AI features: Ask Forge (the speech-bubble
+button in the Becoming tab's top bar, or "Ask about this Arc" on a running
+Arc's card), the Weekly Reading (Weekly review → "Read my week") and Plan in
+your own words (the Forge tab → Week → More → Plan the week → type a request →
+"Work it out"). Before the first request, the app shows a disclosure of
+exactly what is sent, where, and to whom, with "Allow" and "Not now". "Not now"
+keeps everything on the device. Consent can be withdrawn in Settings →
+Planning. Requests go to Forge's own backend (a Supabase edge function), which
+verifies the StoreKit transaction and asks OpenAI to write the answer; the app
+contains no OpenAI key and never contacts OpenAI directly. Requests are made
+under an anonymous identifier — there is still no account or sign-in.
+
+Ask Forge is a calm chat about the user's own record: no persona, no avatar,
+"Not medical advice" under its title. It declines medical, psychiatric or
+nutritional diagnosis or treatment, drugs, PEDs and supplement doses, extreme
+diets and fasting protocols, sexual content and harassment. A message that
+suggests self-harm or a crisis is answered on the device with one caring line
+and the 988 Suicide & Crisis Lifeline (call or text 988) and is not sent. A
+long press on a reply offers "Report", which opens a pre-filled email to
+support that the user sends. Every AI reply, reading and plan is labelled as
+written by AI; a proposed change to the user's week opens a review screen and
+is applied only when the user confirms it. The Plan feature's own suggestions
+are worked out on the device.
+
+To test the AI: use a Sandbox account, start Forge Pro (the annual trial is
+free), then open Ask Forge from the Becoming tab and tap one of the three
+suggested questions; allow the disclosure when it appears.
 
 User-generated content — activity names, chapter names, weekly review answers —
-never leaves the device. There is no social surface, no feed and no sharing
-between users.
+is stored on the device. Weekly review answers never leave it; the AI features
+send what is listed above only when the user asks. There is no social surface,
+no feed and no sharing between users.
 
 Forge Pro (in-app purchase) — a hard paywall with a free week. A new install
 meets the paywall at the end of the first run, before the first day is kept.
@@ -511,25 +533,13 @@ Sandbox, TestFlight or App Review, so a review device always sees the paywall
 exactly as a new customer does.
 ```
 
-### Prepared review-note paragraph for the AI activation build
+### The AI paragraph, applied
 
-Replace the "This build contains no AI processing" paragraph above with this
-**only in the build where remote AI is switched on**:
-
-```
-Forge Pro includes two optional AI features: the Weekly Reading (Weekly review
-→ "Read my week") and Plan in your own words (the week → More → Plan → type a
-request → "Work it out"). Before the first request, the app shows a disclosure
-of exactly what is sent, where, and to whom, with "Allow" and "Not now". "Not
-now" keeps everything on the device. Consent can be withdrawn in Settings →
-Planning. Requests go to Forge's own backend (a Supabase edge function), which
-verifies the StoreKit transaction and asks OpenAI to write the answer; the app
-contains no OpenAI key and never contacts OpenAI directly. Requests are made
-under an anonymous identifier — there is still no account or sign-in. Every
-model-written sentence is checked against the user's own numbers and labelled
-"Written by a model". To test: use a Sandbox account, buy Forge Pro (the annual
-trial is free), then use either feature.
-```
+The prepared activation paragraph (§2r) is now part of the block above,
+extended for Ask Forge (`FORGE_CONTEXT.md` §17.6). App Review buys in Sandbox,
+so `FORGE_ALLOW_SANDBOX` must be `true` on the server for the review window if
+the reviewer is to see the model rather than the one "can't reach the server"
+line (`supabase/README.md` §1.6).
 
 ## 7. Subscription metadata — **Forge Pro (1.1)**
 
@@ -711,8 +721,10 @@ field above is empty.
 - [ ] **App Privacy**: decide the Purchases question in §1 (not collected,
       or Purchases → Purchase History, Analytics, not linked, not tracking)
       and make the labels and `PrivacyInfo.xcprivacy` say the same thing
-- [ ] `forge-ai` redeployed with the annual offer in `PREMIUM_PRODUCTS` before
-      the model is switched on (the repo has it)
+- [x] `forge-ai` redeployed with the annual offer in `PREMIUM_PRODUCTS` before
+      the model is switched on (owner, before S6)
+- [ ] `forge-ai` redeployed with the `coach` task and migration `0009` pushed
+      (S6, `FORGE_CONTEXT.md` §17.6) before the 1.1 build is submitted
 
 **H. Sandbox, before submitting**
 
@@ -749,7 +761,9 @@ field above is empty.
       `CFBundleIconName` confirmed in the built Release `Info.plist` and the tile
       seen on the Simulator's Home Screen (§1a)
 - [x] Privacy policy URL live, and `ForgeLinks.privacy` set (§2)
-- [x] Privacy policy says nothing about AI processing (1.0 does none — §1)
+- [ ] Privacy policy: publish `docs/launch/privacy-policy.md` **7B** (Ask Forge,
+      the Weekly Reading, Plan in your own words) the day 1.1 goes live (§2);
+      until then 7A stays, because 1.0.1 makes no AI request
 - [x] Terms URL live, and `ForgeLinks.terms` set; **Support** set too, and the
       row leads the About section
 - [x] `#warning` in `Shared/ForgeLink.swift` deleted — replaced by a test that
@@ -778,8 +792,9 @@ field above is empty.
 - [x] **First run walked end to end from a wiped install** (2026-09-03), including
       a cold relaunch afterwards — which is how the onboarding-replay trap was
       found and fixed
-- [x] Privacy nutrition labels decided (§1) — **nothing collected**, rewritten
-      2026-09-15 when the account was removed
+- [x] Privacy nutrition labels decided (§1) — rewritten 2026-10-03 for the AI:
+      Other User Content, Purchase History and User ID, linked, App
+      Functionality; plus §2p's two anonymous-usage rows
 - [x] Age rating decided (§3)
 - [x] Description, subtitle, keywords written (§4)
 - [x] Review notes written (§6) — rewritten 2026-09-15 against the accountless
@@ -787,9 +802,9 @@ field above is empty.
 - [ ] **Forge Pro (1.1):** the four IAPs are set up and attached to the version
       (§7 checklist), the App Description ends with the EULA line, and the
       Purchases label decision in §1 is made
-- [x] Network audit re-done and written down (§1, 2026-09-15) — **one** call in
-      the whole binary, Apple's own StoreKit lookup. No AI request, no
-      analytics, no third-party host, no Supabase project to reach
+- [x] Network audit re-done and written down (§1, 2026-10-03) — StoreKit,
+      TelemetryDeck, and Forge's own project for the AI, each held by tests
+      (`NoNetworkTests`, `BackendRegressionTests`)
 - [x] Release configuration builds clean, and no debug UI reaches it — `strings`
       on the Release binary finds none of the DEBUG settings rows
 - [x] iPhone only (`TARGETED_DEVICE_FAMILY = 1`). It declared iPad support the

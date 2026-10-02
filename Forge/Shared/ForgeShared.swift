@@ -59,6 +59,8 @@ enum ForgeShared {
         // Whether Forge's AI has been allowed. Stranding it would ask again —
         // or, worse, lose a revocation. See `AIConsentStore`.
         "forge.aiConsent.v1",
+        // Ask Forge's conversation, kept on this phone only (`CoachHistory`).
+        "forge.askForge.v1",
         // The markers somebody set for themselves. Not derivable from the
         // history — Forge cannot work out that somebody meant to read for
         // thirty days — so this is the one thing on the Blade tab that is

@@ -45,6 +45,12 @@ struct ContentView: View {
     /// Settings through the environment, and by `RemoteForgeAI` straight from
     /// the suite before anything else. See `AIConsentStore`.
     @State private var aiConsent: AIConsentStore
+    /// Ask Forge's conversation, on this phone only. See `CoachHistory`.
+    @State private var coachHistory: CoachHistory
+    /// Ask Forge, open — with the record as it was when it was opened.
+    @State private var askForge: AskForgeOpening?
+    /// Forge Pro, opened by an Ask Forge door for somebody without the AI.
+    @State private var aiPaywallDoor: ForgeTelemetry.PaywallDoor?
     /// Which world the app is dressed in. Owned here alongside the other
     /// stores, because a Path changes what every screen looks like and there
     /// has to be exactly one answer to that for the whole process.
@@ -123,6 +129,7 @@ struct ContentView: View {
         let chapters = ChapterStore()
         let reviews = ReviewStore()
         _aiConsent = State(initialValue: AIConsentStore())
+        _coachHistory = State(initialValue: CoachHistory())
         _chapters = State(initialValue: chapters)
         _reviews = State(initialValue: reviews)
         _progress = State(initialValue: progress)
@@ -175,11 +182,22 @@ struct ContentView: View {
         // identity — so nobody without Pro, or who has not pressed Allow, ever
         // has one created, and nothing here runs at launch (§2r).
         //
-        // In this build none of it runs. There is no project in `Info.plist`,
-        // so `fromBundle()` answers nil and no endpoint can be built; and
-        // `RemoteForgeAI.isModelEnabled` is false, which forces the same
-        // answer a second time. Neither closure below is ever called, and
-        // `RemoteForgeAI` is a passthrough to `LocalForgeAI`.
+        // Since 1.1 (§17.6) the project is in `Info.plist` and the switch is
+        // on, so this is the real path — and still nothing in it runs until a
+        // button that asks is pressed. Neither closure is called at launch.
+        #if DEBUG
+        // `-ForgeAIScript <scenario>`: every AI state against a scripted
+        // backend, for the Simulator. See `ScriptedForgeAI`.
+        if let script = ScriptedForgeAI.fromLaunchArguments() {
+            remote = RemoteForgeAI(
+                testingEndpoint: script.endpoint,
+                token: { "scripted-token" },
+                entitlement: { "scripted.transaction" },
+                consent: { AIConsentStore.isAllowed() }
+            )
+            return
+        }
+        #endif
         let config = SupabaseConfig.fromBundle()
         let identity = AnonymousIdentity(
             api: config.map { SupabaseAuthAPI(client: HTTPClient(config: $0)) }
@@ -212,6 +230,21 @@ struct ContentView: View {
         // the Becoming and Blade bars. Inside `ForgeProModifier` below like the
         // other sheets, so the store reaches it.
         .sheet(isPresented: $showSettings) { settingsTab }
+        // Ask Forge, from Becoming's bar or the running Arc's card. Inside
+        // `ForgeProModifier` like the other sheets, so the store and the
+        // consent reach it.
+        .sheet(item: $askForge) { opening in
+            AskForgeView(
+                coach: opening.coach,
+                topic: opening.topic,
+                history: coachHistory,
+                forge: forgeVM,
+                planAI: ai,
+                isConnected: remote.isConnected,
+                ask: { [remote] coach, turns in try await remote.coach(brief: coach, turns: turns) }
+            )
+        }
+        .paywall($aiPaywallDoor)
         // The world, handed to every screen at once. Pushed into the environment
         // rather than passed down, so a view is themed without having heard of
         // Paths — which is what keeps the fifth world from being a week of work
@@ -486,6 +519,54 @@ struct ContentView: View {
             identities: identities.active.map(\.statement),
             chapterIntention: chapters.current?.intention ?? ""
         )
+    }
+
+    /// What Ask Forge is told on top of the brief: the six and OVR as Becoming
+    /// shows them, where the running Arc is, and today's list. Built here for
+    /// the reason `aiBrief` is — one place, readable in a dozen lines — and
+    /// taken once, when Ask Forge opens. See `CoachBrief`.
+    private var coachBrief: CoachBrief {
+        let six = forgeVM.blended
+        let weekAgo = forgeVM.weekAgo
+        let arc: CoachBrief.ArcPlace? = arcs.current.flatMap { current in
+            let reading = arcs.reading(current)
+            guard reading.isRunning else { return nil }
+            let program = current.program
+            let phase = program.phases[min(reading.phase, program.phases.count - 1)]
+            return CoachBrief.ArcPlace(
+                id: current.arc.rawValue, name: program.name,
+                day: reading.day, length: reading.length, phase: phase.name
+            )
+        }
+        return CoachBrief(
+            brief: aiBrief,
+            arc: arc,
+            scores: RitualCategory.dimensions.compactMap { category in
+                six.dimension(category).map { dimension in
+                    CoachBrief.Score(
+                        category: category,
+                        score: dimension.hasScore ? dimension.score : nil,
+                        weekChange: StatGlance.change(of: category, now: six, weekAgo: weekAgo)
+                    )
+                }
+            },
+            overall: six.dimensions.contains(where: \.hasScore) ? six.overall : nil,
+            today: forgeVM.todayRituals.map {
+                CoachBrief.TodayItem(name: $0.label, isDone: forgeVM.isDone($0.id))
+            }
+        )
+    }
+
+    /// Ask Forge's one door: Forge Pro opens it, everybody else — founders
+    /// included — meets the paywall (door `ai`). Absent altogether in a build
+    /// with no model to reach.
+    private func openAskForge(_ topic: CoachTopic) {
+        ForgeHaptics.shared.tap()
+        if PremiumGate.isLocked(.askForge, for: store.access) {
+            aiPaywallDoor = .ai
+        } else {
+            askForge = AskForgeOpening(topic: topic, coach: coachBrief)
+        }
     }
 
     /// The same brief with a week attached, for the one call that reads the
@@ -767,7 +848,9 @@ struct ContentView: View {
             // founder. Offered at all only where a model is reachable — see
             // `WeeklyReviewReading`.
             hasAI: store.access.hasAI,
-            consentBriefs: AIDisclosureBriefs(brief: aiBrief, readingBrief: readingBrief(facts))
+            consentBriefs: AIDisclosureBriefs(
+                brief: aiBrief, readingBrief: readingBrief(facts), coach: coachBrief
+            )
         )
     }
 
@@ -1019,7 +1102,10 @@ extension ContentView {
     }
 
     fileprivate var arcsTab: some View {
-        ArcsTabView(arcs: arcs, forge: forgeVM, swords: swords)
+        ArcsTabView(
+            arcs: arcs, forge: forgeVM, swords: swords,
+            onAskForge: remote.isConnected ? { openAskForge(.arc) } : nil
+        )
     }
 
     fileprivate var bladeTab: some View {
@@ -1036,7 +1122,8 @@ extension ContentView {
             forge: forgeVM, identities: identities, reviews: reviews,
             swords: swords, arcs: arcs, brief: aiBrief, ai: ai,
             onSettings: { showSettings = true },
-            onArcs: { selectedTab = .arcs }
+            onArcs: { selectedTab = .arcs },
+            onAskForge: remote.isConnected ? { openAskForge(.general) } : nil
         )
     }
 
@@ -1060,6 +1147,7 @@ extension ContentView {
                     identities: identities.active
                 )
             ),
+            aiCoachBrief: coachBrief,
             isAIConnected: remote.isConnected,
             aiConsent: aiConsent,
             notificationState: notificationState,
@@ -1200,4 +1288,11 @@ private struct TipsModifier: ViewModifier {
                 ForgeTips.isLoose = loose
             }
     }
+}
+
+/// Ask Forge, as it was opened: from where, and the record at that moment.
+struct AskForgeOpening: Identifiable {
+    let id = UUID()
+    let topic: CoachTopic
+    let coach: CoachBrief
 }

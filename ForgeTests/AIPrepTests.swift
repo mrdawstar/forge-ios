@@ -2,13 +2,13 @@ import Foundation
 import Testing
 @testable import Forge
 
-/// §2r — AI prepared, activation pending.
+/// §2r — AI prepared; §17.6 — switched on.
 ///
-/// Everything the activation PR will switch on is held here **without a
-/// network**: the AI path runs against `ScriptedTransport`, the anonymous
-/// identity against a scripted auth endpoint and an in-memory session store,
-/// and the production path — the one the app actually builds — is checked to
-/// be off. No test in this file can reach OpenAI or a Supabase project.
+/// Everything about the AI path is held here **without a network**: the path
+/// runs against `ScriptedTransport`, the anonymous identity against a scripted
+/// auth endpoint and an in-memory session store, and the production switch is
+/// checked to be on with consent still read first. No test in this file can
+/// reach OpenAI or a Supabase project.
 
 // MARK: - Consent
 
@@ -94,32 +94,36 @@ private let movesReadToWednesday = "Move read to Wednesday"
 /// The phone's answer to it: Read, every day until now, on Wednesdays.
 private let readOnWednesdays = ScheduleChange.days(id: "read", name: "Read", weekdays: [4], was: [])
 
-// MARK: - Still off
+// MARK: - Switched on
 
-@Suite("AI prepared, still switched off")
-struct AIStillOffTests {
+/// §17.6 — the activation. This suite was `AIStillOffTests` and was built to
+/// fail at exactly this moment; it now pins what "on" means.
+@Suite("AI switched on")
+struct AIActivationTests {
 
     private let configured = SupabaseConfig(
         url: URL(string: "https://example.supabase.co")!,
         anonKey: "sb_publishable_test"
     )
 
-    @Test("The remote model is disabled in this build")
-    func disabled() {
-        #expect(RemoteForgeAI.isModelEnabled == false)
-        #expect(!RemoteForgeAI(config: configured, token: { "t" }, entitlement: { "j" }, consent: { true }).isConnected)
+    @Test("The remote model is enabled, and a configured project connects")
+    func enabled() {
+        #expect(RemoteForgeAI.isModelEnabled == true)
+        #expect(RemoteForgeAI(config: configured, token: { "t" }, entitlement: { "j" }, consent: { true }).isConnected)
+        #expect(!RemoteForgeAI(config: nil, token: { "t" }, entitlement: { "j" }, consent: { true }).isConnected)
     }
 
-    /// Consent given, Pro owned, a project configured: still nothing, because
-    /// the switch is read first. Not one of the three closures is called.
-    @Test("With consent and Pro, a disabled build still asks for nothing and sends nothing")
-    func nothingEvenWithEverything() async throws {
+    /// Pro owned, a project configured, the switch on — and no yes: still
+    /// nothing. Consent is read first, and the purchase and the identity are
+    /// never reached.
+    @Test("Without consent, a switched-on build asks for nothing and sends nothing")
+    func nothingWithoutConsent() async throws {
         let calls = AICallCounter()
         let ai = RemoteForgeAI(
             config: configured,
             token: { await calls.token() },
             entitlement: { await calls.entitlement(); return "j" },
-            consent: { await calls.consent() }
+            consent: { _ = await calls.consent(); return false }
         )
         var brief = AIBrief()
         brief.activities = [ScheduledActivity(id: "read", name: "Read", startMinute: nil, minutes: 15, weekdays: [])]
@@ -129,18 +133,20 @@ struct AIStillOffTests {
         #expect(!plan.isModelWritten)
         #expect(plan.changes == [readOnWednesdays])
         #expect(!(try await ai.reading(brief: brief).isModelWritten))
-        #expect(await calls.consents == 0)
+        #expect(await calls.consents == 2)
         #expect(await calls.entitlements == 0)
         #expect(await calls.tokens == 0)
     }
 
-    /// The allowlist is prepared to take the backend's host, and does not.
-    @Test("The network allowlist is still TelemetryDeck alone; the AI host joins only when switched on")
-    func allowlistPrepared() {
-        #expect(ForgeNetwork.allowedHosts == [ForgeTelemetry.host])
+    /// The allowlist took the backend's host by itself once the switch and the
+    /// project were both in place (§2r) — and only that one.
+    @Test("The network allowlist is TelemetryDeck and Forge's project, and the AI host joins only when switched on")
+    func allowlist() {
+        #expect(ForgeNetwork.allowedHosts == [ForgeTelemetry.host, forgeProjectHost])
         #expect(ForgeNetwork.aiHost(enabled: false, config: configured) == nil)
         #expect(ForgeNetwork.aiHost(enabled: true, config: nil) == nil)
         #expect(ForgeNetwork.aiHost(enabled: true, config: configured) == "example.supabase.co")
+        #expect(ForgeNetwork.aiHost(enabled: true, config: SupabaseConfig.fromBundle()) == forgeProjectHost)
     }
 
     @Test("The reading fallback is a closed telemetry event with no text")
@@ -148,14 +154,22 @@ struct AIStillOffTests {
         #expect(ForgeTelemetry.Event.readingFellBack.name == "reading_fell_back")
         #expect(ForgeTelemetry.Event.readingFellBack.parameters.isEmpty)
     }
+
+    /// Ask Forge's row on the paywall exists because the feature does.
+    @Test("The paywall names Ask Forge now that it is in the build")
+    func paywallRow() {
+        #expect(ForgeFeatures.current.askForge)
+        #expect(PaywallRow.rows().contains(.askForge))
+        #expect(PaywallRow.rows() == [.arcs, .stats, .blades, .health, .askForge])
+    }
 }
 
-// MARK: - The path activation will switch on
+// MARK: - The path, against scripts
 
 /// `RemoteForgeAI(testingEndpoint:)` — DEBUG only — with a scripted model
 /// endpoint and a real `AnonymousIdentity` on a scripted auth endpoint. This is
-/// the request the activation PR turns on, held now.
-@Suite("The future AI path, against scripts")
+/// the request activation switched on (§17.6).
+@Suite("The AI path, against scripts")
 struct FutureAIPathTests {
 
     private let config = SupabaseConfig(

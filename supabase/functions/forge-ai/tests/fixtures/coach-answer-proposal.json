@@ -1,0 +1,10 @@
+{
+  "reply": "Week 3 is Build. Moving Work out to 07:00 on four days makes it harder without touching your evenings. Review it below; nothing changes until you apply it.",
+  "proposal": {
+    "summary": "Work out moves to 07:00 and gains a fourth day.",
+    "changes": [
+      { "kind": "time", "id": "workout", "minute": 420, "minutes": null, "weekdays": null },
+      { "kind": "days", "id": "workout", "minute": null, "minutes": null, "weekdays": [2, 3, 5, 7] }
+    ]
+  }
+}

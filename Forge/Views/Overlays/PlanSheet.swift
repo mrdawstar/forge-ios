@@ -69,6 +69,28 @@ struct PlanSheet: View {
         _stage = State(initialValue: move.map { .proposal($0.plan) } ?? .offering)
     }
 
+    /// Opened on a proposal Ask Forge made (§17.6). The same review — the
+    /// changes, the week as it would be, one button that says how many
+    /// changes it makes — and the plan says it was written by Forge's AI
+    /// (§5 #10). Back returns to the conversation rather than to Plan's list,
+    /// because that is where the person came from.
+    init(
+        vm: ForgeViewModel, brief: AIBrief, ai: ForgeAI,
+        proposing plan: SchedulePlan,
+        onApplied: @escaping () -> Void = {}
+    ) {
+        self.vm = vm
+        self.brief = brief
+        self.ai = ai
+        self.onApplied = onApplied
+        self.backCloses = true
+        _stage = State(initialValue: .proposal(plan))
+    }
+
+    /// Whether Back closes the sheet: true when it was opened on somebody
+    /// else's proposal (Ask Forge).
+    private var backCloses = false
+
     @Environment(\.dismiss) private var dismiss
     @Environment(ForgeStore.self) private var store: ForgeStore?
     @Environment(AIConsentStore.self) private var consent: AIConsentStore?
@@ -447,8 +469,15 @@ struct PlanSheet: View {
             weekPreview(plan)
 
             // Never omitted. See the note at the top of this file — the app does
-            // not get to imply a model wrote something the phone worked out.
-            if !plan.isModelWritten {
+            // not get to imply a model wrote something the phone worked out,
+            // nor to pass off a model's plan as the phone's.
+            if plan.isModelWritten {
+                Text("Written by Forge's AI from your week. Read every change: nothing moves until you apply it.")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, 22)
+            } else {
                 Text("Worked out on this phone from the week you already keep. Nothing was sent anywhere.")
                     .font(.caption)
                     .foregroundStyle(.tertiary)
@@ -568,7 +597,11 @@ struct PlanSheet: View {
 
                 Button("Back") {
                     ForgeHaptics.shared.tap()
-                    withAnimation(.forgeRow) { stage = .offering }
+                    if backCloses {
+                        dismiss()
+                    } else {
+                        withAnimation(.forgeRow) { stage = .offering }
+                    }
                 }
                 .buttonStyle(.plain)
                 .font(.subheadline.weight(.medium))

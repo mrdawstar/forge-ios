@@ -58,6 +58,9 @@ struct BecomingTabView: View {
     var onSettings: () -> Void = {}
     /// The Arc's card goes to the Arcs tab.
     var onArcs: () -> Void = {}
+    /// Ask Forge, from the bar. Nil in a build with no model to reach, and
+    /// then there is no button (§17.6).
+    var onAskForge: (() -> Void)? = nil
 
     /// Which dimension's sheet is open.
     @State private var inspecting: DimensionChoice?
@@ -115,6 +118,11 @@ struct BecomingTabView: View {
             .scrollIndicators(.hidden)
             .navigationTitle("Becoming")
             .toolbar {
+                if let onAskForge {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button("Ask Forge", systemImage: "text.bubble", action: onAskForge)
+                    }
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     SettingsButton(action: onSettings)
                 }

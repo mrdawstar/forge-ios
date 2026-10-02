@@ -477,13 +477,14 @@ struct PremiumGateTests {
 @Suite("Forge Pro: what this build has")
 struct FeatureAvailabilityTests {
 
-    @Test("This build names the Arcs, the six stats, the blades and Apple Health, and nothing that is not built")
+    @Test("This build names the Arcs, the six stats, the blades, Apple Health and Ask Forge — everything is built")
     func current() {
         let features = ForgeFeatures.current
         #expect(features.arcs, "built in session S3")
         #expect(features.health, "built in session S5")
-        #expect(!features.askForge, "session S6")
-        #expect(PaywallRow.rows() == [.arcs, .stats, .blades, .health])
+        #expect(features.askForge, "built in session S6")
+        #expect(PaywallRow.rows() == [.arcs, .stats, .blades, .health, .askForge])
+        #expect(PaywallRow.rows() == PaywallRow.allCases)
     }
 
     @Test("Each flag brings its own row, in the paywall's order")
@@ -491,6 +492,7 @@ struct FeatureAvailabilityTests {
         var features = ForgeFeatures.current
         features.health = false
         features.arcs = false
+        features.askForge = false
         #expect(PaywallRow.rows(in: features) == [.stats, .blades])
         features.arcs = true
         #expect(PaywallRow.rows(in: features) == [.arcs, .stats, .blades])

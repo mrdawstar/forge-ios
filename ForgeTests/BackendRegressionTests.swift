@@ -401,40 +401,61 @@ struct BackendRegressionTests {
     /// **The tripwire under the accountless build, and the reason this file is
     /// still here at all.**
     ///
-    /// 1.0 ships with no sign-in: `AccountSection` is deleted, nothing in the
-    /// running app constructs a `ForgeBackend`, the Sign in with Apple
-    /// entitlement is gone, and `PrivacyInfo.xcprivacy` declares nothing linked
-    /// to anybody (its only rows are §2p's anonymous usage, which needs no
-    /// account). All four of those are true because of one
-    /// mechanical fact — there is no Supabase project in `Info.plist` — and this
-    /// is the assertion that keeps that fact from being undone by somebody
-    /// pasting a URL back in to try something.
+    /// 1.0 shipped with no Supabase project in `Info.plist`, and this test
+    /// failed the run if one came back. It came back on purpose in 1.1 (§17.6):
+    /// Forge's AI reaches its own project, under an invisible anonymous
+    /// identity. What must still be true — and what this now pins — is that
+    /// **the project is there for the AI and nothing else**:
     ///
-    /// It is a test rather than a comment for the reason
-    /// `productionLinksAreConfigured` is: a comment is read once, by the person
-    /// who wrote it. Putting the project back means deleting this test, which is
-    /// a deliberate act — and the privacy manifest, the nutrition labels and the
-    /// App Review notes all have to move with it.
-    @Test("The shipped build has no account: no project, and nothing configured")
-    func theAppShipsWithNoAccount() {
-        #expect(Bundle.main.object(forInfoDictionaryKey: "ForgeSupabaseURL") == nil)
-        #expect(Bundle.main.object(forInfoDictionaryKey: "ForgeSupabaseAnonKey") == nil)
-        #expect(SupabaseConfig.fromBundle() == nil)
+    /// - exactly Forge's project, with the **publishable** key — never a
+    ///   service-role key, and never a legacy JWT key whose role cannot be read
+    ///   at a glance;
+    /// - **no account**: nothing in the running app constructs a `ForgeBackend`,
+    ///   an `AuthService` or a `SyncService` (the dormant account and sync stay
+    ///   compiled and unreached), and no screen can sign anybody in
+    ///   (`noVisibleAuthentication`).
+    ///
+    /// Changing either means changing the privacy manifest, the nutrition
+    /// labels and the App Review notes with it.
+    @Test("The shipped build has Forge's AI project, the publishable key, and still no account")
+    func theAppShipsWithNoAccount() throws {
+        #expect(Bundle.main.object(forInfoDictionaryKey: "ForgeSupabaseURL") as? String
+                == "https://\(forgeProjectHost)")
+        let key = try #require(Bundle.main.object(forInfoDictionaryKey: "ForgeSupabaseAnonKey") as? String)
+        #expect(key.hasPrefix("sb_publishable_"))
+        #expect(!key.hasPrefix("sb_secret_"))
+        #expect(!key.hasPrefix("eyJ"), "a JWT key could be the service role; use the publishable one")
+        #expect(!key.lowercased().contains("service"))
+        #expect(SupabaseConfig.fromBundle()?.url.host == forgeProjectHost)
+
+        // Nothing outside `Backend/` builds the dormant account or sync.
+        let app = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("Forge")
+        let walker = FileManager.default.enumerator(at: app, includingPropertiesForKeys: nil)
+        var scanned = 0
+        while let file = walker?.nextObject() as? URL {
+            guard file.pathExtension == "swift", !file.path.contains("/Backend/") else { continue }
+            scanned += 1
+            let source = try String(contentsOf: file, encoding: .utf8)
+            for word in ["ForgeBackend(", "AuthService(", "SyncService(", "UserService("] {
+                #expect(!source.contains(word), Comment(rawValue: "\(file.lastPathComponent): \(word)"))
+            }
+        }
+        #expect(scanned > 50, "the source was not found — the check would pass vacuously")
     }
 
-    /// **The second lock on the same door, and it is a list of one.**
+    /// **The second lock on the same door: a list of two.**
     ///
-    /// Anonymous usage (§2p) put exactly one third-party host into the app:
-    /// TelemetryDeck's ingest. That is deliberate and it is the whole of it. A
-    /// Supabase project — this one, or any — is not on the list, so even a
-    /// project pasted back into `Info.plist` could not open a connection from
-    /// `URLSessionTransport`: it is refused before a socket exists. Turning sync
-    /// back on therefore means changing this test, `NoNetworkTests`, the
-    /// privacy manifest and the labels in one commit.
-    @Test("The only host the app may reach is TelemetryDeck's; the backend's is refused")
+    /// Anonymous usage (§2p) put TelemetryDeck's ingest host on the list, and
+    /// the AI (§17.6) put Forge's own project there — by itself, once the
+    /// switch and the project were both in place (`ForgeNetwork.aiHost`). Any
+    /// other Supabase project, or any other host, is refused by
+    /// `URLSessionTransport` before a socket exists.
+    @Test("Only TelemetryDeck and Forge's own project are allowed; any other project is refused")
     func onlyTelemetryIsAllowed() async {
-        #expect(ForgeNetwork.allowedHosts == [ForgeTelemetry.host])
-        #expect(ForgeNetwork.allowedHosts.count == 1)
+        #expect(ForgeNetwork.allowedHosts == [ForgeTelemetry.host, forgeProjectHost])
+        #expect(ForgeNetwork.allowedHosts.count == 2)
 
         let project = SupabaseConfig(
             url: URL(string: "https://abcdefgh.supabase.co")!,
