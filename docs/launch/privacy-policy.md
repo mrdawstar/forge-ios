@@ -72,9 +72,9 @@ created when you open the app, open Settings, or use any other feature.
 
 ## 3. Apple Health
 
-If you allow it, Forge **reads** steps, distance and workouts from Apple Health
-to mark activities your phone can measure as done. Forge never writes to Apple
-Health, does not store the readings, and does not send health data anywhere —
+If you allow it, Forge **reads** steps, workout minutes, sleep and mindful
+minutes from Apple Health to mark activities your phone can measure as done.
+Forge never writes to Apple Health, does not store the readings, and does not send health data anywhere —
 not to analytics, not to our backend, and not to any AI provider. Health access
 is optional; every feature works without it.
 

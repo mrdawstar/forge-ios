@@ -24,6 +24,13 @@ struct ForgeApp: App {
             ForgeTelemetry.send(.founderDetected)
         }
         ForgeNotifications.shared.register()
+        // Apple Health's observers, and only for somebody who has already said
+        // Continue on the primer: this asks nothing and shows nothing. A new
+        // install is never asked at launch (DIRECTION_1_1 §8). Registered this
+        // early because a background delivery launches the app to hear it.
+        if HealthLedger.read(from: ForgeShared.defaults).observesAtLaunch {
+            HealthBridge.shared.startObserving()
+        }
         // A Live Activity outlives the process that started it.
         ForgePresence.shared.adoptRunningActivity()
         // The first week's five tips: TipKit is configured once, here, before

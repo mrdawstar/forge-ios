@@ -115,7 +115,15 @@ struct ActivityComposer: View {
             seeded.repeats = repeats
             _draft = State(initialValue: seeded)
             _userPickedVerification = State(initialValue: false)
-        case let .edit(_, existing):
+        case let .edit(id, existing):
+            var existing = existing
+            // Apple Health on something it cannot count (a custom activity
+            // stored as `health` before 1.0) behaves as Your Word, so the
+            // composer says Your Word rather than wearing a promise it cannot
+            // keep. See `Ritual.checksWithHealth`.
+            if existing.verification == .health, Ritual.metrics[id] == nil {
+                existing.verification = .honor
+            }
             _draft = State(initialValue: existing)
             // An existing activity's method is already settled; re-deciding it
             // because somebody fixed a typo would be the app changing its mind
@@ -125,6 +133,15 @@ struct ActivityComposer: View {
     }
 
     private var isEditing: Bool { if case .edit = mode { return true }; return false }
+
+    /// Apple Health is offered only where Health has something to count: a
+    /// library activity with a metric. Everywhere else, the two that are true.
+    private var verificationMethods: [VerificationMethod] {
+        if case let .edit(id, _) = mode, Ritual.metrics[id] != nil {
+            return VerificationMethod.allCases
+        }
+        return [.honor, .basic]
+    }
 
     private var canSave: Bool { !draft.trimmedLabel.isEmpty }
 
@@ -541,7 +558,7 @@ struct ActivityComposer: View {
     private var verificationSection: some View {
         Section {
             NavigationLink {
-                VerificationPicker(selection: $draft.verification, onPick: {
+                VerificationPicker(selection: $draft.verification, methods: verificationMethods, onPick: {
                     userPickedVerification = true
                 })
             } label: {
@@ -774,7 +791,7 @@ struct RepeatPicker: View {
 
 // MARK: - Verification picker
 
-/// Three ways to be confirmed, each explained in its own words.
+/// Up to three ways to be confirmed, each explained in its own words.
 ///
 /// Written so no row reads as the compromise. "Your Word" is not the option you
 /// settle for when nothing can measure it — for a prayer it is the only honest
@@ -783,13 +800,16 @@ struct RepeatPicker: View {
 /// without the ceremony, which is what a bottle of vitamins deserves.
 struct VerificationPicker: View {
     @Binding var selection: VerificationMethod
+    /// The methods that are true of this activity. Apple Health only where
+    /// Health has a number for it.
+    var methods: [VerificationMethod] = [.honor, .basic]
     var onPick: () -> Void = {}
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         List {
             Section {
-                ForEach(VerificationMethod.allCases) { method in
+                ForEach(methods) { method in
                     Button { choose(method) } label: {
                         HStack(spacing: 14) {
                             Image(systemName: method.symbol)
@@ -846,6 +866,8 @@ extension VerificationMethod {
     /// actually deciding.
     var pickerDetail: String {
         switch self {
+        case .health:
+            "Read from Apple Health on this iPhone. It ticks itself off when the number is reached, and you can still say it was done."
         case .honor:
             "For everything else. You say it was done, and that settles it."
         case .basic:

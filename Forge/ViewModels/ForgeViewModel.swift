@@ -12,6 +12,7 @@ final class ForgeViewModel {
         didSet {
             persist()
             publishPlanned()
+            noteArrivals(since: oldValue)
         }
     }
     /// Activities the user made. Kept whole even when one is taken out of the
@@ -95,6 +96,47 @@ final class ForgeViewModel {
     /// The activity waiting on an "I kept my promise" — honor activities get a
     /// moment of their own rather than a checkbox.
     var honorRitualID: String? = nil
+
+    // MARK: Apple Health (DIRECTION_1_1 §8)
+
+    /// Where Health is read from. The live `HealthBridge` in the app; tests
+    /// hand in a fake, so nothing here needs a phone.
+    var health: HealthReading = HealthBridge.shared
+
+    /// What Forge remembers about Health: the primer's answer, the one offer
+    /// on each existing activity, and what Health ticked off today. Decisions,
+    /// never readings. See `HealthLedger`.
+    var healthLedger = HealthLedger() {
+        didSet {
+            guard isLoaded, healthLedger != oldValue else { return }
+            healthLedger.write(to: ForgeShared.defaults)
+        }
+    }
+
+    /// The metrics Health showed anything of on the last read. In memory only:
+    /// it is a reading, and readings are not kept. A refusal on the iOS sheet
+    /// shows up here as nothing visible, and the rows then stay Your Word.
+    private(set) var healthVisible: Set<ActivityMetric> = []
+
+    /// The primer, waiting for the Forge tab to be calm enough to show it.
+    var healthPrimer: HealthPrimerRequest?
+
+    struct HealthPrimerRequest: Equatable {
+        /// The measurable activity that brought it up.
+        let ritualID: String
+        /// A tap on the row, rather than the activity arriving: after the
+        /// answer, the tap still deserves an answer of its own.
+        let fromTap: Bool
+    }
+
+    /// Whether new days can be kept right now (DIRECTION_1_1 §1). Health does
+    /// not tick anything off a day that is locked; set from the store by
+    /// `ContentView` as a reading of the store. True until StoreKit answers,
+    /// as everywhere else.
+    var keepsNewDays: () -> Bool = { true }
+
+    private var isSweeping = false
+    private var sweepAgain = false
 
     var doneIDs: Set<String> { progress.todayCompletedIDs }
     /// The order rituals were finished in, so a completed one drops to the
@@ -322,6 +364,20 @@ final class ForgeViewModel {
         if let saved = defaults.stringArray(forKey: Key.active) {
             let known = saved.filter { ritual($0) != nil }
             if !known.isEmpty { activeRitualIDs = known }
+        }
+        // Last, because it reads the week and the edits. The 1.1 switch to
+        // Health keeps every existing measurable activity as Your Word until
+        // somebody says otherwise (`HealthLedger.migrate`). Written straight
+        // to the suite: nothing persists during the load.
+        let stored = HealthLedger.read(from: defaults)
+        let migrated = HealthLedger.migrate(stored, week: activeRitualIDs, edits: libraryEdits)
+        healthLedger = migrated.ledger
+        if migrated.ledger != stored {
+            libraryEdits = migrated.edits
+            if let data = try? JSONEncoder().encode(libraryEdits) {
+                defaults.set(data, forKey: Key.edits)
+            }
+            migrated.ledger.write(to: defaults)
         }
     }
 
@@ -708,6 +764,18 @@ final class ForgeViewModel {
         case .basic:
             tick(ritual)
 
+        // The first tap on a measurable activity nobody has been asked about
+        // yet is the moment to ask, in context. After that, one more look at
+        // Health, and the prompt when it has nothing.
+        case .health:
+            if healthPrimerIsDue(for: ritual) {
+                healthPrimer = HealthPrimerRequest(ritualID: id, fromTap: true)
+            } else if ritual.checksWithHealth, healthLedger.decision == .asked {
+                Task { @MainActor in await self.checkWithHealth(id) }
+            } else {
+                honorRitualID = id
+            }
+
         case .honor:
             honorRitualID = id
         }
@@ -750,6 +818,212 @@ final class ForgeViewModel {
     }
 
     func cancelHonor() { honorRitualID = nil }
+
+    // MARK: - Apple Health
+
+    /// Whether this row is Health's to tick off right now: a measurable
+    /// activity marked Health, the primer answered with Continue, and Health
+    /// showing Forge anything of that type. Anything short of all three is
+    /// drawn and behaves as Your Word.
+    func healthChecks(_ ritual: Ritual) -> Bool {
+        guard ritual.checksWithHealth, healthLedger.decision == .asked,
+              let metric = ritual.measure?.metric else { return false }
+        return healthVisible.contains(metric)
+    }
+
+    /// Whether today's completion of this activity was Apple Health's.
+    func checkedByHealth(_ id: String) -> Bool {
+        progress.today.completions.last { $0.ritualID == id }?.method == .health
+    }
+
+    /// Whether the primer should come up for this activity: once the first run
+    /// is over (never during its questions), only while nobody has answered
+    /// it, and only for something Health can actually check.
+    func healthPrimerIsDue(for ritual: Ritual) -> Bool {
+        ForgeFeatures.current.health
+            && hasCompletedFirstRun
+            && healthLedger.decision == .undecided
+            && ritual.checksWithHealth
+    }
+
+    /// The primer is waiting and still about something in the week. A
+    /// QuickAdd undone before the primer showed leaves nothing to ask about.
+    var isHealthPrimerWaiting: Bool {
+        guard let request = healthPrimer else { return false }
+        return healthLedger.decision == .undecided
+            && activeRitualIDs.contains(request.ritualID)
+    }
+
+    /// A measurable activity entered the week: adding one, QuickAdd, an Arc
+    /// joining or moving a phase, the composer. One check on the list itself
+    /// rather than one at every door, so a door added later cannot forget it.
+    private func noteArrivals(since old: [String]) {
+        guard isLoaded, !isHealthPrimerWaiting else { return }
+        let arrived = activeRitualIDs.filter { !old.contains($0) }
+        if let first = arrived.compactMap({ ritual($0) }).first(where: healthPrimerIsDue) {
+            healthPrimer = HealthPrimerRequest(ritualID: first.id, fromTap: false)
+        }
+    }
+
+    /// The primer's answer. Continue asks iOS (read-only) and then reads;
+    /// "Keep it Your Word" is final.
+    ///
+    /// The primer stays on screen while iOS asks, so the system sheet is
+    /// never raised over a sheet that is busy going away; it closes once iOS
+    /// has its answer. A tap that brought the primer up still gets its own
+    /// answer afterwards: ticked by Health, or the honor prompt.
+    @MainActor
+    func answerHealthPrimer(allow: Bool) async {
+        let request = healthPrimer
+        if allow {
+            await health.requestReadAccess()
+            healthLedger.decision = .asked
+            health.startObserving()
+        } else {
+            healthLedger.decision = .declined
+        }
+        healthPrimer = nil
+        if allow { await sweepHealth() }
+        guard let request, request.fromTap, !isDone(request.ritualID) else { return }
+        // After the primer's own dismissal, or the next sheet is refused.
+        try? await Task.sleep(for: .milliseconds(500))
+        guard !isDone(request.ritualID) else { return }
+        if allow, let ritual = ritual(request.ritualID), ritual.checksWithHealth {
+            await checkWithHealth(request.ritualID)
+        } else {
+            honorRitualID = request.ritualID
+        }
+    }
+
+    /// A tap on a Health row that is not done: one more look, and the prompt
+    /// when Health has not counted enough. Health not having counted it is not
+    /// proof it was not done, so the person can always say so.
+    ///
+    /// An activity Health already ticked off today and somebody took back is
+    /// not ticked off again here: the undo stands, and the tap means "ask me".
+    @MainActor
+    func checkWithHealth(_ id: String) async {
+        guard let ritual = ritual(id), let measure = ritual.measure else {
+            honorRitualID = id
+            return
+        }
+        let day = progress.currentDay
+        guard !healthLedger.hasTicked(id, on: day) else {
+            honorRitualID = id
+            return
+        }
+        let value = await health.value(of: measure, on: day, dayStartHour: progress.dayStartHour)
+        guard !isDone(id) else { return }
+        if HealthMath.meets(value, measure), progress.currentDay == day,
+           !healthLedger.hasTicked(id, on: day) {
+            settleFromHealth(id, on: day)
+        } else {
+            honorRitualID = id
+        }
+    }
+
+    /// Read Health and tick off whatever has reached its target.
+    ///
+    /// Called when the app becomes active, when the Forge tab appears and when
+    /// HealthKit reports new samples. Only ever **completes**: it never takes
+    /// back anything, so a box somebody ticked by hand cannot be unticked by
+    /// a number, and it never ticks off twice in a day (`HealthLedger.ticked`),
+    /// so an undo stands.
+    @MainActor
+    func sweepHealth() async {
+        guard healthLedger.decision == .asked, hasCompletedFirstRun, keepsNewDays() else { return }
+        guard !isSweeping else { sweepAgain = true; return }
+        isSweeping = true
+        defer { isSweeping = false }
+        repeat {
+            sweepAgain = false
+            healthVisible = await health.visibleMetrics()
+            let day = progress.currentDay
+            for ritual in todayRituals where ritual.checksWithHealth {
+                guard let measure = ritual.measure,
+                      healthVisible.contains(measure.metric),
+                      !isDone(ritual.id),
+                      !healthLedger.hasTicked(ritual.id, on: day)
+                else { continue }
+                let value = await health.value(
+                    of: measure, on: day, dayStartHour: progress.dayStartHour
+                )
+                // Read again after the wait: the day may have turned, the
+                // row been ticked by hand, or the activity taken off today.
+                guard HealthMath.meets(value, measure),
+                      progress.currentDay == day,
+                      !isDone(ritual.id),
+                      !healthLedger.hasTicked(ritual.id, on: day),
+                      todayRitualIDs.contains(ritual.id)
+                else { continue }
+                settleFromHealth(ritual.id, on: day)
+            }
+        } while sweepAgain
+    }
+
+    /// Apple Health counted it. The same write a tap makes, banked as
+    /// `.health` so the record can tell a measurement from a promise; the
+    /// same telemetry, the same gain chip, and the haptic a kept activity
+    /// gets. The Shape does not care which: a kept day is a kept day.
+    ///
+    /// **Not animated.** Most of these land as the app comes forward, and a
+    /// row's strikethrough animated across the scene becoming active was left
+    /// half-drawn: two strike lines and no name, until the next relaunch
+    /// (found on the Simulator, §17.5). Nobody's finger is on the row, so
+    /// there is no gesture for the motion to answer; it is simply done when
+    /// the day is looked at.
+    @MainActor
+    private func settleFromHealth(_ id: String, on day: ForgeDay) {
+        healthLedger.noteTick(id, on: day)
+        let before = blended
+        var quiet = Transaction()
+        quiet.disablesAnimations = true
+        withTransaction(quiet) {
+            progress.complete(id, method: .health)
+        }
+        ForgeTelemetry.send(.activityCompleted(.health))
+        noteGain(of: id, since: before)
+        ForgeHaptics.shared.ritualVerified()
+    }
+
+    /// The activities each type checks, by the names somebody sees, in library
+    /// order: the primer's "for Hit your steps".
+    func healthActivityNames(for metric: ActivityMetric) -> [String] {
+        Ritual.library
+            .filter { Ritual.metrics[$0.id] == metric }
+            .compactMap { ritual($0.id)?.label }
+    }
+
+    /// Whether the honor prompt for this activity carries "Let Apple Health
+    /// check this": an activity 1.1 kept as Your Word, once, and never after
+    /// a no on the primer.
+    func offersHealth(for id: String) -> Bool {
+        ForgeFeatures.current.health && healthLedger.offersHealth(for: id)
+    }
+
+    /// The offer was on screen. It is not shown again, whatever the answer.
+    func noteHealthOffered(_ id: String) {
+        healthLedger.offered.insert(id)
+    }
+
+    /// "Let Apple Health check this": the Your Word pin the 1.1 switch wrote
+    /// comes off, and the activity is Health's like any new one. The primer
+    /// follows if nobody has answered it yet.
+    func letHealthCheck(_ id: String) {
+        healthLedger.offered.insert(id)
+        healthLedger.awaitingOffer.remove(id)
+        if var edit = libraryEdits[id] {
+            edit.verification = nil
+            libraryEdits[id] = edit.isEmpty ? nil : edit
+        }
+        honorRitualID = nil
+        guard let ritual = ritual(id) else { return }
+        if healthPrimerIsDue(for: ritual) {
+            healthPrimer = HealthPrimerRequest(ritualID: id, fromTap: true)
+        } else if healthLedger.decision == .asked {
+            Task { @MainActor in await self.sweepHealth() }
+        }
+    }
 
     // MARK: - What a kept activity moved
 
@@ -1057,6 +1331,18 @@ final class ForgeViewModel {
         customRituals = []
         progress.clearHistory()
         identities?.deleteAll()
+        // A fresh install has not been asked about Health either. Migrated,
+        // because a fresh install has nothing of its own to keep as Your Word.
+        resetHealth()
+    }
+
+    /// DEBUG: forget the primer's answer and the offers, as a fresh install.
+    func resetHealth() {
+        var fresh = HealthLedger()
+        fresh.hasMigrated = true
+        healthLedger = fresh
+        healthPrimer = nil
+        healthVisible = []
     }
     #endif
 
@@ -1335,7 +1621,14 @@ final class ForgeViewModel {
     /// something has no reason to care whether we shipped it or they invented
     /// it, so the difference is not theirs to notice.
     func editRitual(_ id: String, to draft: ActivityDraft) {
+        let wasHealth = ritual(id)?.checksWithHealth ?? false
         commit(draft, to: id, isDeliberate: true)
+        // Switched to Apple Health in the composer: the same first time a
+        // measurable activity enters the day, through a different door.
+        if !wasHealth, activeRitualIDs.contains(id), let edited = ritual(id),
+           healthPrimerIsDue(for: edited), !isHealthPrimerWaiting {
+            healthPrimer = HealthPrimerRequest(ritualID: id, fromTap: false)
+        }
     }
 
     /// The edit itself, and whether it counts as somebody making a decision.
@@ -1354,8 +1647,16 @@ final class ForgeViewModel {
     ///   time a time changes is not a second opinion, it is the same one logged
     ///   again — harmless, and still not a thing a drag should do.
     private func commit(_ draft: ActivityDraft, to id: String, isDeliberate: Bool) {
-        let draft = draft.cleaned
+        var draft = draft.cleaned
         guard !draft.label.isEmpty else { return }
+
+        // A new target typed for steps or sleep is the number Health checks,
+        // not only the words in the column (`ActivityMetric.target(fromGoal:)`).
+        // A target that does not parse leaves the number where it was.
+        if let metric = Ritual.metrics[id], draft.goal != ritual(id)?.tail,
+           let parsed = metric.target(fromGoal: draft.goal) {
+            draft.target = parsed
+        }
 
         if isDeliberate {
 

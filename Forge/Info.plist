@@ -31,6 +31,10 @@
 	</array>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>NSHealthShareUsageDescription</key>
+	<string>Forge reads your steps, workout minutes, sleep and mindful minutes so the activities they measure tick themselves off. The readings stay on your iPhone.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>Forge does not write anything to Health. It only reads the steps, workouts, sleep and mindful minutes your iPhone already records, so activities it can measure tick themselves off.</string>
 	<key>NSSupportsLiveActivities</key>
 	<true/>
 	<key>NSSupportsLiveActivitiesFrequentUpdates</key>

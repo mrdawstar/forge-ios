@@ -142,6 +142,10 @@ struct ContentView: View {
         _settingsVM = State(initialValue: SettingsViewModel(progress: progress))
         _swords = State(initialValue: swords)
         _store = State(initialValue: store)
+        // Apple Health ticks nothing off a day that is locked (DIRECTION_1_1
+        // §1). Read from the store each time rather than copied, so it can
+        // never be a stale answer.
+        forge.keepsNewDays = { [weak store] in store?.access.keepsNewDays ?? true }
         // The challenge leans on what the day is already made of, and only the
         // day's own view model knows that. Weak, and the same shape the trends
         // page uses to resolve an activity — nothing about a challenge is
@@ -255,6 +259,9 @@ struct ContentView: View {
                 // week on the first open of that day.
                 arcs.applyIfDue()
                 syncAmbient()
+                // Apple Health, read when the app comes forward: the walk
+                // home happened while it was away (DIRECTION_1_1 §8).
+                Task { await forgeVM.sweepHealth() }
                 // A free week that ended, or a subscription that lapsed, while
                 // the app was away says nothing on `Transaction.updates`; the
                 // entitlement is read again whenever the app comes forward.
@@ -268,6 +275,11 @@ struct ContentView: View {
         .task {
             arcs.applyIfDue()
             syncAmbient()
+            // HealthKit's observers land here: new samples, a read, and
+            // whatever reached its target ticks itself off. Weak, like every
+            // other reach into the day from outside it.
+            let forge = forgeVM
+            HealthBridge.shared.onUpdate = { [weak forge] in await forge?.sweepHealth() }
             // How old the install is, for every signal: read off the oldest
             // record each time rather than stored anywhere.
             let store = progress

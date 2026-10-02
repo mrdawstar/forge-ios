@@ -82,7 +82,7 @@ When a blade is earned or a chapter closes, you can save a quiet image of it —
 
 ON YOUR PHONE
 
-Your record stays on your phone. There is no account to create and no sign-in. No ads. Home Screen and Lock Screen widgets, and a Live Activity for the day. Forge can read steps, distance and workouts from Apple Health to tick off what your phone can already measure; it never writes to Health, and it is optional.
+Your record stays on your phone. There is no account to create and no sign-in. No ads. Home Screen and Lock Screen widgets, and a Live Activity for the day. Forge can read your steps, workout minutes, sleep and mindful minutes from Apple Health to tick off what your phone can already measure; it never writes to Health, nothing it reads leaves your phone, and it is optional.
 
 YOUR RECORD STAYS YOURS
 

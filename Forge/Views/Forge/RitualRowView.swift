@@ -40,6 +40,12 @@ struct RitualRowView: View {
     /// there.
     var moveTargets: [Int] = []
     var onMove: ((Int) -> Void)? = nil
+    /// Apple Health ticks this one off: allowed, measurable, and Health shows
+    /// Forge the type (`ForgeViewModel.healthChecks`). False draws the row as
+    /// Your Word, which is how it behaves.
+    var healthChecks: Bool = false
+    /// Today's completion was Apple Health's, so the row says so.
+    var checkedByHealth: Bool = false
 
     /// The row is two columns of text side by side, and that stops being a
     /// layout somewhere around the first accessibility size: the name is left
@@ -187,6 +193,10 @@ struct RitualRowView: View {
     /// and no time is just a name, and a blank second line under it would be a
     /// gap rather than a subtitle.
     private var subtitle: String? {
+        // Who ticked it off, while it is ticked off. The one fact about a done
+        // row that outranks its clock: it is the difference between "you said
+        // so" and "your phone counted it".
+        if isDone, checkedByHealth { return "Checked by Apple Health" }
         if let schedule = ritual.scheduleLabel { return schedule }
         if !ritual.note.isEmpty { return ritual.note }
         return ritual.sub.isEmpty ? nil : ritual.sub
@@ -231,7 +241,7 @@ struct RitualRowView: View {
         if !isDone {
             HStack(spacing: 5) {
                 if let mark = rowMark { VerificationMark(method: mark) }
-                if !ritual.metadata.isEmpty { Text(ritual.metadata) }
+                if !shownTarget.isEmpty { Text(shownTarget) }
             }
             .font(.subheadline)
             .monospacedDigit()
@@ -249,7 +259,7 @@ struct RitualRowView: View {
     /// draws what is going to happen:
     ///
     /// * **The heart, only when the phone can really settle it.** An activity
-    ///   marked Health with nothing behind it — see `Ritual.isHealthVerified` —
+    ///   marked Health with nothing behind it — see `ForgeViewModel.healthChecks` —
     ///   would be wearing a promise the sweep cannot keep, and the tap on it
     ///   already falls back to asking — so it is drawn as what it behaves like,
     ///   which is Your Word, and `metadata` says so in the same column.
@@ -260,8 +270,17 @@ struct RitualRowView: View {
     private var rowMark: VerificationMethod? {
         switch ritual.verification {
         case .basic: .basic
+        case .health: healthChecks ? .health : nil
         case .honor: nil
         }
+    }
+
+    /// The column's words. While Health checks the row, the number Health is
+    /// held to ("8,000", "20 min", "7 h"), so what the row says is what the
+    /// phone checks; otherwise the activity's own target, or "Honor".
+    private var shownTarget: String {
+        if healthChecks, let measure = ritual.measure { return measure.label }
+        return ritual.metadata
     }
 
     /// Completion is the accent colour — a finished ritual should read as
@@ -290,11 +309,13 @@ struct RitualRowView: View {
         if ritual.priority == .essential { parts.append("Non-negotiable") }
         if let schedule = ritual.scheduleLabel { parts.append(schedule) }
         if let mark = rowMark, !isDone { parts.append(mark.title) }
+        if isDone, checkedByHealth { parts.append("Checked by Apple Health") }
         return parts.joined(separator: ", ")
     }
 
     private var hint: String {
         if isDone { return "Double tap to mark not done" }
+        if healthChecks { return "Double tap to check Apple Health" }
         return ritual.verification.asksForConfirmation
             ? "Double tap to say you kept it"
             : "Double tap to mark done"
@@ -304,7 +325,7 @@ struct RitualRowView: View {
     /// has to carry the weight of a completion rather than of a selection.
     ///
     /// The other two methods deliberately do not get it here: Health's arrives
-    /// from `ForgeViewModel.settle` once the phone has actually answered, and
+    /// from `ForgeViewModel.settleFromHealth` once the phone has answered, and
     /// Your Word's from the button on the prompt — in both cases *after* the
     /// thing is known to be done. Firing it on the way in as well would be the
     /// app congratulating somebody for opening a sheet.

@@ -53,7 +53,7 @@ enum IdentityActivities {
         // without a clip is an interruption to most days, which is why it sits
         // among the long ones despite taking no time at all.
         "protein", "listen", "wake", "numbers", "sleep", "help", "meal",
-        "learn", "steps", "run", "workout", "present", "noshort", "study",
+        "learn", "steps", "slept", "run", "workout", "present", "noshort", "study",
         // The hard end. Long, uncomfortable, or both — and "Ask for something"
         // is on it despite taking ten minutes, because the ladder is about the
         // ask and not the clock.
@@ -265,7 +265,7 @@ enum IdentityActivities {
         // offers moves because the Arcs exist.
         .physical: [
             "walk", "workout", "stretch", "push", "run", "water", "protein",
-            "sleep", "lift", "vitamins", "coffee", "steps",
+            "sleep", "lift", "vitamins", "coffee", "steps", "slept",
         ],
         // Reading is the whole dimension for most people; the rest is what you
         // do with what you read.

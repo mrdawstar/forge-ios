@@ -468,7 +468,16 @@ struct ForgeTabView: View {
         }
         .sheet(item: honorRitual) { token in
             if let ritual = vm.ritual(token.id) {
-                HonorPromptView(ritual: ritual) { vm.keepPromise(token.id) }
+                HonorPromptView(
+                    ritual: ritual,
+                    onKept: { vm.keepPromise(token.id) },
+                    subtitle: vm.healthChecks(ritual)
+                        ? "Apple Health has not ticked this off. Your word counts too."
+                        : "No one is checking this one.",
+                    offersHealth: vm.offersHealth(for: token.id),
+                    onLetHealthCheck: { vm.letHealthCheck(token.id) },
+                    onOfferShown: { vm.noteHealthOffered(token.id) }
+                )
             }
         }
         .sheet(item: $editing) { ritual in
@@ -477,6 +486,20 @@ struct ForgeTabView: View {
         .sheet(isPresented: $showChallenge) {
             DailyChallengeSheet(challenges: challenges)
         }
+        // Apple Health: read whenever the day comes into view, and the primer
+        // once the tab is calm. See `HealthPrimerHost`.
+        .modifier(HealthPrimerHost(vm: vm, isCalm: isCalmForPrimer))
+    }
+
+    /// Nothing else is up: no sheet of this tab's, no moment of the day, no
+    /// lock. The primer waits for this rather than contending with any of them
+    /// for the one presentation slot.
+    private var isCalmForPrimer: Bool {
+        !vm.showQuickAdd && !vm.showEditRituals && !vm.showTomorrow
+            && editing == nil && vm.honorRitualID == nil
+            && !showChallenge && !showCopyDay && paywallDoor == nil
+            && vm.summary == nil && swords.pendingUnlock == nil
+            && !engine.isDragging && !isLocked
     }
 
     // MARK: - Sheet
@@ -900,7 +923,9 @@ struct ForgeTabView: View {
                 // "Move" in the long press: off today and onto another day of
                 // the week, the same edit the week planner's menu makes.
                 moveTargets: WeekPlannerView.weekOrder.filter { $0 != today },
-                onMove: { weekday in vm.moveActivity(ritual.id, from: today, to: weekday) }
+                onMove: { weekday in vm.moveActivity(ritual.id, from: today, to: weekday) },
+                healthChecks: vm.healthChecks(ritual),
+                checkedByHealth: vm.isDone(ritual.id) && vm.checkedByHealth(ritual.id)
             )
         }
         .overlay(alignment: .bottom) { separator(isLast: isLast) }
@@ -1294,5 +1319,41 @@ enum HomeCopy {
     static func leftLine(_ labels: [String]) -> String? {
         guard !labels.isEmpty else { return nil }
         return "\(labels.count) left \u{00B7} \(labels.joined(separator: ", "))"
+    }
+}
+
+
+// MARK: - Apple Health
+
+/// The Forge tab's two Health duties, kept out of its body so the type
+/// checker is not asked to carry them there.
+///
+/// * **A read when the tab appears** (DIRECTION_1_1 §8): the day coming into
+///   view is when somebody expects it to be current.
+/// * **The primer**, presented here because this is where the activity that
+///   raised it is on screen. Only while the tab is visible and calm, so it
+///   waits out QuickAdd, an Arc's join sheet on the other tab, a summary or a
+///   pull, and then comes up in front of the row it is about.
+private struct HealthPrimerHost: ViewModifier {
+    var vm: ForgeViewModel
+    var isCalm: Bool
+    @State private var isOnScreen = false
+
+    func body(content: Content) -> some View {
+        content
+            .onAppear {
+                isOnScreen = true
+                Task { @MainActor in await vm.sweepHealth() }
+            }
+            .onDisappear { isOnScreen = false }
+            .sheet(isPresented: Binding(
+                get: { isOnScreen && isCalm && vm.isHealthPrimerWaiting },
+                set: { _ in }
+            )) {
+                HealthPrimerView(
+                    activities: { vm.healthActivityNames(for: $0) },
+                    onAnswer: { allow in await vm.answerHealthPrimer(allow: allow) }
+                )
+            }
     }
 }

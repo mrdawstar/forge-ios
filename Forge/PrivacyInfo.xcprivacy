@@ -26,6 +26,15 @@
 	     used for tracking. No activity name, identity, chapter, review, quote
 	     or health reading is ever included — `Event` has no case that could
 	     carry one. Still no account (§2n), so nothing else leaves the phone. -->
+	<!-- **Apple Health is read, on the device, and not collected.**
+	     (FORGE_CONTEXT.md §17.5, APP_STORE.md §1)
+
+	     Forge reads steps, workout minutes, sleep and mindful minutes through
+	     HealthKit, read-only (`HealthBridge`, an empty share set), to tick off
+	     the activities they measure. A reading is used on the phone and
+	     dropped: never stored, never synced, never sent to telemetry or an AI
+	     brief. Nothing leaves the device, so Health & Fitness is not a
+	     collected data type and is deliberately absent from the list below. -->
 	<key>NSPrivacyCollectedDataTypes</key>
 	<array>
 		<dict>
