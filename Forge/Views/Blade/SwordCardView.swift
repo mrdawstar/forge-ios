@@ -242,3 +242,61 @@ private struct SwordCardPress: ButtonStyle {
             .animation(.spring(response: 0.28, dampingFraction: 0.72), value: configuration.isPressed)
     }
 }
+
+// MARK: - Temper marks
+
+/// The blade's temper marks: one notch for every ninety days kept past
+/// Enduring (`Ladder.temperMarks`), drawn under the blade on the Blade tab and
+/// on every Proof Card.
+///
+/// **Notches, in fives**, the way a count is kept on anything that is cut:
+/// short vertical marks, a wider gap after every fifth, a new row after six
+/// groups. A ten-year practice is thirty-eight of them, so the drawing has to
+/// stay legible at any count rather than at the first few — and a tally reads
+/// as a record of time where a row of stars or pips would read as a score.
+///
+/// In the room's cream, quieter than the type around it. It draws nothing at
+/// all for nought, so the card it sits on is unchanged for everybody short of
+/// two hundred and seventy days.
+struct TemperMarks: View {
+    let count: Int
+    /// The height of one notch; everything else is proportional to it.
+    var tick: CGFloat = 9
+
+    private static let perGroup = 5
+    private static let groupsPerRow = 6
+
+    private var groups: [Int] {
+        guard count > 0 else { return [] }
+        return stride(from: 0, to: count, by: Self.perGroup).map { min(Self.perGroup, count - $0) }
+    }
+
+    private var rows: [[Int]] {
+        stride(from: 0, to: groups.count, by: Self.groupsPerRow).map {
+            Array(groups[$0..<min($0 + Self.groupsPerRow, groups.count)])
+        }
+    }
+
+    var body: some View {
+        if count > 0 {
+            VStack(spacing: tick * 0.55) {
+                ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
+                    HStack(spacing: tick * 0.9) {
+                        ForEach(Array(row.enumerated()), id: \.offset) { _, marks in
+                            HStack(spacing: tick * 0.42) {
+                                ForEach(0..<marks, id: \.self) { _ in
+                                    Capsule()
+                                        .fill(ForgeTheme.cream.opacity(0.72))
+                                        .frame(width: max(1.2, tick * 0.17), height: tick)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(Text(Ladder.temperLabel(count) ?? ""))
+            .accessibilityHint(Text("One for every ninety days kept past Enduring"))
+        }
+    }
+}

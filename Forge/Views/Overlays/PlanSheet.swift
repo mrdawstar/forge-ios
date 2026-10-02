@@ -53,6 +53,22 @@ struct PlanSheet: View {
     /// they just built rather than leaving them on an empty composer.
     var onApplied: () -> Void = {}
 
+    /// Opened on one move's review rather than on the list — Becoming's Next
+    /// move, which has already said what the move is and why. Everything about
+    /// consent is unchanged: the changes, the week as it would be, and one
+    /// button that says how many changes it makes. Back is the full list.
+    init(
+        vm: ForgeViewModel, brief: AIBrief, ai: ForgeAI,
+        opening move: DayPlanner.Move? = nil,
+        onApplied: @escaping () -> Void = {}
+    ) {
+        self.vm = vm
+        self.brief = brief
+        self.ai = ai
+        self.onApplied = onApplied
+        _stage = State(initialValue: move.map { .proposal($0.plan) } ?? .offering)
+    }
+
     @Environment(\.dismiss) private var dismiss
     @Environment(ForgeStore.self) private var store: ForgeStore?
     @Environment(AIConsentStore.self) private var consent: AIConsentStore?

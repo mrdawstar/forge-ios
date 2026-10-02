@@ -22,7 +22,7 @@ struct Sword: Identifiable, Equatable {
         requirement == 1 ? "1 day" : "\(requirement) days"
     }
 
-    /// The seven, named for what is being done to the steel rather than for a
+    /// The nine, named for what is being done to the steel rather than for a
     /// rank the holder has reached.
     ///
     /// # Why these names and not the old ones
@@ -50,8 +50,21 @@ struct Sword: Identifiable, Equatable {
     ///
     /// **The names are display only.** Ids and requirements are untouched, so an
     /// existing install's collection, equipped blade and unlock history all
-    /// survive this verbatim — see `Ladder.rungs`, which carries the same seven
+    /// survive this verbatim — see `Ladder.rungs`, which carries the same nine
     /// strings and must be changed with this file or the two screens disagree.
+    ///
+    /// # Honed and Enduring (1.1)
+    ///
+    /// Two more, at ninety and a hundred and eighty days kept (DIRECTION_1_1
+    /// §6), because sixty was where the blades stopped and sixty is where a
+    /// practice starts being worth keeping. They are **appended**: ids 8 and 9,
+    /// nothing before them renumbered, no requirement moved. An install from
+    /// 1.0 keeps the blade it carries and everything it has earned and seen; a
+    /// long practice simply finds the new two already behind it (see
+    /// `SwordStore.dismissCelebration`, which is what stops that arriving as two
+    /// parties). Proven is no longer the last blade, so it is no longer the
+    /// hinge: Enduring is, and past it the blade takes temper marks rather than
+    /// new steel (`Ladder.temperMarks(daysKept:)`).
     ///
     /// None of the notes congratulates anybody, and none mentions a day that was
     /// missed — a blade is a record of what somebody does, not a report on how
@@ -71,6 +84,10 @@ struct Sword: Identifiable, Equatable {
               note: "Thirty days. It cuts because you kept turning up."),
         Sword(id: 7, name: "Proven", requirement: 60,
               note: "Sixty days. Long enough that it is no longer being tested."),
+        Sword(id: 8, name: "Honed", requirement: 90,
+              note: "Ninety days. An edge that has been kept, not one that arrived."),
+        Sword(id: 9, name: "Enduring", requirement: 180,
+              note: "Half a year. It wears in now, rather than down."),
     ]
 }
 
@@ -276,9 +293,20 @@ final class SwordStore {
     /// earned by somebody who force-quits mid-animation still gets its moment
     /// the next time round. Once this has run it never comes back: a celebration
     /// is a one-off, and the only thing that raises another is another blade.
+    ///
+    /// **Everything the shown blade stood on is claimed with it.** `claimBlades`
+    /// shows only the best of what is waiting, so "two at once is one moment" —
+    /// and it was only half true: the lesser blade stayed uncelebrated and
+    /// played its own party on the next day kept. Two at once used to need a
+    /// sync; since 1.1 it is every long practice meeting Honed and Enduring on
+    /// the first day it keeps after the update, so the lesser one would have
+    /// arrived the morning after the greater. It is marked here instead, and it
+    /// keeps its unseen dot in the collection (`newIDs`), which is what walks
+    /// somebody over to it.
     func dismissCelebration() {
         guard let shown = pendingUnlock else { return }
-        celebratedIDs.insert(shown.id)
+        let beneath = swords.filter { $0.isUnlocked && $0.requirement <= shown.requirement }
+        celebratedIDs.formUnion(beneath.map(\.id) + [shown.id])
         withAnimation(.easeInOut(duration: 0.32)) {
             pendingUnlock = nil
         }

@@ -11,17 +11,17 @@ import UniformTypeIdentifiers
 /// **one artifact, at two moments that actually mean something, that the user
 /// has to go and get.**
 ///
-/// # Exactly three doors
+/// # Exactly four doors
 ///
 /// **A blade earned** (`SwordUnlockOverlay`, once its celebration has staged
 /// its actions), **a chapter closed** (`ChapterCloseView`, once "Close this
 /// chapter" has been pressed) and, since 1.1, **the running Arc's card** on
-/// the Arcs tab (DIRECTION_1_1 §5). Each carries one quiet action, *Save the
-/// proof*, and nothing else in the app offers to share anything: no prompt at
-/// launch, no reminder, no notification, nothing in the daily loop, and the
-/// share sheet only ever opens because somebody pressed the button.
-/// `FirstWeekTests.proofCardDoors` reads the source and fails if a fourth door
-/// appears.
+/// the Arcs tab (DIRECTION_1_1 §5) and **Share your stats** on the Becoming
+/// tab. Each carries one quiet action, and nothing else in the app offers to
+/// share anything: no prompt at launch, no reminder, no notification, nothing
+/// in the daily loop, and the share sheet only ever opens because somebody
+/// pressed the button. `FirstWeekTests.proofCardDoors` reads the source and
+/// fails if a fifth door appears.
 ///
 /// # What is on it
 ///
@@ -31,14 +31,23 @@ import UniformTypeIdentifiers
 /// streak on a shared image is a number somebody has to defend next month), no
 /// achievement, no handle, no marketing line. Nothing the person wrote.
 ///
-/// # The Arc's card
+/// # The Arc's card, and the stats card
 ///
-/// The one card with numbers on it: "Winter Arc · Day 30 of 90", the blade,
-/// the hexagon with its six numbers and OVR, the date and the address. It is
-/// the only one where a number is the point — an Arc is a count of days, and
+/// The two cards with numbers on them. The Arc's: "Winter Arc · Day 30 of
+/// 90", the blade, the hexagon with its six numbers and OVR, the date and the
+/// address. The stats card (Becoming's *Share your stats*): the blade and the
+/// days kept, the Arc's day when one is running, the same hexagon. They are
+/// the only ones where a number is the point — an Arc is a count of days, and
 /// the six are what the days did — so they are digits, as everywhere they are
 /// a score (DIRECTION_1_1 §3). Still nothing written by the person, no streak
 /// and no congratulation.
+///
+/// # Temper marks
+///
+/// Past Enduring, every card carries the blade's temper marks
+/// (`Ladder.temperMarks`): under the days on the blade card, under the blade
+/// on the other two. Drawn only when there are any, so nothing about a card
+/// changes for anybody short of two hundred and seventy days.
 ///
 /// # Two formats
 ///
@@ -54,12 +63,15 @@ struct PracticeArtifact: View {
         case chapter
         /// Where somebody is in an Arc.
         case arc(ArcProof)
+        /// The six, as Becoming shows them.
+        case stats(StatsProof)
 
         var line: String {
             switch self {
             case .blade(let name): name.uppercased()
             case .chapter: "CHAPTER CLOSED"
             case .arc(let proof): proof.title.uppercased()
+            case .stats(let proof): proof.title.uppercased()
             }
         }
     }
@@ -97,9 +109,12 @@ struct PracticeArtifact: View {
     static let site = "forgebetter.app"
 
     var body: some View {
-        if case .arc(let proof) = occasion {
+        switch occasion {
+        case .arc(let proof):
             ArcProofCard(proof: proof, date: date, format: format)
-        } else {
+        case .stats(let proof):
+            StatsProofCard(proof: proof, date: date, format: format)
+        case .blade, .chapter:
             bladeCard
         }
     }
@@ -140,6 +155,8 @@ struct PracticeArtifact: View {
                         .multilineTextAlignment(.center)
                         .minimumScaleFactor(0.5)
                         .lineLimit(2)
+
+                    TemperMarks(count: Ladder.temperMarks(daysKept: daysKept), tick: 26)
 
                     Text(occasion.line)
                         .font(.system(size: 22, weight: .semibold))
@@ -201,6 +218,26 @@ struct ArcProof: Equatable, Sendable {
     let blade: String
     /// Winters finished, engraved on the blade.
     let winters: Int
+    /// Temper marks on the blade (`Ladder.temperMarks`).
+    var temperMarks: Int = 0
+}
+
+/// What the stats card is made of: Becoming's *Share your stats*, taken once
+/// when the button is drawn, for the reason `ArcProof` is.
+struct StatsProof: Equatable, Sendable {
+    /// "Quenched · 23 days" — the blade carried and the days kept.
+    let title: String
+    /// "Winter Arc · Day 43 of 90", while an Arc runs.
+    let arcLine: String?
+    /// The six, in `RitualCategory.dimensions` order; nil draws a dash.
+    let scores: [Int?]
+    let overall: Int
+    /// The word under OVR: Rising, Steady, Slipping, Early.
+    let state: String
+    /// The equipped blade's sprite.
+    let blade: String
+    let winters: Int
+    let temperMarks: Int
 }
 
 /// "Winter Arc · Day 30 of 90", the blade, the six and OVR, the date, the
@@ -239,6 +276,8 @@ struct ArcProofCard: View {
                 if isPortrait {
                     sword(width: bladeWidth, height: bladeHeight, spriteHeight: spriteHeight)
                         .padding(.top, 60)
+                    TemperMarks(count: proof.temperMarks, tick: 22)
+                        .padding(.top, 14)
                     six(side: hexagon)
                         .padding(.top, 10)
                 } else {
@@ -246,7 +285,10 @@ struct ArcProofCard: View {
                     // the title it left a third of the square empty.
                     Spacer(minLength: 0)
                     HStack(spacing: 30) {
-                        sword(width: bladeWidth, height: bladeHeight, spriteHeight: spriteHeight)
+                        VStack(spacing: 12) {
+                            sword(width: bladeWidth, height: bladeHeight, spriteHeight: spriteHeight)
+                            TemperMarks(count: proof.temperMarks, tick: 18)
+                        }
                         six(side: hexagon)
                     }
                 }
@@ -271,11 +313,121 @@ struct ArcProofCard: View {
     }
 
     private func sword(width: CGFloat, height: CGFloat, spriteHeight: CGFloat) -> some View {
-        Image(proof.blade)
+        ProofBlade(asset: proof.blade, winters: proof.winters,
+                   width: width, height: height, spriteHeight: spriteHeight)
+    }
+
+    private func six(side: CGFloat) -> some View {
+        ProofHexagon(scores: proof.scores, overall: proof.overall, side: side)
+    }
+}
+
+// MARK: - The stats card
+
+/// "Quenched · 23 days", the Arc's day while one runs, the blade with its
+/// marks, the hexagon with the six numbers and OVR, the date, the address. The
+/// Arc's card with the person's own line on top instead of the Arc's.
+struct StatsProofCard: View {
+    let proof: StatsProof
+    let date: Date
+    let format: PracticeArtifact.Format
+
+    private var isPortrait: Bool { format == .portrait }
+
+    var body: some View {
+        let size = format.size
+        let bladeWidth: CGFloat = isPortrait ? 150 : 104
+        let spriteHeight = bladeWidth * 1771.0 / 483.0
+        let bladeHeight: CGFloat = isPortrait ? 540 : 380
+        let hexagon: CGFloat = isPortrait ? 600 : 470
+
+        return ZStack {
+            Rectangle().fill(ForgeTheme.bg)
+            RadialGradient(
+                colors: [ForgeTheme.cream.opacity(0.10), .clear],
+                center: .top, startRadius: 0, endRadius: size.height * 0.6
+            )
+
+            VStack(spacing: 0) {
+                VStack(spacing: 14) {
+                    Text(proof.title.uppercased())
+                        .font(.system(size: isPortrait ? 40 : 34, weight: .semibold))
+                        .tracking(6)
+                        .foregroundStyle(ForgeTheme.cream)
+                        .minimumScaleFactor(0.6)
+                        .lineLimit(1)
+                    if let arcLine = proof.arcLine {
+                        Text(arcLine.uppercased())
+                            .font(.system(size: isPortrait ? 24 : 21, weight: .semibold))
+                            .tracking(4)
+                            .foregroundStyle(.white.opacity(0.5))
+                            .minimumScaleFactor(0.6)
+                            .lineLimit(1)
+                    }
+                }
+                .padding(.top, isPortrait ? 150 : 64)
+                .padding(.horizontal, 60)
+
+                if isPortrait {
+                    ProofBlade(asset: proof.blade, winters: proof.winters,
+                               width: bladeWidth, height: bladeHeight, spriteHeight: spriteHeight)
+                        .padding(.top, 50)
+                    // Air under the marks, when there are any: the hexagon's
+                    // top label sits on its frame's edge, and 10 points under
+                    // three notches it read as part of them.
+                    TemperMarks(count: proof.temperMarks, tick: 22)
+                        .padding(.top, 14)
+                        .padding(.bottom, proof.temperMarks > 0 ? 30 : 0)
+                    ProofHexagon(scores: proof.scores, overall: proof.overall, state: proof.state, side: hexagon)
+                        .padding(.top, 10)
+                } else {
+                    Spacer(minLength: 0)
+                    HStack(spacing: 30) {
+                        VStack(spacing: 12) {
+                            ProofBlade(asset: proof.blade, winters: proof.winters,
+                                       width: bladeWidth, height: bladeHeight, spriteHeight: spriteHeight)
+                            TemperMarks(count: proof.temperMarks, tick: 18)
+                        }
+                        ProofHexagon(scores: proof.scores, overall: proof.overall, state: proof.state, side: hexagon)
+                    }
+                }
+
+                Spacer(minLength: 0)
+
+                Text(PracticeArtifact.dateFormat.string(from: date).uppercased())
+                    .font(.system(size: 22, weight: .medium))
+                    .tracking(4)
+                    .foregroundStyle(.white.opacity(0.34))
+                    .padding(.bottom, 16)
+
+                Text(PracticeArtifact.site)
+                    .font(.system(size: 20, weight: .medium))
+                    .tracking(2)
+                    .foregroundStyle(.white.opacity(0.28))
+                    .padding(.bottom, isPortrait ? 120 : 56)
+            }
+        }
+        .frame(width: size.width, height: size.height)
+        .environment(\.colorScheme, .dark)
+    }
+}
+
+// MARK: - Shared by the two cards with numbers on them
+
+/// The blade, top-anchored and faded into the room, with its winters cut in.
+private struct ProofBlade: View {
+    let asset: String
+    let winters: Int
+    let width: CGFloat
+    let height: CGFloat
+    let spriteHeight: CGFloat
+
+    var body: some View {
+        Image(asset)
             .resizable()
             .aspectRatio(contentMode: .fit)
             .frame(width: width, height: spriteHeight)
-            .winterEngraving(proof.winters, width: width, spriteHeight: spriteHeight)
+            .winterEngraving(winters, width: width, spriteHeight: spriteHeight)
             .frame(width: width, height: height, alignment: .top)
             .clipped()
             .mask(
@@ -285,19 +437,27 @@ struct ArcProofCard: View {
                 )
             )
     }
+}
 
-    /// The hexagon in the six colours, OVR in its middle, and each side's
-    /// number beside its vertex.
-    private func six(side: CGFloat) -> some View {
-        let values = proof.scores.map { Double($0 ?? 0) / 100 }
+/// The hexagon in the six colours, OVR in its middle, and each side's number
+/// beside its vertex.
+private struct ProofHexagon: View {
+    let scores: [Int?]
+    let overall: Int
+    /// The word under OVR, or nil for the bare label.
+    var state: String? = nil
+    let side: CGFloat
+
+    var body: some View {
+        let values = scores.map { Double($0 ?? 0) / 100 }
         return ZStack {
             StatHexagon(values: values, showsGlyphs: false, animation: nil) {
                 VStack(spacing: 2) {
-                    Text("\(proof.overall)")
+                    Text("\(overall)")
                         .font(.system(size: side * 0.12, weight: .semibold))
                         .monospacedDigit()
                         .foregroundStyle(.white)
-                    Text("OVR")
+                    Text(state.map { "OVR \u{00B7} \($0.uppercased())" } ?? "OVR")
                         .font(.system(size: side * 0.032, weight: .semibold))
                         .tracking(3)
                         .foregroundStyle(ForgeTheme.cream.opacity(0.75))
@@ -315,16 +475,18 @@ struct ArcProofCard: View {
             .frame(width: side * 0.6, height: side * 0.6)
 
             ForEach(Array(RitualCategory.dimensions.enumerated()), id: \.element) { index, dimension in
-                let score = proof.scores.indices.contains(index) ? proof.scores[index] : nil
+                let score = scores.indices.contains(index) ? scores[index] : nil
                 VStack(spacing: 2) {
                     Text(score.map(String.init) ?? "\u{2014}")
                         .font(.system(size: side * 0.06, weight: .semibold))
                         .monospacedDigit()
                         .foregroundStyle(dimension.color)
+                    // The six colours wherever the six are (DIRECTION_1_1
+                    // §4): the name in its colour, a step under its number.
                     Text(dimension.label.uppercased())
                         .font(.system(size: side * 0.026, weight: .semibold))
                         .tracking(1.5)
-                        .foregroundStyle(.white.opacity(0.5))
+                        .foregroundStyle(dimension.color.opacity(0.7))
                 }
                 .position(
                     HexagonGeometry.point(
@@ -385,14 +547,20 @@ struct ProofCardButton: View {
     let occasion: PracticeArtifact.Occasion
     let daysKept: Int
     var date: Date = .now
+    /// "Save the proof" at three doors; Becoming's says what it is, "Share
+    /// your stats".
+    var title: String = Self.title
 
     static let title = "Save the proof"
 
-    /// What the share sheet calls the file: the Arc's title on the Arc's
-    /// card, the days kept on the other two.
+    /// What the share sheet calls the file: the Arc's or the stats card's own
+    /// title, the days kept on the other two.
     private var previewTitle: String {
-        if case .arc(let proof) = occasion { return proof.title }
-        return PracticeArtifact.dayWords(daysKept)
+        switch occasion {
+        case .arc(let proof): proof.title
+        case .stats(let proof): proof.title
+        case .blade, .chapter: PracticeArtifact.dayWords(daysKept)
+        }
     }
 
     var body: some View {
@@ -406,7 +574,7 @@ struct ProofCardButton: View {
                 }
             }
         } label: {
-            Label(Self.title, systemImage: "square.and.arrow.down")
+            Label(title, systemImage: "square.and.arrow.down")
                 .font(.subheadline.weight(.medium))
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity)

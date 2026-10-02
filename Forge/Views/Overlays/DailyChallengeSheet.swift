@@ -257,8 +257,10 @@ struct DailyChallengeSheet: View {
             HStack(spacing: 6) {
                 ForEach(ChallengeFocus.allCases) { focus in
                     let lit = focus == showing.challenge.focus
+                    // Lit in the aim's own colour since 1.1: the rail is the
+                    // six, and the six have colours (DIRECTION_1_1 §4).
                     Capsule()
-                        .fill(lit ? AnyShapeStyle(ForgeTheme.accent) : AnyShapeStyle(.tertiary))
+                        .fill(lit ? AnyShapeStyle(focus.category.color) : AnyShapeStyle(.tertiary))
                         .frame(width: lit ? 16 : 5, height: 5)
                 }
             }
@@ -598,6 +600,10 @@ private struct ChallengeCard: View {
         return challenge.isPersonal ? "MADE FOR YOU" : "TODAY'S CHALLENGE"
     }
 
+    /// The dimension's glyph is in its colour on every card — it says which
+    /// part of a person this is, which is true of every card — while the word
+    /// beside it lights only on today's, so the browser still has one card
+    /// glowing rather than six.
     private func tag(
         _ text: String, symbol: String? = nil, lit: Bool = false, tint: Color? = nil
     ) -> some View {
@@ -605,6 +611,8 @@ private struct ChallengeCard: View {
             if let symbol {
                 Image(systemName: symbol)
                     .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(tint.map { AnyShapeStyle($0.opacity(lit ? 1 : 0.75)) }
+                                     ?? AnyShapeStyle(.secondary))
             }
             Text(text)
                 .font(ForgeTheme.label(9.5))

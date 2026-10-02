@@ -1,46 +1,44 @@
 import SwiftUI
+import TipKit
 
-/// The direction, as opposed to the record.
+/// The direction, as opposed to the record — and since 1.1, the six at a
+/// glance.
 ///
-/// The tab this replaces was called Paths and held one thing: a shelf of worlds
-/// to dress the app in. That was a tab spent on the smallest question the
-/// feature could answer. The app now knows who somebody says they are becoming —
-/// see `Identity` — and "which world am I in" is a detail of that, not a peer of
-/// it.
+/// # Above the fold (1.1, session S4)
 ///
-/// So the tab bar reads **Forge · Blade · Becoming · Settings**, and the middle
-/// two are a pair: Blade is the record, which is entirely about days that have
-/// already happened, and Becoming is the direction, which is entirely about days
-/// that have not. Every number in this app used to answer the first question.
+/// The tab opens on the numbers, all of them, without a scroll on any phone
+/// at the default text size: the hexagon, with each score at its vertex in its
+/// dimension's colour and OVR in the middle; one line under it with the blade
+/// carried and the days kept ("Quenched · 23 days"); and directly under that a
+/// 3 × 2 grid of tiles, one per dimension in the hexagon's order, each with its
+/// score in large digits and how far it has moved in seven days. A tile opens
+/// its dimension: what feeds it, what in the week is filed under it, three
+/// things to add in one tap, and which way it is going.
 ///
-/// Three sections, in this order, and the order is the argument:
+/// That grid replaces **The Six**, the list of six rows that used to sit under
+/// the hexagon. Everything the rows said is on a tile or behind one, and the
+/// rows were the reason the numbers sat below the fold.
 ///
-/// 1. **Who you are becoming**, with what the record says about it. The
-///    identities come first because they are the user's own words and everything
-///    below is in service of them.
-/// 2. **Where the days go** — the five areas every activity is already filed
-///    under, read off the history. It needs nothing to have been named, so it is
-///    the one section that speaks to the majority who skipped the identity beat.
-/// 3. **The world you are in**, or the plain statement that you are in none.
-/// 4. **The shelf**, ordered by what they named.
-/// 5. **One written for you**, which is the only thing here that costs money.
+/// # Below the fold, in this order
 ///
-/// Reading downward: here is who you said you are, here is the shape you are
-/// walking it in, here are the others. Any other order makes the catalog the
-/// subject and the person the filter, which is the tab this one replaced.
+/// Next move (`DayPlanner`'s first, opened into Plan's review — nothing writes
+/// unread, §5 #9) → **Build your weakest**, three one-tap adds for the weakest
+/// chosen dimension → the running Arc → **Share your stats**, the fourth door
+/// into the Proof Card → the weeks somebody wrote about → the identities, only
+/// for somebody who has them → the focus row. The order is what somebody does
+/// after reading the numbers: change something, add something, look at the
+/// stretch they are in, show it, read back, and only last revisit the choice.
 ///
-/// **The offer goes last, and that is a correction.** `ownPath` used to sit
-/// third, between the identities and the shelf — so a free account read its own
-/// sentences, and then, before reaching a single thing it could actually use,
-/// met a button saying "See what this is" whose only behaviour is to open the
-/// paywall. An upsell wedged between somebody's own words and the free content
-/// they came for is an advertisement in the middle of a paragraph. Moved to the
-/// foot, it is the last thing on a screen that has already given them
-/// everything else, which is the only position from which an offer reads as an
-/// offer.
+/// # It does not move under a finger (§2j.4)
+///
+/// Every tile reserves the line its BUILDING mark sits on, so choosing in the
+/// focus editor lights a word rather than growing a tile; the focus row keeps
+/// its two reserved lines; and the lists below the fold are read once per visit
+/// (`Visit`), so a row somebody just added gets a check where it is instead of
+/// leaving the list under their thumb.
 ///
 /// **It stays declinable.** Somebody who never opens this tab has an app that
-/// works exactly as it always did: no identity is required, no world is
+/// works exactly as it always did: no identity is required, no choice is
 /// required, and nothing on the Forge or Blade tabs changes for want of either.
 struct BecomingTabView: View {
     var forge: ForgeViewModel
@@ -48,13 +46,23 @@ struct BecomingTabView: View {
     /// Every week somebody has written about. Read only — nothing on this tab
     /// answers a review, it only keeps them where they can be found.
     var reviews: ReviewStore
+    /// The blade carried, for the line under the hexagon and the stats card.
+    var swords: SwordStore
+    /// The running Arc, for its card and the stats card's Arc day.
+    var arcs: ArcStore
+    /// What Plan is given when Next move opens it — the same brief the week's
+    /// own Plan reads.
+    var brief: AIBrief
+    var ai: ForgeAI
     /// The gear: Settings is a sheet since Arcs took its tab.
     var onSettings: () -> Void = {}
+    /// The Arc's card goes to the Arcs tab.
+    var onArcs: () -> Void = {}
 
-    /// Which dimension is open on the list, and lit on the polygon.
-    @State private var inspecting: RitualCategory?
-    /// Which dimension's suggestions are open, if any.
-    @State private var offering: RitualCategory?
+    /// Which dimension's sheet is open.
+    @State private var inspecting: DimensionChoice?
+    /// The move Next move opened Plan on.
+    @State private var planning: DayPlanner.Move?
     /// The focus editor, which is the only route to changing what somebody said
     /// they wanted to build after the first run.
     @State private var isChoosing = false
@@ -63,20 +71,42 @@ struct BecomingTabView: View {
     /// The seven questions, taken from here by an install that has never
     /// answered them.
     @State private var isAssessing = false
+    /// What this visit to the tab is offering. See `Visit`.
+    @State private var visit = Visit()
 
+    @Environment(\.dynamicTypeSize) private var typeSize
+
+    /// Read once each time the tab comes on screen.
+    ///
+    /// "Build your weakest" names a dimension and offers three things in it.
+    /// Read live, adding the first would re-read the weakest — it has an
+    /// activity now, it may have moved — and the section could change its
+    /// subject, or vanish, between two taps. So the dimension is the one the
+    /// tab opened on, and what was added here keeps its row, with a check,
+    /// until the next visit reads the week again.
+    struct Visit: Equatable {
+        var weakest: RitualCategory?
+        var added: Set<String> = []
+    }
+
+    /// The largest the hexagon is drawn, so the tiles fit under it on a 6.1"
+    /// phone at the default text size. Below the cap it is the screen's width.
+    private static let hexagonCap: CGFloat = 292
 
     var body: some View {
+        let six = forge.blended
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: ForgeTheme.Space.section) {
-                    hero
+                    glance(six)
                     assessmentOffer
-                    dimensionList
-                    focusRow
-                    nextStep
-                    suggested
+                    nextMove
+                    buildWeakest
+                    arcCard
+                    shareStats(six)
                     weeks
                     who
+                    focusRow
                 }
                 .padding(.horizontal, ForgeTheme.Space.gutter)
                 .padding(.top, ForgeTheme.Space.hair)
@@ -91,9 +121,310 @@ struct BecomingTabView: View {
             }
             .sheet(isPresented: $isChoosing) { FocusEditor(forge: forge) }
             .sheet(isPresented: $isReadingWeeks) { WeeklyReviewHistory(reviews: reviews) }
+            .sheet(item: $inspecting) { choice in
+                DimensionSheet(forge: forge, category: choice.category)
+            }
+            .sheet(item: $planning) { move in
+                PlanSheet(vm: forge, brief: brief, ai: ai, opening: move)
+            }
             .fullScreenCover(isPresented: $isAssessing) { AssessmentSheet(forge: forge) }
         }
+        .onAppear { visit = Visit(weakest: forge.weakestDimension) }
     }
+
+    // MARK: - 1. The six, at a glance
+
+    /// The hexagon, the blade line and the tiles: everything above the fold.
+    ///
+    /// # The first week
+    ///
+    /// Without an assessment, until the record has a week behind it *and*
+    /// enough to read, the hexagon is the first-week contract instead
+    /// (`FirstWeek`): when the shape will draw itself, and how many of the seven
+    /// have been kept. **With an assessment the hexagon is drawn from day one** —
+    /// that is what the answers are for (`BlendedShape`) — and the first week is
+    /// the progress line under it. The tiles are there from the first day either
+    /// way (§2j.4): six names, each saying what it is and whether anything feeds
+    /// it, are the truth on day one.
+    ///
+    /// Every number here is `forge.blended`: with no assessment that is the
+    /// record's own `ForgeShape`, number for number.
+    private func glance(_ six: BlendedShape) -> some View {
+        VStack(spacing: ForgeTheme.Space.inner) {
+            if six.hasAssessment || forge.firstWeek == nil {
+                ForgeShapeView(shape: six)
+                    .frame(maxWidth: Self.hexagonCap)
+                    .frame(maxWidth: .infinity)
+                if six.hasAssessment, let contract = forge.firstWeek {
+                    FirstWeekLine(contract: contract)
+                }
+            } else if let contract = forge.firstWeek {
+                FirstWeekCard(contract: contract)
+            }
+
+            Text(Self.bladeLine(blade: swords.equipped.name, daysKept: forge.daysKept))
+                .font(.footnote.weight(.medium))
+                .monospacedDigit()
+                .foregroundStyle(ForgeTheme.cream.opacity(0.85))
+                .frame(maxWidth: .infinity)
+                .accessibilityLabel(Text(Self.spokenBladeLine(blade: swords.equipped.name, daysKept: forge.daysKept)))
+
+            tiles(six)
+                .padding(.top, ForgeTheme.Space.hair)
+
+            // The third of the first week's tips, under the thing it is about.
+            // Inline rather than a popover: a popover above the tiles would
+            // cover the numbers it is talking about, and would take the first
+            // tap on a tile to put itself away.
+            if let tip = ForgeTips.current(BecomingTip.self) {
+                TipView(tip, arrowEdge: .top)
+            }
+
+            // What the numbers are made of, once. A hexagon with numbers on it
+            // is a chart until somebody is told what feeds it, and the claim of
+            // this whole feature is that it is fed by what you actually did.
+            Text(six.hasAssessment
+                 ? "Your answers started them. What you keep moves them."
+                 : "Scored on the last four weeks of what you keep.")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity)
+        }
+    }
+
+    /// "Quenched · 23 days" — the blade carried and the days kept. Digits:
+    /// it is a count beside a score, not a sentence (DIRECTION_1_1 §3). The one
+    /// day that has no number is the one before anything is kept, which is
+    /// said rather than scored, for the reason the home screen's badge says
+    /// "DAY ONE" rather than "0 DAYS".
+    static func bladeLine(blade: String, daysKept: Int) -> String {
+        switch daysKept {
+        case ..<1: "\(blade) \u{00B7} no days kept yet"
+        case 1: "\(blade) \u{00B7} 1 day"
+        default: "\(blade) \u{00B7} \(daysKept) days"
+        }
+    }
+
+    static func spokenBladeLine(blade: String, daysKept: Int) -> String {
+        switch daysKept {
+        case ..<1: "\(blade) Sword. No days kept yet."
+        case 1: "\(blade) Sword. 1 day kept."
+        default: "\(blade) Sword. \(daysKept) days kept."
+        }
+    }
+
+    /// Six tiles, three by two — two columns once the type is too large for
+    /// three to hold a number and a name.
+    private func tiles(_ six: BlendedShape) -> some View {
+        let tiles = StatGlance.tiles(now: six, weekAgo: forge.weekAgo, focus: forge.focus)
+        let columns = Array(
+            repeating: GridItem(.flexible(), spacing: ForgeTheme.Space.tight),
+            count: typeSize.isAccessibilitySize ? 2 : 3
+        )
+        return LazyVGrid(columns: columns, spacing: ForgeTheme.Space.tight) {
+            ForEach(tiles) { tile in
+                StatTileView(tile: tile) {
+                    ForgeHaptics.shared.tap()
+                    BecomingTip().invalidate(reason: .actionPerformed)
+                    inspecting = DimensionChoice(category: tile.category)
+                }
+            }
+        }
+    }
+
+    // MARK: - 2. Next move
+
+    /// The first move `DayPlanner` would make, opened straight into Plan's
+    /// review of it — the changes, then the week as it would be, then one
+    /// button that says how many changes it is about to make (§5 #9). Nothing
+    /// here writes anything.
+    ///
+    /// Absent when there is no move worth making, which is the good outcome
+    /// and is not announced: an app that always has advice is an app whose
+    /// advice means nothing. Waits for the first run, like everything Plan
+    /// says.
+    @ViewBuilder
+    private var nextMove: some View {
+        if forge.hasCompletedFirstRun,
+           let move = DayPlanner.moves(forge.planFacts(wakeMinutes: brief.wakeMinutes)).first {
+            VStack(alignment: .leading, spacing: ForgeTheme.Space.row) {
+                SectionHeading("Next move", detail: "Worked out from your week. Nothing changes until you say so.")
+
+                Button {
+                    ForgeHaptics.shared.tap()
+                    planning = move
+                } label: {
+                    HStack(alignment: .top, spacing: ForgeTheme.Space.inner) {
+                        Image(systemName: move.kind.symbol)
+                            .font(.system(size: 15, weight: .medium))
+                            .symbolRenderingMode(.hierarchical)
+                            .foregroundStyle(ForgeTheme.accent)
+                            .frame(width: 30, height: 30)
+                            .background(ForgeTheme.separator, in: RoundedRectangle(
+                                cornerRadius: ForgeTheme.Radius.glyph - 4, style: .continuous
+                            ))
+
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(move.title)
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(.primary)
+                                .multilineTextAlignment(.leading)
+                                .fixedSize(horizontal: false, vertical: true)
+                            Text(move.reason)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .multilineTextAlignment(.leading)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+
+                        Spacer(minLength: 8)
+
+                        Image(systemName: "chevron.right")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.tertiary)
+                            .padding(.top, 4)
+                    }
+                    .padding(ForgeTheme.Space.row)
+                    .contentShape(.rect)
+                }
+                .buttonStyle(.plain)
+                .forgeInteractiveCard(radius: ForgeTheme.Radius.card)
+                .accessibilityLabel(Text("\(move.title). \(move.reason)"))
+                .accessibilityHint("Shows every change before anything moves")
+            }
+        }
+    }
+
+    // MARK: - 3. Build your weakest
+
+    /// Three concrete things for the weakest dimension somebody chose, each one
+    /// tap from the day (`ForgeShape.suggestions`, `BecomingOffer`).
+    ///
+    /// Named only when it is honest to name it (`weakestDimension`): a chosen
+    /// part with nothing filed under it, or one fifteen points behind the best
+    /// of the six. A level shape gets no section, because a weakest link
+    /// manufactured on a balanced one is the app inventing a problem so it has
+    /// something to say (§5 #3). Adding appends and never removes (§5 #7), so
+    /// there is no confirmation in front of it.
+    @ViewBuilder
+    private var buildWeakest: some View {
+        if let weakest = visit.weakest {
+            let held = Set(forge.activeRitualIDs).subtracting(visit.added)
+            let options = ForgeShape.suggestions(for: weakest, avoiding: held)
+            if !options.isEmpty {
+                VStack(alignment: .leading, spacing: ForgeTheme.Space.row) {
+                    SectionHeading(
+                        "Build your weakest",
+                        detail: "\(weakest.label). Small, and one tap each."
+                    )
+
+                    VStack(spacing: 1) {
+                        ForEach(options) { ritual in
+                            SuggestionRow(ritual: ritual, isAdded: visit.added.contains(ritual.id)) {
+                                ForgeHaptics.shared.ritualVerified()
+                                BecomingOffer.add(ritual, to: forge)
+                                visit.added.insert(ritual.id)
+                            }
+                        }
+                    }
+                    .background(ForgeTheme.separator)
+                    .clipShape(ForgeTheme.cardShape(ForgeTheme.Radius.card))
+                }
+            }
+        }
+    }
+
+    // MARK: - 4. The Arc
+
+    /// The running Arc, in one row: where somebody is in it and whether it is
+    /// on track. The rest of it — the trial, a phase's changes, leaving — is on
+    /// the Arcs tab, which this opens. Absent with no Arc.
+    @ViewBuilder
+    private var arcCard: some View {
+        if let current = arcs.current {
+            let reading = arcs.reading(current)
+            Button {
+                ForgeHaptics.shared.tap()
+                onArcs()
+            } label: {
+                HStack(spacing: ForgeTheme.Space.inner) {
+                    ArcMark(arc: current.arc, size: 20)
+                        .frame(width: 38, height: 38)
+                        .background(Circle().fill(.white.opacity(0.06)))
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(reading.status == .upcoming
+                             ? current.program.name
+                             : ArcLine.text(current.program, reading))
+                            .font(.subheadline.weight(.semibold))
+                            .monospacedDigit()
+                            .foregroundStyle(.primary)
+                            .multilineTextAlignment(.leading)
+                        Text(reading.status == .upcoming ? Self.startsLine(current.startDay) : reading.paceLine)
+                            .font(.caption)
+                            .monospacedDigit()
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.leading)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+
+                    Spacer(minLength: 8)
+
+                    Image(systemName: "chevron.right")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.tertiary)
+                }
+                .padding(ForgeTheme.Space.row)
+                .contentShape(.rect)
+            }
+            .buttonStyle(.plain)
+            .forgeInteractiveCard(radius: ForgeTheme.Radius.card)
+            .accessibilityHint(Text("Opens the Arcs tab"))
+        }
+    }
+
+    private static func startsLine(_ day: ForgeDay) -> String {
+        let format = DateFormatter()
+        format.setLocalizedDateFormatFromTemplate("EEEE d MMMM")
+        return "Starts \(format.string(from: day.startOfDay()))"
+    }
+
+    // MARK: - 5. Share your stats
+
+    /// The fourth door into the Proof Card (`PracticeArtifact`): the six, OVR,
+    /// the blade and — while an Arc runs — its day, at 9:16 and 1:1. One quiet
+    /// row; the share sheet opens only once a format is picked.
+    private func shareStats(_ six: BlendedShape) -> some View {
+        ProofCardButton(
+            occasion: .stats(statsProof(six)),
+            daysKept: forge.daysKept,
+            title: "Share your stats"
+        )
+        .forgeInteractiveCard(radius: ForgeTheme.Radius.card)
+    }
+
+    /// The numbers on screen, taken when the button is drawn — the card is the
+    /// tab, as it was when somebody pressed it.
+    private func statsProof(_ six: BlendedShape) -> StatsProof {
+        let running = arcs.current.flatMap { current -> String? in
+            let reading = arcs.reading(current)
+            return reading.isRunning ? "\(current.program.name) \u{00B7} \(reading.counter)" : nil
+        }
+        return StatsProof(
+            title: Self.bladeLine(blade: swords.equipped.name, daysKept: forge.daysKept),
+            arcLine: running,
+            scores: six.dimensions.map { $0.hasScore ? $0.score : nil },
+            overall: six.overall,
+            state: six.state.label,
+            blade: swords.equipped.asset,
+            winters: arcs.winterMarks.count,
+            temperMarks: Ladder.temperMarks(daysKept: forge.daysKept)
+        )
+    }
+
+    // MARK: - 8. What you are building
 
     /// What somebody said they wanted to build, as one row rather than as a
     /// section.
@@ -102,36 +433,28 @@ struct BecomingTabView: View {
     ///
     /// "What you're building" was a card of its own under the hexagon, one row
     /// per chosen dimension, each carrying that dimension's name, its score and
-    /// a sentence about its direction. Every one of those facts is in **The Six**
-    /// eight points further down, for all six rather than for three, in the same
-    /// order and the same words. It was a filter of the list below it, drawn as
-    /// though it were a different reading — and a screen that says the same
-    /// number twice invites somebody to check whether the two agree.
+    /// a sentence about its direction. Every one of those facts is on the tiles,
+    /// for all six rather than for three, in the same order. It was a filter of
+    /// the grid, drawn as though it were a different reading — and a screen
+    /// that says the same number twice invites somebody to check whether the
+    /// two agree.
     ///
     /// What was *not* redundant is the choosing: the focus aims what Forge
     /// offers and what `DayPlanner` proposes, and the first run is the only
-    /// other place it can be set. So the reading is folded into The Six — a
-    /// chosen dimension is marked there — and what is left here is the door,
-    /// one row of it, stating the answer in words.
+    /// other place it can be set. So the reading is folded into the tiles — a
+    /// chosen dimension is marked BUILDING there — and what is left here is
+    /// the door, one row of it, stating the answer in words.
     ///
-    /// # Why it moved under the six
+    /// # Why it is last
     ///
-    /// It sat directly beneath the hexagon, which put a sentence *counting* the
-    /// choice above the six rows that *are* the choice — so the screen opened on
-    /// a tally of something the reader had not been shown yet, and the two rows
-    /// of type between the polygon and the list pushed the list itself below the
-    /// fold on a small phone.
-    ///
-    /// The order the tab reads in now is the order the thing actually works in:
-    /// **the shape you have, then the six it is made of, then how many of them
-    /// you said you were building.** A progress line belongs after the thing it
-    /// is progress through — it is the summary of the list above it and the door
-    /// to changing it, and neither of those is a heading.
+    /// The order the tab reads in is the order the thing actually works in:
+    /// **the six you have, what to do about them, and only then how many of
+    /// them you said you were building.** It is the door to changing the
+    /// choice, and a choice revisited a few times a year is not a heading.
     ///
     /// Its height still does not depend on the count: two lines for the
     /// sentence and two for the note, reserved. That was the fix for the screen
-    /// moving under a finger mid-choice (see `headline`) and it matters more
-    /// down here, not less — everything below it would shift instead.
+    /// moving under a finger mid-choice (see `headline`).
     private var focusRow: some View {
         Button {
             ForgeHaptics.shared.tap()
@@ -225,7 +548,7 @@ struct BecomingTabView: View {
         return "\(rest.joined(separator: ", ")) and \(last)"
     }
 
-    // MARK: - 1. Who you are becoming
+    // MARK: - 7. Who you are becoming
 
     /// **Shown only to somebody who has one**, which after the first run was
     /// rebuilt means somebody who named one before it was.
@@ -265,76 +588,12 @@ struct BecomingTabView: View {
         }
     }
 
-    // MARK: - 1. The Shape
-
-    /// The hero, and the first thing on the tab.
-    ///
-    /// Everything about the ordering of this screen follows from one fact: the
-    /// Shape is the only thing here that is true for **every** user on their
-    /// second week, with nothing named, nothing chosen and no world taken. The
-    /// identities below it are opt-in and most people skip them; the shelf is a
-    /// catalogue. Leading with either meant the tab opened on an empty state or
-    /// on somebody else's content.
-    ///
-    /// Under the polygon: one sentence saying what the thing *is*. It is there
-    /// because a hexagon with numbers on it is a chart until somebody is told
-    /// what feeds it, and the whole claim of this feature is that it is fed by
-    /// what you actually did.
-    ///
-    /// # The first week
-    ///
-    /// Without an assessment, until the record has a week behind it *and*
-    /// enough to read, the hero is the first-week contract instead
-    /// (`FirstWeek`): when the shape will draw itself, and how many of the seven
-    /// have been kept. It gives way to the polygon on its own the first time
-    /// both are true — nothing is stored to decide that.
-    ///
-    /// **With an assessment the hexagon is drawn from day one** — that is what
-    /// the answers are for (`BlendedShape`) — and the first week is the
-    /// progress line under it rather than the hero in its place.
-    ///
-    /// Every number here is `forge.blended`: with no assessment that is the
-    /// record's own `ForgeShape`, number for number.
-    @ViewBuilder
-    private var hero: some View {
-        let shape = forge.blended
-        VStack(spacing: ForgeTheme.Space.row) {
-            if shape.hasAssessment {
-                ForgeShapeView(shape: shape, highlighted: inspecting)
-                    .padding(.horizontal, 8)
-                    .padding(.top, 4)
-
-                if let contract = forge.firstWeek {
-                    FirstWeekLine(contract: contract)
-                }
-
-                Text("Six parts of you. Your answers started them; what you keep moves them.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.horizontal, 12)
-            } else if let contract = forge.firstWeek {
-                FirstWeekCard(contract: contract)
-            } else {
-                ForgeShapeView(shape: shape, highlighted: inspecting)
-                    .padding(.horizontal, 8)
-                    .padding(.top, 4)
-
-                Text("Six parts of you, scored on the last four weeks of your own record.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.horizontal, 12)
-            }
-        }
-        .frame(maxWidth: .infinity)
-    }
+    // MARK: - The assessment, for an install without one
 
     /// The seven questions, for an install that has never answered them —
-    /// every 1.0 install. One card, under the hero, until it is taken; it runs
-    /// the questions and the drawing and comes back here (`AssessmentSheet`).
+    /// every 1.0 install. One card, first under the tiles, until it is taken;
+    /// it runs the questions and the drawing and comes back here
+    /// (`AssessmentSheet`).
     ///
     /// Nothing is withheld from somebody who never takes it: the tab reads the
     /// record exactly as it always has.
@@ -380,203 +639,7 @@ struct BecomingTabView: View {
         }
     }
 
-    // MARK: - 1b. The six, inspectable
-
-    /// One row per dimension: what it is, what it scores, which way it is going,
-    /// and whether somebody said they were building it.
-    ///
-    /// Tapping a row lights its vertex on the polygon above and opens its
-    /// meaning. That is the whole of the interaction — there is no detail screen
-    /// behind a dimension, because there is nothing on one that is not already
-    /// here, and a push to a page holding one sentence is a page nobody returns
-    /// to.
-    ///
-    /// **The chosen ones are marked here rather than listed again above.** See
-    /// `focusRow`: a second card repeating three of these six rows, with the
-    /// same scores in the same order, was two readings of one fact.
-    ///
-    /// # All six, from the first day
-    ///
-    /// The list used to sit behind `shape.isReadable` — two measured dimensions
-    /// and five kept days — on the argument that a column of six "Nothing here"
-    /// is not a reading. That argument is right about the *hexagon* and wrong
-    /// about the list, and the difference is what a person came here to find
-    /// out. A polygon drawn on three days is a shape the app made up. A list of
-    /// six names, each saying what it means and whether anything is pointing at
-    /// it, is the truth on day one and it is the only place in the app that says
-    /// what the six actually are.
-    ///
-    /// What it cost to hide them: somebody who chose two dimensions in the first
-    /// run opened this tab and found the two they had already picked, and no
-    /// indication that there were six, or what the other four were, or that
-    /// anything could be added to them. The one screen about direction showed
-    /// only the direction already taken.
-    ///
-    /// So: always six, always in order, marked where somebody said they were
-    /// building one, and honest about the ones with nothing behind them yet.
-    private var dimensionList: some View {
-        VStack(alignment: .leading, spacing: ForgeTheme.Space.row) {
-            SectionHeading("The Six", detail: "Every activity builds one of them")
-
-            let starters = forge.starters
-            VStack(spacing: 1) {
-                ForEach(forge.blended.dimensions) { dimension in
-                    DimensionRow(
-                        dimension: dimension,
-                        isChosen: forge.focus.contains(dimension.category),
-                        isInspecting: inspecting == dimension.category,
-                        starter: starters[dimension.category],
-                        onAdd: { ritual in
-                            ForgeHaptics.shared.ritualVerified()
-                            BecomingOffer.add(ritual, to: forge)
-                        }
-                    ) {
-                        ForgeHaptics.shared.tap()
-                        withAnimation(.forgeSelection) {
-                            inspecting = inspecting == dimension.category ? nil : dimension.category
-                        }
-                    }
-                }
-            }
-            .background(ForgeTheme.separator)
-            .clipShape(ForgeTheme.cardShape(ForgeTheme.Radius.card))
-
-            Text("Tap one to see what it means, and the arithmetic behind its score.")
-                .font(.caption)
-                .foregroundStyle(.tertiary)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-    }
-
-    // MARK: - 1c. What to do about it
-
-    /// One row, and only when there is something true to say.
-    ///
-    /// The rules are in `ForgeShape`: a dimension is only named when somebody
-    /// keeps something in it, the record can speak about it, and it is at least
-    /// fifteen points behind their best. Everything level means no row —
-    /// manufacturing a weakest link on a balanced shape would be the app
-    /// inventing a problem so that it has something to say, which is how a
-    /// calm product becomes a nagging one.
-    @ViewBuilder
-    private var nextStep: some View {
-        // Waits with the shape: during the first week the contract is the
-        // reading, and naming a weakest side before the shape is drawn would
-        // be a verdict on a week that has not happened yet.
-        if forge.firstWeek == nil, let suggestion {
-            Button {
-                ForgeHaptics.shared.tap()
-                withAnimation(.forgeSelection) {
-                    offering = offering == suggestion.category ? nil : suggestion.category
-                }
-            } label: {
-                HStack(spacing: ForgeTheme.Space.inner) {
-                    Image(systemName: suggestion.category.symbol)
-                        .font(.system(size: 15, weight: .medium))
-                        .symbolRenderingMode(.hierarchical)
-                        .foregroundStyle(ForgeTheme.accent)
-                        .frame(width: 30, height: 30)
-                        .background(ForgeTheme.separator, in: RoundedRectangle(
-                            cornerRadius: ForgeTheme.Radius.glyph - 4, style: .continuous
-                        ))
-
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(suggestion.headline)
-                            .font(.subheadline.weight(.medium))
-                            .foregroundStyle(.primary)
-                        Text(suggestion.detail)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
-                            .multilineTextAlignment(.leading)
-                    }
-
-                    Spacer(minLength: 8)
-
-                    Image(systemName: offering == suggestion.category ? "chevron.down" : "chevron.right")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.tertiary)
-                        .contentTransition(.symbolEffect(.replace))
-                }
-                .padding(ForgeTheme.Space.row)
-                .contentShape(.rect)
-            }
-            .buttonStyle(.plain)
-            .forgeInteractiveCard(radius: ForgeTheme.Radius.card)
-            .accessibilityLabel(Text("\(suggestion.headline). \(suggestion.detail)"))
-            .accessibilityHint("Shows things you could add here")
-        }
-    }
-
-    /// What the next-step row should say, or nil for a shape with nothing to
-    /// point at.
-    ///
-    /// Two cases, in order. A dimension nothing is filed under is the stronger
-    /// offer — it is a whole part of somebody's life the practice does not touch
-    /// — and it is offered before a merely weaker one.
-    ///
-    /// A dimension nothing is filed under no longer gets this row: it carries
-    /// its own starter in The Six (`BecomingStarter`), one tap from being on
-    /// the day. Offering it here as well would be the same suggestion twice.
-    ///
-    /// Read from the blend, which names a dimension only while the record
-    /// alone is speaking for it — "has had the least of you" is a claim about
-    /// days kept, and a number still partly made of answers cannot carry it.
-    /// See `BlendedShape.needsAttention`.
-    private var suggestion: (category: RitualCategory, headline: String, detail: String)? {
-        if let weak = forge.blended.needsAttention {
-            return (
-                weak.category,
-                "\(weak.category.label) has had the least of you",
-                "Add something here, or move an activity you already keep into it."
-            )
-        }
-        return nil
-    }
-
-    // MARK: - 1d. Three things that would help
-
-    /// Concrete activities for the dimension the row above just named.
-    ///
-    /// Opened by that row rather than shown permanently, and that is the whole
-    /// of why this is not a catalogue: it appears when somebody has asked about
-    /// one specific weak side, it offers three things, and each one goes onto
-    /// the day in a single tap without leaving the screen. Naming a gap and then
-    /// sending somebody to a picker to find something to fill it is advice, not
-    /// a control.
-    @ViewBuilder
-    private var suggested: some View {
-        if let offering {
-            let options = forge.suggestions(for: offering)
-            if !options.isEmpty {
-                VStack(alignment: .leading, spacing: ForgeTheme.Space.row) {
-                    SectionHeading(
-                        "Add to your day",
-                        detail: "Small, and specific to \(offering.label.lowercased())"
-                    )
-
-                    VStack(spacing: 1) {
-                        ForEach(options) { ritual in
-                            SuggestionRow(ritual: ritual) {
-                                ForgeHaptics.shared.ritualVerified()
-                                BecomingOffer.add(ritual, to: forge)
-                                // Closes on its own. The offer was answered, and
-                                // a list that stays open with one row now
-                                // greyed out is a list asking whether you would
-                                // like the other two as well.
-                                withAnimation(.forgeSelection) { self.offering = nil }
-                            }
-                        }
-                    }
-                    .background(ForgeTheme.separator)
-                    .clipShape(ForgeTheme.cardShape(ForgeTheme.Radius.card))
-                }
-                .transition(.opacity.combined(with: .move(edge: .top)))
-            }
-        }
-    }
-
-    // MARK: - 1e. The weeks you wrote about
+    // MARK: - 6. The weeks you wrote about
 
     /// One row, and behind it every week somebody has answered.
     ///
@@ -810,19 +873,20 @@ struct ForgeShapeView: View {
         .accessibilityValue(Text(spoken))
     }
 
-    /// The name and score outside each vertex, the score in its dimension's
-    /// colour.
+    /// The name and score outside each vertex, both in the dimension's colour.
     private func labels(centre: CGPoint, radius: CGFloat) -> some View {
         ForEach(Array(shape.dimensions.enumerated()), id: \.element.id) { index, dimension in
             let anchor = HexagonGeometry.point(index, radius: radius + labelInset * 0.62, centre: centre)
             VStack(spacing: 1) {
+                // The name in its dimension's colour as well as the number
+                // (DIRECTION_1_1 §4), a step quieter so the number leads.
                 Text(dimension.category.label)
                     .font(.system(size: 10, weight: .medium))
                     .foregroundStyle(
-                        highlighted == dimension.category ? .primary : .secondary
+                        dimension.category.color.opacity(highlighted == dimension.category ? 1 : 0.72)
                     )
                 Text(dimension.hasScore ? "\(dimension.score)" : "\u{2014}")
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(.system(size: 13, weight: .semibold))
                     .monospacedDigit()
                     .contentTransition(.numericText(value: Double(dimension.score)))
                     .foregroundStyle(
@@ -847,199 +911,335 @@ struct ForgeShapeView: View {
     }
 }
 
-// MARK: - One dimension, in a row
+// MARK: - One dimension, as a tile
 
-/// A dimension's score, its direction, and — when opened — what it means.
+/// Which dimension's sheet is open. `RitualCategory` is a filter and a filing
+/// system before it is a screen, so it is not made `Identifiable` for one
+/// sheet; this is.
+struct DimensionChoice: Identifiable, Equatable {
+    let category: RitualCategory
+    var id: String { category.rawValue }
+}
+
+/// One of the six: its glyph and its number in its own colour, its name, the
+/// change over seven days, and BUILDING when somebody chose it.
 ///
-/// The score is set at readable size and the bar under it is hairline, which is
-/// the opposite weighting a dashboard uses. Here the number is the fact and the
-/// bar is only there to make six of them comparable at a glance.
+/// **The colour says which part of a person this is** (`DimensionPalette`);
+/// the accent is kept for BUILDING, which is something the person did. The
+/// change is in the dimension's colour when it is up and quiet otherwise —
+/// never red, because a number that went down is a reading, not an alarm.
 ///
-/// **Direction is shown as a word, not only as an arrow.** An arrow alone is
-/// unreadable to anybody who has not been told what it is measuring against, and
-/// this one is measuring the last fortnight against the one before it — which no
-/// glyph can say.
-///
-/// **It says what the number is made of.** A number that is still only the
-/// answers reads "From your answers" where the direction would be, and opened
-/// it says how the record takes over; a blended one says how long the answers
-/// still count. The glyph, the number and the bar are the dimension's own
-/// colour (`DimensionPalette`); the accent is kept for BUILDING, which is
-/// something the person did.
-private struct DimensionRow: View {
-    let dimension: BlendedShape.Dimension
-    /// Whether this is one somebody said they were building. Marked rather than
-    /// listed twice — see `BecomingTabView.focusRow`.
-    let isChosen: Bool
-    let isInspecting: Bool
-    /// The smallest library activity that would start this dimension, when
-    /// nothing is filed under it. See `BecomingStarter`.
-    var starter: Ritual? = nil
-    var onAdd: (Ritual) -> Void = { _ in }
+/// **Fixed in height.** The BUILDING line is always laid out and only shown on
+/// the chosen ones, and the change sits in the glyph's row, so nothing about a
+/// tile grows when the focus changes or a week's change appears (§2j.4).
+private struct StatTileView: View {
+    let tile: GlanceTile
     let action: () -> Void
 
-    private var record: ForgeShape.Dimension { dimension.record }
+    /// The score scales with the text around it. Fixed at 30 points, it was
+    /// the smallest thing on the tile at AX5 — the week's change and the name
+    /// outgrew the number they are about.
+    @ScaledMetric(relativeTo: .title) private var scoreSize: CGFloat = 30
+    @ScaledMetric(relativeTo: .caption) private var glyphSize: CGFloat = 12
+    @Environment(\.dynamicTypeSize) private var typeSize
 
-    /// The row, and under it — outside the row's own button, so the two taps
-    /// cannot be confused — the starter for an empty dimension.
+    private var dimension: BlendedShape.Dimension { tile.dimension }
+
     var body: some View {
-        VStack(spacing: 0) {
-            row
-            if let starter {
-                StarterLine(ritual: starter) { onAdd(starter) }
-                    .padding(.horizontal, ForgeTheme.Space.row)
-                    .padding(.bottom, ForgeTheme.Space.inner)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(.regularMaterial)
-            }
-        }
-    }
-
-    private var row: some View {
         Button(action: action) {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: ForgeTheme.Space.inner) {
-                    Image(systemName: dimension.category.symbol)
-                        .font(.system(size: 13, weight: .medium))
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 4) {
+                    Image(systemName: tile.category.symbol)
+                        .font(.system(size: glyphSize, weight: .semibold))
                         .symbolRenderingMode(.hierarchical)
-                        .foregroundStyle(dimension.category.color)
-                        .frame(width: 26)
-                        .accessibilityHidden(true)
-
-                    Text(dimension.category.label)
-                        .font(.subheadline.weight(.medium))
-                        .foregroundStyle(.primary)
-
-                    // One word, and only on the ones somebody pointed at. It is
-                    // the whole of what the deleted "What you're building" card
-                    // said that this list did not.
-                    if isChosen {
-                        Text("BUILDING")
-                            .font(ForgeTheme.label(8))
-                            .kerning(0.9)
-                            .foregroundStyle(ForgeTheme.accent)
-                            .padding(.horizontal, 6)
-                            .frame(height: 17)
-                            .background(
-                                ForgeTheme.accent.opacity(0.14),
-                                in: Capsule()
-                            )
-                    }
-
-                    Spacer(minLength: 8)
-
-                    if dimension.hasScore {
-                        // A number made only of answers has no direction to
-                        // show, and says what it is made of under the bar
-                        // instead — beside a BUILDING mark the words had no
-                        // room and broke over two lines.
-                        if !dimension.isFromAnswers {
-                            if let arrow = dimension.direction.symbol {
-                                Image(systemName: arrow)
-                                    .font(.system(size: 10, weight: .bold))
-                                    .foregroundStyle(.tertiary)
-                                    .accessibilityHidden(true)
-                            }
-                            Text(dimension.direction.label)
-                                .font(.caption2)
-                                .foregroundStyle(.tertiary)
-                        }
-
-                        Text("\(dimension.score)")
-                            .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(tile.category.color)
+                    Spacer(minLength: 2)
+                    if let change = tile.weekChange {
+                        Text(StatGlance.label(change))
+                            .font(.caption2.weight(.semibold))
                             .monospacedDigit()
-                            .foregroundStyle(dimension.category.color)
-                            .frame(minWidth: 26, alignment: .trailing)
-                    } else if record.hasActivities {
-                        // Something is filed here and its first day has not
-                        // come round. Waiting, not missing.
-                        Text("Starting")
-                            .font(.caption)
-                            .foregroundStyle(.tertiary)
+                            .foregroundStyle(change > 0
+                                             ? AnyShapeStyle(tile.category.color)
+                                             : AnyShapeStyle(.tertiary))
                     }
                 }
 
-                GeometryReader { proxy in
-                    ZStack(alignment: .leading) {
-                        Capsule().fill(ForgeTheme.separator)
-                        if dimension.fraction > 0 {
-                            Capsule()
-                                .fill(dimension.category.color.opacity(0.85))
-                                .frame(width: max(3, proxy.size.width * dimension.fraction))
-                        }
-                    }
-                }
-                .frame(height: 3)
+                Text(dimension.hasScore ? "\(dimension.score)" : "\u{2014}")
+                    .font(.system(size: scoreSize, weight: .semibold))
+                    .monospacedDigit()
+                    .foregroundStyle(dimension.hasScore
+                                     ? AnyShapeStyle(tile.category.color)
+                                     : AnyShapeStyle(.tertiary))
+                    .contentTransition(.numericText(value: Double(dimension.score)))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
 
-                if dimension.isFromAnswers {
-                    Text("From your answers")
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
-                }
+                // One line at every size, shrinking further at the
+                // accessibility sizes, where "Relationship" no longer fits half
+                // a phone's width: wrapped, it broke mid-word and made its tile
+                // taller than the five beside it.
+                Text(tile.category.label)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(typeSize.isAccessibilitySize ? 0.5 : 0.75)
 
-                if isInspecting {
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(dimension.category.meaning)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        // The arithmetic, said out loud. A score somebody cannot
-                        // check is a score they have to take on trust, and this
-                        // app's whole position is that it does not ask for that.
-                        if let workings {
-                            Text(workings)
-                                .font(.caption2)
-                                .foregroundStyle(.tertiary)
-                        }
-                    }
-                    .fixedSize(horizontal: false, vertical: true)
-                    .transition(.opacity.combined(with: .move(edge: .top)))
-                }
+                Text("BUILDING")
+                    .font(ForgeTheme.label(8))
+                    .kerning(0.9)
+                    .foregroundStyle(ForgeTheme.accent)
+                    .opacity(tile.isBuilding ? 1 : 0)
+                    .accessibilityHidden(true)
             }
-            .padding(ForgeTheme.Space.row)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(.regularMaterial)
+            // Its own height, always. The grid proposes each tile the row's
+            // height, and with two shrinkable lines in it a tile settled that
+            // by shrinking its score — so at AX5 one row drew 87 smaller than
+            // the 86 beside it. Only the width may make anything smaller.
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.horizontal, 11)
+            .padding(.vertical, 9)
+            // And the row's height for the card, so two tiles side by side are
+            // one size even when one name had to shrink.
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .contentShape(.rect)
         }
         .buttonStyle(.plain)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(Text(
-            isChosen ? "\(dimension.category.label), building" : dimension.category.label
-        ))
+        .forgeInteractiveCard(radius: ForgeTheme.Radius.control)
+        .animation(.forgeSelection, value: tile.isBuilding)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text(tile.isBuilding ? "\(tile.category.label), building" : tile.category.label))
         .accessibilityValue(Text(spokenValue))
+        .accessibilityHint("Shows what feeds it")
+        .accessibilityAddTraits(.isButton)
     }
 
     private var spokenValue: String {
-        guard dimension.hasScore else {
-            return "Nothing recorded yet. \(dimension.category.meaning)"
+        guard dimension.hasScore else { return "Nothing recorded yet" }
+        var parts = ["\(dimension.score)"]
+        if dimension.isFromAnswers { parts.append("from your answers") }
+        if let change = tile.weekChange { parts.append(StatGlance.spoken(change)) }
+        return parts.joined(separator: ", ")
+    }
+}
+
+// MARK: - One dimension, opened
+
+/// What a tile opens: what feeds the dimension, what in the week is filed
+/// under it, three things to add, and which way it is going.
+///
+/// # Why there is a sheet now, when there was not before
+///
+/// The list it replaces argued that a push to a page holding one sentence is a
+/// page nobody returns to. That was right about one sentence. A dimension now
+/// has four things worth saying, and the grid that put the six above the fold
+/// has room for none of them — so the tile is the reading and the sheet is the
+/// working, one tap apart, and nothing on it is a second copy of a number on
+/// the tab.
+///
+/// The three suggestions are the same effort-ranked filter of the library
+/// everything in Becoming uses (`ForgeShape.suggestions`), and adding one is
+/// the same one tap (`BecomingOffer`): appended, never replacing anything, no
+/// confirmation in front of it (§5 #7). A row added here keeps its place with a
+/// check on it, so a second tap cannot land on the next one.
+private struct DimensionSheet: View {
+    var forge: ForgeViewModel
+    let category: RitualCategory
+
+    @State private var added: Set<String> = []
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        let six = forge.blended
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: ForgeTheme.Space.section) {
+                    if let dimension = six.dimension(category) {
+                        header(dimension, change: StatGlance.change(of: category, now: six, weekAgo: forge.weekAgo))
+                        feeds(dimension)
+                    }
+                    activities
+                    suggestions
+                }
+                .padding(.horizontal, ForgeTheme.Space.gutter)
+                .padding(.top, ForgeTheme.Space.tight)
+                .padding(.bottom, ForgeTheme.Space.chapter)
+            }
+            .scrollIndicators(.hidden)
+            .navigationTitle(category.label)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }
+                }
+            }
         }
-        let reading = dimension.isFromAnswers ? "from your answers" : dimension.direction.label
-        return "\(dimension.score). \(reading). \(dimension.category.meaning)"
+        .presentationDetents([.medium, .large])
+        .presentationCornerRadius(ForgeTheme.Radius.sheet)
+        .presentationDragIndicator(.visible)
+    }
+
+    // MARK: The number, and which way it is going
+
+    private func header(_ dimension: BlendedShape.Dimension, change: Int?) -> some View {
+        HStack(alignment: .center, spacing: ForgeTheme.Space.row) {
+            Image(systemName: category.symbol)
+                .font(.system(size: 22, weight: .medium))
+                .symbolRenderingMode(.hierarchical)
+                .foregroundStyle(category.color)
+                .frame(width: 48, height: 48)
+                .background(category.color.opacity(0.14), in: RoundedRectangle(
+                    cornerRadius: ForgeTheme.Radius.glyph, style: .continuous
+                ))
+                .accessibilityHidden(true)
+
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text(dimension.hasScore ? "\(dimension.score)" : "\u{2014}")
+                        .font(.system(size: 40, weight: .semibold))
+                        .monospacedDigit()
+                        .foregroundStyle(dimension.hasScore ? AnyShapeStyle(category.color) : AnyShapeStyle(.tertiary))
+                    if let change {
+                        Text(StatGlance.label(change))
+                            .font(.subheadline.weight(.semibold))
+                            .monospacedDigit()
+                            .foregroundStyle(change > 0 ? AnyShapeStyle(category.color) : AnyShapeStyle(.secondary))
+                    }
+                }
+                Text(direction(dimension, change: change))
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    /// Which way it is going, in words, and over what.
+    private func direction(_ dimension: BlendedShape.Dimension, change: Int?) -> String {
+        var line: String
+        if dimension.isFromAnswers {
+            line = "From your answers. The first day something here is kept, the record starts to move it."
+        } else {
+            switch dimension.direction {
+            case .rising: line = "Rising: the last two weeks against the two before."
+            case .slipping: line = "Slipping: the last two weeks against the two before."
+            case .steady: line = "Steady: the last two weeks against the two before."
+            case .unknown: line = "Early: two weeks of record give it a direction."
+            }
+        }
+        if let change { line += " \(StatGlance.spoken(change).prefix(1).uppercased())\(StatGlance.spoken(change).dropFirst())." }
+        if forge.focus.contains(category) { line += " You're building this." }
+        return line
+    }
+
+    // MARK: What feeds it
+
+    private func feeds(_ dimension: BlendedShape.Dimension) -> some View {
+        VStack(alignment: .leading, spacing: ForgeTheme.Space.tight) {
+            SectionHeading("What feeds it", detail: category.meaning)
+            VStack(alignment: .leading, spacing: 6) {
+                if let workings = workings(dimension) {
+                    Text(workings)
+                }
+                Text("Every day something filed here is kept counts, and so does a finished daily challenge aimed at it. Days, not ticks: three in one day is one day.")
+            }
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+        }
     }
 
     /// What the number is made of, in words — nil where there is nothing to
-    /// show the working of.
-    private var workings: String? {
+    /// show the working of. A score somebody cannot check is a score they have
+    /// to take on trust, and this app's whole position is that it does not ask
+    /// for that.
+    private func workings(_ dimension: BlendedShape.Dimension) -> String? {
+        let record = dimension.record
         switch dimension.source {
         case .answers:
-            return "From your answers. The first day something here is kept, the record starts to move it."
+            return "\(dimension.score) is where your answers put it."
         case .blend(let days):
             let left = max(0, BlendedShape.blendDays - days)
             let unit = left == 1 ? "day" : "days"
-            return "\(keptLine) Your answers still count for part of it; in \(ForgeCount.spelled(left).lowercased()) \(unit) the record alone decides."
+            return "\(keptLine(record)) Your answers still count for part of it; in \(ForgeCount.spelled(left).lowercased()) \(unit) the record alone decides."
         case .record:
             guard record.isMeasured else { return nil }
-            return "\(keptLine.dropLast()), these four weeks."
+            return "\(keptLine(record).dropLast()), these four weeks."
         }
     }
 
     /// "Kept on eleven of the fourteen days it was asked for."
-    private var keptLine: String {
+    private func keptLine(_ record: ForgeShape.Dimension) -> String {
         let keptDays = ForgeShape.spokenDays(record.kept)
         let askedDays = ForgeShape.spokenDays(record.asked)
         let kept = ForgeCount.spelled(keptDays).lowercased()
         let asked = ForgeCount.spelled(askedDays).lowercased()
         let days = askedDays == 1 ? "day" : "days"
         return "Kept on \(kept) of the \(asked) \(days) it was asked for."
+    }
+
+    // MARK: What is in the week
+
+    @ViewBuilder
+    private var activities: some View {
+        let filed = forge.activeRituals.filter { $0.category == category }
+        VStack(alignment: .leading, spacing: ForgeTheme.Space.tight) {
+            SectionHeading("In your week")
+            if filed.isEmpty {
+                Text("Nothing in your week is filed under \(category.label.lowercased()) yet.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else {
+                VStack(spacing: 1) {
+                    ForEach(filed) { ritual in
+                        HStack(spacing: ForgeTheme.Space.inner) {
+                            RitualGlyph(ritual: ritual, size: 16, color: .secondary)
+                                .frame(width: 30, height: 30)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(ritual.label)
+                                    .font(.subheadline.weight(.medium))
+                                Text(ritual.scheduleLabel.map { "\(ritual.repeats.label) \u{00B7} \($0)" } ?? ritual.repeats.label)
+                                    .font(.caption)
+                                    .monospacedDigit()
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer(minLength: 0)
+                        }
+                        .padding(.horizontal, ForgeTheme.Space.row)
+                        .padding(.vertical, 10)
+                        .background(.regularMaterial)
+                        .accessibilityElement(children: .combine)
+                    }
+                }
+                .clipShape(ForgeTheme.cardShape(ForgeTheme.Radius.card))
+            }
+        }
+    }
+
+    // MARK: Three to add
+
+    @ViewBuilder
+    private var suggestions: some View {
+        let held = Set(forge.activeRitualIDs).subtracting(added)
+        let options = ForgeShape.suggestions(for: category, avoiding: held)
+        if !options.isEmpty {
+            VStack(alignment: .leading, spacing: ForgeTheme.Space.tight) {
+                SectionHeading("Add one", detail: "Small, and one tap each.")
+                VStack(spacing: 1) {
+                    ForEach(options) { ritual in
+                        SuggestionRow(ritual: ritual, isAdded: added.contains(ritual.id)) {
+                            ForgeHaptics.shared.ritualVerified()
+                            BecomingOffer.add(ritual, to: forge)
+                            added.insert(ritual.id)
+                        }
+                    }
+                }
+                .background(ForgeTheme.separator)
+                .clipShape(ForgeTheme.cardShape(ForgeTheme.Radius.card))
+            }
+        }
     }
 }
 
@@ -1120,35 +1320,6 @@ private struct FirstWeekLine: View {
     }
 }
 
-/// A dimension's starter, restrained: one line and one button, inside its row.
-/// Nothing is added until the button is pressed.
-private struct StarterLine: View {
-    let ritual: Ritual
-    let add: () -> Void
-
-    @Environment(\.dynamicTypeSize) private var typeSize
-
-    var body: some View {
-        HStack(spacing: ForgeTheme.Space.tight) {
-            // One line where it fits. At the accessibility sizes one line was
-            // "Smallest start: Look…", which names nothing; there it wraps.
-            Text("Smallest start: \(ritual.label)")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .lineLimit(typeSize.isAccessibilitySize ? 3 : 1)
-                .minimumScaleFactor(0.85)
-
-            Spacer(minLength: 8)
-
-            Button("Add", action: add)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(ForgeTheme.accent)
-                .buttonStyle(.borderless)
-                .accessibilityLabel(Text("Add \(ritual.label) to your day"))
-        }
-    }
-}
-
 // MARK: - One thing you could add
 
 /// A suggested activity, and a single tap that puts it on the day.
@@ -1156,15 +1327,22 @@ private struct StarterLine: View {
 /// The row shows what the library shows anywhere else — the act, its standard,
 /// and what a day of it costs — because a suggestion that hid the commitment
 /// would be a suggestion somebody agreed to without reading. The `+` is the
-/// whole interaction: there is no detail screen, no confirmation and no "added"
-/// state, because the activity appears on the Forge tab immediately and the
-/// section closes behind it.
+/// whole interaction: no detail screen and no confirmation. Once added it stays
+/// where it is with a check on it, inert, so the list does not close up under a
+/// finger that is about to tap again; the next visit reads the week afresh.
+///
+/// The dimension's glyph sits beside the `+` in its colour, the same mark the
+/// tiles carry — which part of somebody this feeds, said without a word.
 private struct SuggestionRow: View {
     let ritual: Ritual
+    var isAdded: Bool = false
     let add: () -> Void
 
     var body: some View {
-        Button(action: add) {
+        Button {
+            guard !isAdded else { return }
+            add()
+        } label: {
             HStack(spacing: ForgeTheme.Space.inner) {
                 RitualGlyph(ritual: ritual, size: 16, color: .secondary)
                     .frame(width: 30, height: 30)
@@ -1190,10 +1368,16 @@ private struct SuggestionRow: View {
                         .foregroundStyle(.tertiary)
                 }
 
-                Image(systemName: "plus.circle.fill")
+                Image(systemName: ritual.category.symbol)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(ritual.category.color)
+                    .accessibilityHidden(true)
+
+                Image(systemName: isAdded ? "checkmark.circle.fill" : "plus.circle.fill")
                     .font(.title3)
                     .symbolRenderingMode(.palette)
                     .foregroundStyle(.white, ForgeTheme.accent)
+                    .contentTransition(.symbolEffect(.replace))
             }
             .padding(ForgeTheme.Space.row)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -1203,7 +1387,8 @@ private struct SuggestionRow: View {
         .buttonStyle(.plain)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(Text("\(ritual.label). \(ritual.sub)"))
-        .accessibilityHint("Adds this to your day")
+        .accessibilityValue(Text(isAdded ? "Added to today" : ""))
+        .accessibilityHint(isAdded ? "" : "Adds this to today")
     }
 }
 

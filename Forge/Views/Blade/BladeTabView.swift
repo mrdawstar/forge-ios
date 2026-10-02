@@ -120,8 +120,10 @@ struct BladeTabView: View {
     /// day kept is a strike, and then the app never mentioned it again — so the
     /// blades read as unlockable cosmetics, which is the one thing they must not
     /// be. One line, on the screen the blade lives on, and the whole progression
-    /// becomes legible: the seven are the blade being made, and everything past
-    /// them is what the work has done to it.
+    /// becomes legible: the nine are the blade being made, and everything past
+    /// them is what the work has done to it — a grade on the steel, and from two
+    /// hundred and seventy days a temper mark under it for every ninety more
+    /// (`TemperMarks`).
     ///
     /// The state is derived from days kept on every read — see `Ladder` — so
     /// this can no more disagree with the history than the count can.
@@ -139,6 +141,11 @@ struct BladeTabView: View {
             .winterEngraving(arcs.winterMarks.count, width: 74, spriteHeight: 74 * 1771 / 483)
             .animation(reduceMotion ? nil : .smooth(duration: 0.42), value: swords.equippedID)
 
+            // Past Enduring, what every ninety days more has cut into it.
+            // Nothing at all before then, so the card is unchanged for
+            // everybody short of two hundred and seventy days.
+            TemperMarks(count: vm.temperMarks)
+
             VStack(spacing: 7) {
                 HStack(spacing: 8) {
                     Text(vm.rung.name)
@@ -146,8 +153,8 @@ struct BladeTabView: View {
                         .contentTransition(.opacity)
 
                     // The state is named beside the blade rather than instead of
-                    // it: at four hundred days somebody is carrying the Proven
-                    // Sword, honed — two facts about one object, and dropping
+                    // it: at two hundred days somebody is carrying the Enduring
+                    // Sword, tempered — two facts about one object, and dropping
                     // either would be a different sentence.
                     if let state = vm.bladeState.label, vm.rung.mark.state == nil {
                         Text(state)
@@ -229,9 +236,10 @@ struct BladeTabView: View {
 
     /// Where the ladder is, and what is next on it.
     ///
-    /// One row rather than the old "NEXT BLADE" card, because past sixty days
-    /// there is no next blade — there is a next *state*, and the same row has to
-    /// carry both. It says the distance in days rather than a percentage: a
+    /// One row rather than the old "NEXT BLADE" card, because past the last
+    /// blade there is no next blade — there is a next *state*, and the same row
+    /// has to carry both. The temper marks are not on it: they are the same
+    /// number drawn on the steel, and nothing counts down to them (§5 #5). It says the distance in days rather than a percentage: a
     /// percentage of a practice is a completion bar, and this is not a thing
     /// being completed.
     @ViewBuilder
@@ -904,11 +912,11 @@ struct BladeTabView: View {
 
 // MARK: - The collection
 
-/// The seven blades, behind a door.
+/// The nine blades, behind a door.
 ///
 /// They were a gallery on the front of the Blade tab, and that is where they did
 /// the damage: seven cards, four of them locked at any given time, reading as a
-/// set to be completed. The blades are not a set — they are one blade at seven
+/// set to be completed. The blades are not a set — they are one blade at nine
 /// stages of being made, which is what the portrait behind this sheet now says.
 ///
 /// So the collection is what it always actually was: the place you go to choose

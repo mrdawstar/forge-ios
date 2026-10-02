@@ -1,4 +1,5 @@
 import SwiftUI
+import TipKit
 
 /// The Arcs: the one being lived in, the ones that can be started, and the
 /// ones finished.
@@ -34,6 +35,14 @@ struct ArcsTabView: View {
         NavigationStack(path: $path) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
+                    // The fourth of the first week's tips, at the top of the
+                    // tab it is about. Inline, so nothing has to be dismissed
+                    // before the tab can be used.
+                    if let tip = ForgeTips.current(ArcsTip.self) {
+                        TipView(tip)
+                            .padding(.bottom, ForgeTheme.Space.row)
+                    }
+
                     if isLocked {
                         ProLockedState { paywallDoor = .locked }
                             .forgeCard()

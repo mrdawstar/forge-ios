@@ -24,6 +24,7 @@ struct FreeStateView: View {
     /// The height of the space this actually has, so the content can be centred
     /// inside it when it is short and scroll when it is not.
     @State private var viewport: CGFloat = 0
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     /// How many activities still read as a row of dots rather than as a chart.
     private static let dotLimit = 12
@@ -64,27 +65,56 @@ struct FreeStateView: View {
     private var content: some View {
         VStack(spacing: 0) {
             HStack(alignment: .firstTextBaseline, spacing: 9) {
-                Text("Free.")
-                    .font(.title3.weight(.semibold))
-                Text(vm.finishTime)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                // The time under the word at the accessibility sizes. With two
+                // buttons beside them there is no longer room for both on one
+                // line, and side by side they broke mid-word ("Fr / ee").
+                let words = typeSize.isAccessibilitySize
+                    ? AnyLayout(VStackLayout(alignment: .leading, spacing: 2))
+                    : AnyLayout(HStackLayout(alignment: .firstTextBaseline, spacing: 9))
+                words {
+                    Text("Free.")
+                        .font(.title3.weight(.semibold))
+                        .lineLimit(1)
+                        .fixedSize()
+                    Text(vm.finishTime)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
+                }
 
                 Spacer(minLength: 8)
 
-                // The same button the day header carries, kept for the state
-                // that outlives the day list.
+                // The same two buttons the day header carries, kept for the
+                // state that outlives the day list.
                 //
                 // An earned day is exactly when somebody has the room to think
                 // about the next one, and until this was here it was the moment
                 // the app stopped letting them: the header — and the only door
                 // to adding, renaming or rescheduling anything — went away with
-                // the list it sat on. What is being edited is the day itself,
-                // which is to say tomorrow and every day after it, so this is
-                // not a second editor; it is the same one, still reachable.
+                // the list it sat on. What is being changed is the day itself,
+                // which is to say tomorrow and every day after it, so these are
+                // not a second editor and a second picker; they are the same
+                // ones, still reachable: ⋯ for "Edit day", `+` for QuickAdd.
+                Menu {
+                    Button("Edit day", systemImage: "slider.horizontal.3") {
+                        ForgeHaptics.shared.tap()
+                        vm.showEditRituals = true
+                    }
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .font(.footnote.weight(.medium))
+                        .frame(width: 34, height: 34)
+                        .contentShape(.rect)
+                }
+                .buttonStyle(.glass)
+                .buttonBorderShape(.circle)
+                .accessibilityLabel("More")
+                .accessibilityHint("Edit the day: reorder, take things out, change an activity")
+
                 Button {
                     ForgeHaptics.shared.tap()
-                    vm.showEditRituals = true
+                    vm.showQuickAdd = true
                 } label: {
                     Image(systemName: "plus")
                         .font(.footnote.weight(.medium))
@@ -93,8 +123,8 @@ struct FreeStateView: View {
                 }
                 .buttonStyle(.glass)
                 .buttonBorderShape(.circle)
-                .accessibilityLabel("Edit activities")
-                .accessibilityHint("Add, reorder or remove activities for the days ahead")
+                .accessibilityLabel("Add to today")
+                .accessibilityHint("Adds an activity in one tap")
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 

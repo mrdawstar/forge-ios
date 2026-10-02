@@ -91,7 +91,7 @@ struct TomorrowSheet: View {
 
             Section {
                 NavigationLink {
-                    ActivityLibraryView(vm: vm)
+                    QuickAddView(vm: vm, isRoot: false)
                 } label: {
                     Label("Swap something in", systemImage: "plus")
                 }
@@ -107,7 +107,7 @@ struct TomorrowSheet: View {
         } description: {
             Text("Add what you want tomorrow to be made of.")
         } actions: {
-            NavigationLink("Add an activity") { ActivityLibraryView(vm: vm) }
+            NavigationLink("Add an activity") { QuickAddView(vm: vm, isRoot: false) }
         }
     }
 

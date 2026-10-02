@@ -512,6 +512,11 @@ struct SettingsTabView: View {
     // MARK: - Debug
 
     #if DEBUG
+    /// The week as it stands, or the shipped default day for an empty one.
+    private var seedWeek: [String] {
+        forge.activeRitualIDs.isEmpty ? Ritual.defaultActive : forge.activeRitualIDs
+    }
+
     /// Never shipped. Streak and rollover logic cannot be exercised by waiting
     /// a month for it, so the date and the history are both drivable from here.
     private var debugSection: some View {
@@ -542,8 +547,24 @@ struct SettingsTabView: View {
                 .monospacedDigit()
             }
 
+            // Seeded from the week somebody keeps now, so the six on Becoming
+            // read the seeded days (a record of ids nobody keeps any more
+            // feeds no dimension). A year reaches all nine blades; two years
+            // reach the temper marks past Enduring.
             Button("Seed 12 Weeks of History") {
-                progress.seedSyntheticHistory()
+                progress.seedSyntheticHistory(planned: seedWeek)
+            }
+            Button("Seed a Year of History") {
+                progress.seedSyntheticHistory(days: 365, planned: seedWeek)
+            }
+            Button("Seed Two Years of History") {
+                progress.seedSyntheticHistory(days: 730, planned: seedWeek)
+            }
+
+            // Every one of the first week's five tips, eligible again now, and
+            // TipKit's whole datastore cleared on the next launch.
+            Button("Reset Tips") {
+                Task { await ForgeTips.resetAll() }
             }
 
             Button("Clear History", role: .destructive) {

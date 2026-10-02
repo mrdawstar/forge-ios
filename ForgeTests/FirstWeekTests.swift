@@ -343,8 +343,11 @@ struct ProofCardTests {
             if name != "PracticeArtifact.swift", text.contains("ProofCardButton(") { doors.insert(name) }
             if text.contains("ShareLink(") || text.contains("UIActivityViewController") { sharers.insert(name) }
         }
-        // The third, since 1.1: the running Arc's card (DIRECTION_1_1 §5).
-        #expect(doors == ["SwordUnlockOverlay.swift", "ChapterCloseView.swift", "ArcsTabView.swift"])
+        // The third, since 1.1: the running Arc's card (DIRECTION_1_1 §5). The
+        // fourth: Becoming's Share your stats (§17.4).
+        #expect(doors == [
+            "SwordUnlockOverlay.swift", "ChapterCloseView.swift", "ArcsTabView.swift", "BecomingTabView.swift",
+        ])
         #expect(sharers == ["PracticeArtifact.swift"])
     }
 }
