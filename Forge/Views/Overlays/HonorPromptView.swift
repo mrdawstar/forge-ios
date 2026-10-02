@@ -10,7 +10,22 @@ import SwiftUI
 struct HonorPromptView: View {
     let ritual: Ritual
     let onKept: () -> Void
+    /// "Let Apple Health check this", on an activity that was in the week
+    /// before 1.1 made it measurable and so stayed Your Word (`HealthLedger`).
+    /// Read once, when the prompt opens. Shown once: `onOfferShown` writes
+    /// that down, and the parent then passes false.
+    /// The line under the name. On an activity Apple Health checks, the
+    /// prompt only appears when Health has not ticked it off, so the honest
+    /// sentence there is a different one (`ForgeTabView`).
+    var subtitle = "No one is checking this one."
+    var offersHealth = false
+    var onLetHealthCheck: () -> Void = {}
+    var onOfferShown: () -> Void = {}
     @Environment(\.dismiss) private var dismiss
+
+    /// Decided when the prompt opens and held, so writing down that the offer
+    /// was shown does not take the button away while it is on screen.
+    @State private var showsOffer: Bool?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -26,10 +41,12 @@ struct HonorPromptView: View {
                 .padding(.top, 22)
                 .padding(.horizontal, 32)
 
-            Text("No one is checking this one.")
+            Text(subtitle)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
                 .padding(.top, 8)
+                .padding(.horizontal, 32)
 
             Spacer(minLength: 0)
 
@@ -56,6 +73,27 @@ struct HonorPromptView: View {
                 .foregroundStyle(.secondary)
                 .padding(.top, 16)
                 .padding(.bottom, 8)
+
+            // Asked once, here, where the activity is in front of somebody:
+            // their own activity never changes how it is checked unasked.
+            if showsOffer == true {
+                Button {
+                    ForgeHaptics.shared.tap()
+                    onLetHealthCheck()
+                } label: {
+                    Label("Let Apple Health check this", systemImage: "heart")
+                        .font(.footnote.weight(.medium))
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(ForgeTheme.accent)
+                .padding(.top, 4)
+                .padding(.bottom, 8)
+            }
+        }
+        .onAppear {
+            guard showsOffer == nil else { return }
+            showsOffer = offersHealth
+            if offersHealth { onOfferShown() }
         }
         .padding(.vertical, 28)
         // A second detent, because the first is a fixed height. At accessibility

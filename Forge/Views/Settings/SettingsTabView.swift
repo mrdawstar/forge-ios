@@ -40,6 +40,8 @@ struct SettingsTabView: View {
     /// The permission explanation, raised the first time somebody turns the
     /// switch on here without iOS ever having been asked.
     @State private var showPrimer = false
+    /// The Apple Health primer, from its one door in Settings.
+    @State private var showHealthPrimer = false
     @State private var paywallDoor: ForgeTelemetry.PaywallDoor?
     /// What Restore found, said under the section. Nil until somebody taps it.
     @State private var restoreNote: String?
@@ -62,6 +64,10 @@ struct SettingsTabView: View {
                 reviewSection
 
                 notificationSection
+
+                if ForgeFeatures.current.health {
+                    healthSection
+                }
 
                 ForEach(vm.groups) { group in
                     Section {
@@ -113,6 +119,12 @@ struct SettingsTabView: View {
                 }
             }
             .sheet(isPresented: $showPrimer) { primer }
+            .sheet(isPresented: $showHealthPrimer) {
+                HealthPrimerView(
+                    activities: { forge.healthActivityNames(for: $0) },
+                    onAnswer: { allow in await forge.answerHealthPrimer(allow: allow) }
+                )
+            }
             .paywall($paywallDoor)
         }
     }
@@ -392,6 +404,44 @@ struct SettingsTabView: View {
         }
     }
 
+    // MARK: - Apple Health
+
+    /// What Forge reads from Health, and where that is changed.
+    ///
+    /// HealthKit never tells an app whether reading was allowed, so this does
+    /// not claim to know: after Continue it says what Forge asks to read and
+    /// that the Health app is where the answer lives. After "Keep it Your
+    /// Word" it says so, and it is the one door back: the primer, opened by
+    /// the person, never by Forge.
+    @ViewBuilder
+    private var healthSection: some View {
+        Section {
+            switch forge.healthLedger.decision {
+            case .undecided:
+                LabeledContent("Apple Health", value: "Not asked yet")
+            case .asked:
+                LabeledContent("Apple Health", value: "Read only")
+                if let health = URL(string: "x-apple-health://") {
+                    Link("Open the Health App", destination: health)
+                }
+            case .declined:
+                LabeledContent("Apple Health", value: "Your Word")
+                Button("Let Apple Health Check Activities") { showHealthPrimer = true }
+            }
+        } header: {
+            Text("Apple Health")
+        } footer: {
+            switch forge.healthLedger.decision {
+            case .undecided:
+                Text("Forge asks the first time an activity Apple Health can check enters your day: steps, workouts, sleep or mindful minutes.")
+            case .asked:
+                Text("Forge reads steps, workouts, sleep and mindful minutes on this iPhone, and never writes to Health. To change what it can read, open the Health app, tap your picture, then Apps, then Forge.")
+            case .declined:
+                Text("You kept these activities Your Word. Apple Health is not asked unless you choose it here.")
+            }
+        }
+    }
+
     /// The permission explanation.
     ///
     /// Presented from the screen rather than from the section it belongs to: a
@@ -527,6 +577,11 @@ struct SettingsTabView: View {
                         .monospacedDigit()
                 }
             }
+
+            // Apple Health: forget the primer's answer and the offers, so the
+            // primer and "Let Apple Health check this" can be walked again.
+            // iOS keeps its own answer; reset that in the Health app.
+            Button("Reset Apple Health Answer") { forge.resetHealth() }
 
             Stepper(value: $progress.dayStartHour, in: 0...12) {
                 LabeledContent("Day starts at") {

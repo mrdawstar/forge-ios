@@ -68,7 +68,10 @@ struct LegacyDecodingTests {
         let rituals = try JSONDecoder().decode([Ritual].self, from: Data(json.utf8))
 
         #expect(rituals.count == 4, "every activity the user made has to come back")
-        #expect(rituals.map(\.verification) == [.honor, .honor, .honor, .honor])
+        // `health` is a current value again since 1.1 (S5). A custom activity
+        // has nothing Health can count, so it still behaves as Your Word.
+        #expect(rituals.map(\.verification) == [.honor, .honor, .health, .honor])
+        #expect(!rituals[2].checksWithHealth)
         #expect(rituals.map(\.label) == [
             "Rinse the cafetière", "Day pages", "Walk the dog", "Say grace",
         ])

@@ -156,12 +156,20 @@ Info, Physical Address, Phone Number, Name, Email Address, User ID, Device ID,
 Purchases, User Content, Customer Support, Advertising Data, and every Usage
 Data and Diagnostics row other than the two above.
 
-**Health data specifically.** Forge reads steps, distance and workouts from
-HealthKit to tick off activities it can measure. It is **read-only**
-(`requestAuthorization(toShare: [], read:)` in `HealthBridge`), the readings are
-never written to disk, never synced, and never included in an `AIBrief` — there
-is no field on that struct that could hold one. HealthKit data therefore is not
-"collected" in the App Store sense and must not be declared as such.
+**Health data specifically.** Since 1.1 (session S5, `FORGE_CONTEXT.md`
+§17.5) Forge reads **steps, workout minutes, sleep and mindful minutes** from
+HealthKit to tick off the activities they measure. It is **read-only**
+(`requestAuthorization(toShare: [], read:)` in `Engine/HealthBridge.swift`), and
+it is **read on the device and not collected**: a reading is used the moment it
+arrives to decide whether an activity is done and then dropped. Readings are
+never written to disk, never synced, never sent to telemetry
+(`ForgeTelemetry.Event` has no case that could hold one) and never included in
+an `AIBrief` — there is no field on that struct that could hold one. What Forge
+keeps is the completion it caused (an activity id, banked as `health` in the
+day's record) and `HealthLedger` (the primer's answer, which activities were
+offered, which were ticked today): decisions, never values. Health & Fitness is
+therefore **not** declared on the label, and `PrivacyInfo.xcprivacy` says the
+same in a comment beside its collected-data list.
 
 > ⚠️ **Read-only does not exempt the app from the *write* purpose string.** The
 > first upload was rejected with `ITMS-90683: Missing purpose string in
@@ -169,7 +177,7 @@ is no field on that struct that could hold one. HealthKit data therefore is not
 > **entitlement**, not the usage, and `com.apple.developer.healthkit` grants
 > read and write together — so both `NSHealthShareUsageDescription` and
 > `NSHealthUpdateUsageDescription` must be in `Forge/Info.plist`. Both are, as
-> of 2026-09-04. The update string says the app does not write, which is true
+> of 2026-09-04, rewritten in 1.1 S5 for the four types now read. The update string says the app does not write, which is true
 > and which iOS will never show. Do not delete it to tidy up. See
 > `FORGE_CONTEXT.md` §2m.
 
@@ -262,7 +270,8 @@ collected, and that contradiction is checkable in thirty seconds.
 What it must say after the edit, at minimum: that everything is stored locally
 on the device; that **there is no account and no way to make one**; that the app
 makes **no network requests** other than Apple's own StoreKit; that deleting the
-app deletes the data; and that HealthKit data is read-only and never
+app deletes the data; and that HealthKit data (steps, workout minutes, sleep,
+mindful minutes) is read-only, read on the device, and never stored or
 transmitted. The sections about signing in, about what the server stores, and
 about the account-deletion route should be **deleted**, not softened — there is
 no server-side data and no account to delete.
@@ -450,12 +459,15 @@ To review it in about three minutes:
    Subscription, Lifetime), appearance, and the Privacy Policy, Terms and
    Support links.
 
-HealthKit is read-only and optional. It is used solely to auto-complete
-activities the phone can already measure (steps, distance, workouts), and is
-requested in context the first time such an activity is taken on — never at
-launch. No health data is stored, synced or transmitted, and the app never
-writes to Health. Declining it leaves every feature working; activities are
-then completed by tapping.
+HealthKit is read-only and optional. It is used solely to tick off activities
+the phone can already measure (steps, workout minutes, sleep and mindful
+minutes). It is requested in context, after a short screen listing exactly those
+four types, the first time such an activity enters the day after onboarding —
+never at launch and never during onboarding. No health data is stored, synced
+or transmitted, and the app never writes to Health. Declining it leaves every
+feature working; activities are then completed by tapping. To see it: add "Hit
+your steps" from the + on the Forge tab, close the sheet, and the screen
+appears.
 
 This build contains no AI processing. Forge Pro's AI features are prepared but
 switched off in this version: the app holds no model key and makes no model

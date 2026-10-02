@@ -1393,6 +1393,10 @@ NSHealthUpdateUsageDescription =
    themselves off."
 ```
 
+*(1.1 session S5 rewrote both strings for the four types Forge now reads —
+steps, workout minutes, sleep, mindful minutes — and HealthKit's code is new,
+not this one; see §17.5. The reasoning below is unchanged.)*
+
 Written as the truth rather than as filler. **iOS will never show it** — the
 sheet it belongs to is the one raised by asking for write access, and Forge asks
 for none — but if it ever did appear it would be the only thing a person had to
@@ -1976,7 +1980,9 @@ Progress on each session is recorded in §17.
 ```
 Plan the day        activities, each with optional start time + weekday repeat
       ↓
-Complete them       tap → basic / honor prompt / HealthKit auto-settle
+Complete them       tap → basic / honor prompt; Apple Health ticks off the
+      ↓             measurable ones by itself (steps, workouts, sleep,
+      ↓             mindful minutes; read-only, on the device, §17.5)
       ↓
 Blade comes LOOSE   all of today's activities done  (allDone)
       ↓
@@ -1997,8 +2003,12 @@ the recurring routine).
 
 ```
 Ritual (activity) ──── id, label, icon, verification, minutes,
-   │                   startMinute?, repeats (weekday set), category
-   │                   library (28 shipped) + custom + libraryEdits overlay
+   │                   startMinute?, repeats (weekday set), category,
+   │                   target? (a measurable one's number)
+   │                   library (59 shipped) + custom + libraryEdits overlay
+   │                   verification: health / honor / basic. `measure` =
+   │                   metric + target for the six Health can count
+   │                   (Ritual.metrics); `checksWithHealth` needs both
    ▼
 ForgeViewModel ─────── activeRitualIDs = THE DAY (what you keep)
    │                   todayRitualIDs  = TODAY   (after repeat rules)
@@ -2014,6 +2024,15 @@ MilestoneStore ─────── 5 shipped (1/7/30/100/365 days) + ≤12 cus
 ChallengeStore ─────── today's challenge, chosen from the day's own shape
 ForgeAppearance ────── the accent the app is drawn in. One of eight, stored,
                        and the only thing about the interface that is a taste
+HealthBridge ───────── Apple Health, read-only (empty share set). Today's
+   │                   steps, workout minutes, last night's sleep, mindful
+   │                   minutes over the Forge day (HealthWindow/HealthMath).
+   ▼                   Never stores a reading.
+ForgeViewModel.sweepHealth ── ticks off what reached its target, through the
+                       same write as a tap, banked as `.health`. Only ever
+                       completes; once per activity per day (HealthLedger,
+                       forge.health.v1: the primer's answer, the offers,
+                       today's ticks). See §17.5.
 ```
 
 **Paths are gone.** `ForgePath`, `PathCatalog` and `PathStore` were deleted with
@@ -2141,7 +2160,8 @@ foot.
 - **The rows are only what the build has** (`ForgeFeatures`, `PaywallRow`): the
   Arcs (session S3 turns `arcs` on), six stats scored on what you actually do,
   a blade for every stretch of days kept, Apple Health (S5, `health`), Ask Forge
-  (S6, `askForge`). This build shows the two that exist.
+  (S6, `askForge`). Since S5 this build shows four: the Arcs, the six stats,
+  the blades and Apple Health.
 - **The onboarding paywall is hard.** It is a beat of the first run
   (`FirstRunStage.paywall`), after the pull is rehearsed and before the first
   thing is done, with no close button. A quiet **"Not now"** opens the exit offer
@@ -2357,8 +2377,9 @@ TelemetryDeck's — see §2p.
 - **Unfinished work floats to the top** of each part; finished drops to the
   bottom in completion order.
 - **Permissions are asked in context, once, and a no is final.** Health is asked
-  the first time a measurable activity is taken on — never at launch, never in
-  onboarding. Notifications are asked once, after the first blade, behind a
+  the first time a measurable activity enters the day after the first run, or
+  on the first tap on one, behind a primer that lists the four types read —
+  never at launch, never in onboarding (§17.5). Notifications are asked once, after the first blade, behind a
   primer that shows real examples before iOS is asked anything.
 - **Reduce Motion and Dynamic Type are honoured everywhere.** Ambience is off
   under Reduce Motion whatever a Path says.
@@ -2736,6 +2757,7 @@ Session S0. No product code changed.
 - **Stale on purpose, to fix when it is rebuilt:** §3 and §4 still mention
   HealthKit (the "HealthKit auto-settle" step of the core loop). HealthKit was
   removed before 1.0 and returns in session S5 (DIRECTION §8), read-only.
+  *Rebuilt in S5; §3 and §4 are accurate again (§17.5).*
 - **For the owner before progression is built — DIRECTION §6 does not fit the
   ladder as it is.** `Ladder` already has thirteen rungs up to 1000 days, among
   them `oneeighty` "Patina" (180) and `year` "Honed" (365). "Honed (90 days
@@ -3707,3 +3729,186 @@ Forge target: `Engine/ForgeTips.swift`, `Models/QuickAdd.swift`,
 - On a real iPhone: TipKit's persistence across a week of real launches, and
   the share sheet's Save Image.
 - §17.3's own test count was left as a placeholder by S3 and is still one.
+
+### 17.5 Apple Health: proof, not your word (2026-10-02)
+
+Session S5, branch `feat/apple-health`, against DIRECTION_1_1 §8. HealthKit
+left before 1.0 and was not in this repository's history (§2m describes the
+old one); this is a clean rebuild, read-only from the first line.
+
+#### What shipped
+
+- **`VerificationMethod.health` is back.** `"health"` decodes to `.health`,
+  anything unknown still lands on `.honor`. A `.health` activity is only
+  checked when it also has a **measure** (`Ritual.measure`: a metric, a daily
+  target, and for a run or a lift the one workout kind that counts).
+  Everything else marked `health` (a pre-1.0 custom activity) behaves and is
+  drawn as Your Word (`Ritual.checksWithHealth`), and the composer offers
+  Apple Health only on an activity Health can count.
+- **Four metrics** (`ActivityMetric`): steps (today's count, through a
+  statistics query so a phone and a watch are not counted twice), workout
+  minutes (today's workouts merged where they overlap, any type for "Work
+  out", running for "Go for a run", strength training for "Lift something
+  heavy"), sleep (minutes *asleep* — never "in bed" — in the night that ended
+  this morning) and mindful minutes. The windows are `HealthWindow`: the
+  Forge day is the day-start hour (04:00) to the same hour on the next date
+  by the wall clock, so 23 hours on the night the clocks go forward and 25 on
+  the night they go back; the night is 18:00 the evening before to noon on the
+  day's date. The arithmetic is `HealthMath` (clip, merge, whole minutes,
+  rounded down). Both are HealthKit-free and tested across 04:00 and both
+  2026 US clock changes.
+- **Which activities**: the `.health` rows of `Ritual.libraryVerification`
+  are exactly the keys of `Ritual.metrics` (a test holds it): `steps`,
+  `workout`, `run`, `lift`, `meditate` and a new library activity, **`slept`
+  "Get your sleep"** (Physical, "Asleep, not just in bed, last night", 7 h).
+  **"Lights out" (`sleep`) is no longer a sleep metric**: it is a bedtime kept
+  tonight, and the only sleep Health has on a given day is last night's, so
+  checking it would tick off the wrong night. The Arcs' measurable ones are
+  the library's (`workout`, `steps`, with Winter's 8,000 → 10,000 target), so
+  they switched with it. A target typed in the composer becomes the number
+  Health checks for steps and sleep (`ActivityMetric.target(fromGoal:)`); for
+  workouts and mindful minutes the target is the row's own length.
+- **`HealthBridge`** (`Engine/HealthBridge.swift`), read-only forever:
+  `requestAuthorization(toShare: [], read:)` with a comment that the share set
+  must stay empty; today's value per measure; `visibleMetrics()` (whether
+  Health has *any* sample of a type Forge can read, because HealthKit hides a
+  read refusal and an empty Health looks the same); one `HKObserverQuery` per
+  type with background delivery (hourly for steps, its ceiling; immediate for
+  the rest). Observers start at launch only for somebody who said Continue
+  (`HealthLedger.observesAtLaunch`); starting one asks nothing.
+- **When it reads**: the app becoming active, the Forge tab appearing, a tap
+  on a Health row (one more look before the honor prompt), and an observer
+  firing (`HealthBridge.onUpdate`, set by `ContentView`). All of it ends in
+  `ForgeViewModel.sweepHealth`, the only thing that completes anything.
+- **Ticking off** (`settleFromHealth`): the same write a tap makes, banked as
+  `.health`, with the same telemetry (`activity_completed`, method `health`),
+  gain chip and haptic. The row says **"Checked by Apple Health"** under the
+  name. It **only completes**, never takes back: a box ticked by hand stays
+  ticked and stays the person's word. **Once per activity per day**
+  (`HealthLedger.ticked`), so an undo stands: the steps are still over the
+  target and are not allowed to take the activity back from the person who
+  just said it was not done; a tap on it then asks. Nothing is ticked off a
+  locked day (`keepsNewDays`, DIRECTION §1).
+- **The row**: while Health checks it, a heart and the number Health is held
+  to ("♥ 8,000", "♥ 20 min", "♥ 7 h"). Without permission, without data of
+  that type, or after a no, the row is drawn as Your Word and behaves as it.
+  The honor prompt on a checked row says "Apple Health has not ticked this
+  off. Your word counts too." instead of "No one is checking this one."
+- **Permission** (`HealthPrimerView`): the first time a measurable activity
+  enters the week after the first run (any door: QuickAdd, the library, an
+  Arc joining or a phase, the composer switching one to Apple Health; one
+  check on `activeRitualIDs` itself, so a door added later cannot forget it),
+  or on the first tap on one. Never at launch, never in the first run. It
+  lists the four types, what is taken from each and the activities each
+  checks, says nothing leaves the phone and Forge never writes, and waits for
+  the Forge tab to be visible and calm (no QuickAdd, no Arc sheet, no summary,
+  no pull) so it comes up in front of the row it is about. It cannot be
+  swiped away. **Continue** raises iOS's sheet while the primer stays up;
+  **Keep it Your Word** is final. Settings → Apple Health: "Not asked yet",
+  "Read only" (with how to change it in the Health app and a link to open it),
+  or "Your Word" with the one door back, opened by the person.
+- **Existing activities do not change without asking.** `HealthLedger.migrate`
+  runs once per install: every measurable library activity already in the
+  week with no verification of its own is pinned to Your Word (an ordinary
+  `RitualEdit`) and put down for one offer. The honor prompt on it carries
+  **"Let Apple Health check this"** once, whatever the answer; accepting takes
+  the pin off (and raises the primer if nobody has answered it).
+- **Stored**: `forge.health.v1` (`HealthLedger`): the primer's answer, the
+  offers, today's ticks. Decisions, never readings. Tolerant per field.
+- **Entitlements**: `com.apple.developer.healthkit`, an empty
+  `healthkit.access` and `healthkit.background-delivery`, on the app only
+  (`Forge.entitlements` and `ForgeSimulator.entitlements`, which PremiumTests
+  holds equal); the widget extension has none. **Info.plist**: both purpose
+  strings, rewritten as true sentences for the four types; the update string
+  says Forge writes nothing (§2m). **PrivacyInfo.xcprivacy** and
+  **APP_STORE.md §1** say Health is read on the device and not collected; §6's
+  review note, the 1.1 listing and the privacy policy name the four types.
+- **Paywall**: `ForgeFeatures.health` is on; the row reads "Apple Health checks
+  your steps, workouts and sleep."
+- **DEBUG**: Settings → DEBUG → "Reset Apple Health Answer" forgets the primer's
+  answer and the offers (iOS keeps its own; reset that in the Health app).
+  "Run First Launch Again" resets it too.
+
+#### Fixed during verification
+
+- **A row ticked off as the app came forward was left half-drawn**: two
+  strike lines and no name until the next launch, on both steps and Work out.
+  The strikethrough was animated (`.forgeRow`) across the scene becoming
+  active. Health's completions now land without animation (a transaction with
+  animations disabled); nobody's finger is on the row, so there is no gesture
+  for the motion to answer. Sleep, ticked the same way afterwards, drew
+  cleanly.
+- **The honor prompt said "No one is checking this one." on a Health row.**
+  It now says what is true there.
+- **The primer said "from any workout" next to Go for a run and Lift something
+  heavy**, which count only their own kind. "Today's workout minutes."
+
+#### Files added to `project.pbxproj`
+
+Forge target: `Models/HealthCheck.swift` (`HealthWindow`, `HealthMath`,
+`HealthLedger`, `HealthReading`), `Engine/HealthBridge.swift`,
+`Views/Overlays/HealthPrimerView.swift`. ForgeTests: `HealthTests.swift`.
+
+#### Verified
+
+- `xcodebuild test`, final code, iPhone 17 simulator (iOS 26.5): **863 tests
+  in 80 suites**, all passing (S4 ended at 831 in 76). The same 863 passed on
+  the iPhone 17 Pro simulator before the last three fixes below; after the
+  long manual session on it, its test daemon stopped answering ("test daemon
+  not ready" in the host's log while the app itself launched and ran
+  normally), through a reboot, so the final run used the clean iPhone 17. New: `HealthWindowTests` (04:00, both clock changes, the night
+  across the day start and across DST), `HealthMathTests`,
+  `HealthDecodingTests` (health / honor / basic / unknown round trips, the
+  library matching the metrics, the ledger's tolerance, the migration, launch
+  observers), `HealthCompletionTests` (ticks once, an undo stands, a manual
+  tick is never taken back or rewritten, a tap looks once more then asks, a
+  refusal reads as Your Word, locked and declined days, only today's, nothing
+  asked at launch or in the first run, the primer once, Continue asks iOS
+  once, the offer once).
+- **iPhone 17 Pro, by hand**, the Simulator's Health app with manual samples:
+  QuickAdd adds Hit your steps, Get your sleep and Work out → the primer comes
+  up when the sheet closes → Continue → iOS's sheet lists the four types under
+  read only, with no write section → allowed. Before any data: steps (the sim
+  had an old sample) wears the heart, sleep and workout read as Your Word.
+  8,765 steps added in Health → back to Forge → "2 OF 6", steps "Checked by
+  Apple Health". A 60-minute run → Work out ticked. Asleep 00:46–07:46 → Get
+  your sleep ticked. Undo → "♥ 7 h"; away and back, the undo stands; a tap
+  brings the honor prompt with the Health line. An install seeded as existing
+  (Go for a run and the rest already in the week): each pinned to Your Word,
+  the prompt offers "Let Apple Health check this" once, accepting switches it
+  to the heart, the next prompt has no offer. Settings → Apple Health → Open
+  the Health App opens Health.
+- **iPhone 17e**: the primer fits; iOS's sheet shows the share purpose string;
+  **Don't Allow** → Sit still is Your Word ("4 min", no heart), a tap brings
+  the ordinary honor prompt, Settings explains how to change it in the Health
+  app.
+- **Release archive, signed** (`-allowProvisioningUpdates`, the team's
+  development profile, which now carries HealthKit and background delivery):
+  `builtin-validationUtility -validate-for-store` passed with no warning. In
+  the archived `Forge.app`: both purpose strings, `healthkit`,
+  `healthkit.access` and `healthkit.background-delivery` on the app and none
+  of them on `ForgeWidgets.appex`. The §2m caveat stands: it is signed with a
+  Development identity, so distribute through Organizer, which re-signs it.
+- Captures in `docs/verification/1.1-s5/`.
+
+#### Not verified
+
+- **"Keep it Your Word" on the primer and the first run with a measurable Arc
+  were not walked by hand** (the 17e session was interrupted by taps that were
+  not this session's); both are held by `HealthCompletionTests`
+  (`primerOnce`, `neverAtLaunchOrInTheFirstRun`).
+- **Background delivery** on a real iPhone: the Simulator did not wake the
+  suspended app for new samples; the activation sweep caught them on return.
+  Whether a workout finished on a watch ticks the row before the app is
+  opened needs a real device.
+- Real devices' sleep sources (a watch's stages, a third-party tracker writing
+  "in bed" only) and a real week across the 04:00 line.
+
+#### For the owner
+
+- The App ID now needs the **HealthKit** capability **with Background
+  Delivery** in the developer portal for the distribution profile. The
+  development profile picked it up automatically.
+- App Store Connect's privacy label does not change (Health & Fitness stays
+  "not collected"). The review note in APP_STORE.md §6 says where to see the
+  primer.

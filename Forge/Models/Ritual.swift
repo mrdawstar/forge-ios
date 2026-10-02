@@ -5,7 +5,7 @@ import Foundation
 /// How an activity gets confirmed.
 ///
 /// Three answers, and honor is not the one left over. Either the phone already
-/// measured the thing, or you say it was done — and for a prayer, a cold
+/// measured the thing (`health`), or you say it was done — and for a prayer, a cold
 /// shower, or a bed you made, saying so is the only confirmation an app can
 /// honestly offer. Most of a day lives here, by design.
 ///
@@ -16,8 +16,14 @@ import Foundation
 /// have to answer for each row, and making them was the app confusing ceremony
 /// with meaning.
 enum VerificationMethod: String, Codable, CaseIterable, Identifiable {
-    // `health` (Apple Health auto-completion) was removed with HealthKit.
-    // Activities stored with it decode as `.honor` — see `init(from:)`.
+    /// Apple Health ticks it off when the phone has counted it (DIRECTION_1_1
+    /// §8). Read-only, on the device; see `HealthBridge`.
+    ///
+    /// **Only an activity with a metric can be this in practice** — steps,
+    /// workout minutes, sleep, mindful minutes (`Ritual.measure`). Anything
+    /// else stored as `health` (a pre-1.0 custom activity, say) behaves exactly
+    /// as Your Word, because nothing can check it: see `Ritual.checksWithHealth`.
+    case health
     /// Nobody checks this one but you.
     case honor
     /// A checkbox, and nothing else asked.
@@ -27,6 +33,7 @@ enum VerificationMethod: String, Codable, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
+        case .health: "Apple Health"
         case .honor: "Your Word"
         case .basic: "Basic Check"
         }
@@ -36,6 +43,7 @@ enum VerificationMethod: String, Codable, CaseIterable, Identifiable {
     /// never to justify a demand.
     var rationale: String {
         switch self {
+        case .health: "Your phone already counts this one."
         case .honor: "Nobody checks this one but you."
         case .basic: "One tap, and it's done."
         }
@@ -43,6 +51,7 @@ enum VerificationMethod: String, Codable, CaseIterable, Identifiable {
 
     var symbol: String {
         switch self {
+        case .health: "heart.fill"
         case .honor: "hand.raised.fill"
         case .basic: "checkmark.circle"
         }
@@ -52,7 +61,11 @@ enum VerificationMethod: String, Codable, CaseIterable, Identifiable {
     ///
     /// The one behavioural difference between the three, in one place, so a
     /// tap and a row's own hint can never disagree about what happens next.
-    var asksForConfirmation: Bool { self == .honor }
+    ///
+    /// Health asks too: a tap looks at Health once more, and when the count is
+    /// not there yet it falls back to asking, exactly as Your Word does. The
+    /// phone not having counted something is not proof it was not done.
+    var asksForConfirmation: Bool { self != .basic }
 
     /// Tolerant of everything that has ever been written to disk.
     ///
@@ -62,7 +75,10 @@ enum VerificationMethod: String, Codable, CaseIterable, Identifiable {
     /// the whole array — so without this, updating would silently take away
     /// every activity somebody had made for themselves.
     ///
-    /// Anything unrecognised becomes honor rather than only the two names we
+    /// `health` decodes as itself again since 1.1 (session S5); it was folded
+    /// into honor while HealthKit was out of the app.
+    ///
+    /// Anything unrecognised becomes honor rather than only the names we
     /// happen to remember: honor is the one tier that claims nothing was
     /// measured, which makes it the only safe place to put a value we cannot
     /// interpret. A bed you made is a promise you kept.
@@ -536,23 +552,22 @@ struct RitualEdit: Codable, Equatable {
 
 // MARK: - What a phone could one day count
 
-/// What Apple Health would tick an activity off from, once it can.
+/// What Apple Health ticks an activity off from.
 ///
 /// Four, and they are the four DIRECTION_1_1 §8 names: steps, workout minutes,
-/// sleep and mindful minutes. **Nothing measures yet.** HealthKit left before
-/// 1.0 and comes back in session S5, read-only and on the device; until then
-/// every activity carrying one of these is Your Word like everything else
-/// (`Ritual.libraryVerification`). The metric is here first so the Arcs could
-/// be written against the numbers Health will actually check.
+/// sleep and mindful minutes. Read-only and on the device (`HealthBridge`);
+/// how each is counted over the Forge day is `HealthWindow` and `HealthMath`.
 enum ActivityMetric: String, Codable, CaseIterable, Sendable {
     case steps
     case workoutMinutes
     case sleepMinutes
     case mindfulMinutes
 
-    /// Whether the target is a length of time, which a timed activity already
-    /// states as its own `minutes`.
-    var isDuration: Bool { self != .steps }
+    /// Whether the target is the activity's own length, which a timed
+    /// activity already states as its `minutes`: training and sitting still
+    /// are done when the minutes on the row are done. Sleep is a length too,
+    /// but not one spent today, so it keeps a target of its own.
+    var isDuration: Bool { self == .workoutMinutes || self == .mindfulMinutes }
 
     /// The day's number where nobody has said one: 8,000 steps, thirty minutes
     /// of training, seven hours asleep, ten mindful minutes.
@@ -564,12 +579,98 @@ enum ActivityMetric: String, Codable, CaseIterable, Sendable {
         case .mindfulMinutes: 10
         }
     }
+
+    /// What Health is read for, in the primer's words: exactly the four types
+    /// `HealthBridge` asks for, and nothing else.
+    var healthName: String {
+        switch self {
+        case .steps: "Steps"
+        case .workoutMinutes: "Workouts"
+        case .sleepMinutes: "Sleep"
+        case .mindfulMinutes: "Mindful minutes"
+        }
+    }
+
+    /// What is taken from that type, said once on the primer.
+    var healthUse: String {
+        switch self {
+        case .steps: "Today's count."
+        case .workoutMinutes: "Today's workout minutes."
+        case .sleepMinutes: "Hours asleep last night, not hours in bed."
+        case .mindfulMinutes: "Today's minutes."
+        }
+    }
+
+    var healthSymbol: String {
+        switch self {
+        case .steps: "figure.walk"
+        case .workoutMinutes: "figure.run"
+        case .sleepMinutes: "bed.double.fill"
+        case .mindfulMinutes: "brain.head.profile"
+        }
+    }
+
+    /// A day's number in the row's own column: "8,000", "20 min", "7 h",
+    /// "7 h 30 min". Digits, because a target is a score (DIRECTION_1_1 §3).
+    func label(_ value: Int) -> String {
+        switch self {
+        case .steps:
+            return value.formatted(.number.grouping(.automatic).locale(Locale(identifier: "en_US")))
+        case .workoutMinutes, .mindfulMinutes:
+            return "\(value) min"
+        case .sleepMinutes:
+            let hours = value / 60, minutes = value % 60
+            if minutes == 0 { return "\(hours) h" }
+            if hours == 0 { return "\(minutes) min" }
+            return "\(hours) h \(minutes) min"
+        }
+    }
+
+    /// The number somebody meant when they typed a target into the composer,
+    /// for the two metrics whose target is not the activity's length.
+    ///
+    /// Steps read every digit ("12,000", "12000", and "12k" as 12,000). Sleep
+    /// reads hours, with minutes after them ("8 h", "7.5 h", "7 h 30"). Nil
+    /// for anything that does not parse, and always for the two duration
+    /// metrics, whose target is the length on the row (`Ritual.measure`).
+    func target(fromGoal goal: String) -> Int? {
+        let text = goal.lowercased().trimmingCharacters(in: .whitespaces)
+        switch self {
+        case .steps:
+            let digits = text.filter(\.isNumber)
+            guard let number = Int(digits), number > 0 else { return nil }
+            return text.contains("k") && number < 1_000 ? number * 1_000 : number
+        case .sleepMinutes:
+            let numbers = text
+                .split(whereSeparator: { !($0.isNumber || $0 == ".") })
+                .compactMap { Double($0) }
+            guard let hours = numbers.first, hours > 0, hours <= 16 else { return nil }
+            let extra = numbers.count > 1 ? numbers[1] : 0
+            return Int((hours * 60 + extra).rounded())
+        case .workoutMinutes, .mindfulMinutes:
+            return nil
+        }
+    }
+}
+
+/// The kind of workout an activity names, where it names one. "Go for a run"
+/// counts running and nothing else; "Work out" counts any workout at all.
+/// HealthKit-free on purpose, so this file stays readable without it; the
+/// `HKWorkoutActivityType`s are `HealthBridge`'s business.
+enum WorkoutKind: String, Codable, Sendable {
+    case running
+    case strength
 }
 
 /// A metric and the day's number for it. See `Ritual.measure`.
 struct ActivityMeasure: Equatable, Sendable {
     let metric: ActivityMetric
     let target: Int
+    /// The one kind of workout that counts, or nil for any.
+    var workout: WorkoutKind? = nil
+
+    /// The target as the row shows it.
+    var label: String { metric.label(target) }
 }
 
 /// The six dimensions of the Forge Shape, and the filing system for every
@@ -743,8 +844,7 @@ struct Ritual: Identifiable, Equatable, Codable {
 
     /// The number a measurable activity is held to — 10,000 for steps — where
     /// somebody (or an Arc's phase, on one explicit tap) has set one. Nil keeps
-    /// the default. See `measure`, which is the only thing that reads it, and
-    /// `ActivityMetric` for why nothing measures yet.
+    /// the default. See `measure`, which is the only thing that reads it.
     var target: Int? = nil
 
     /// Who this is evidence for. See `Identity`.
@@ -767,6 +867,13 @@ struct Ritual: Identifiable, Equatable, Codable {
     /// How this activity gets confirmed.
     var verification: VerificationMethod {
         verificationOverride ?? Ritual.libraryVerification[id] ?? .honor
+    }
+
+    /// Whether Apple Health can tick this one off: marked Health **and** it
+    /// has something Health counts. Whether Forge has been allowed to look is
+    /// a separate question, answered by `ForgeViewModel.healthChecks`.
+    var checksWithHealth: Bool {
+        verification == .health && measure != nil
     }
 
     /// When it finishes, derived rather than stored.
@@ -966,6 +1073,9 @@ struct Ritual: Identifiable, Equatable, Codable {
         // The six the Arcs needed. See the block at the foot of `library`.
         "steps": .physical, "pages": .intellect, "nightlines": .mental,
         "firstthirty": .discipline, "bedroom": .discipline, "noshort": .discipline,
+
+        // Apple Health (S5).
+        "slept": .physical,
     ]
 
     static let defaultActive = ["water", "bed", "teeth", "push", "read"]
@@ -975,19 +1085,24 @@ struct Ritual: Identifiable, Equatable, Codable {
     /// Kept as a table rather than a field on all 22 initializers. Only the
     /// handful the phone genuinely counts are `.health`; everything else is a
     /// promise, which is what the rest of the app now says out loud.
+    ///
+    /// **The `.health` rows are exactly the keys of `metrics`** (a test holds
+    /// it), switched in 1.1 session S5. An install that already had one of
+    /// them in its week keeps it as Your Word until it says otherwise: see
+    /// `HealthLedger.migrate`.
     static let libraryVerification: [String: VerificationMethod] = [
-        "push": .honor, "run": .honor, "lift": .honor, "walk": .honor,
+        "push": .honor, "run": .health, "lift": .health, "walk": .honor,
         "stretch": .honor,
         "water": .honor, "bed": .honor, "tidy": .honor, "protein": .honor,
         "vitamins": .honor, "plants": .honor, "dishes": .honor, "coffee": .honor,
         "teeth": .honor, "read": .honor, "journal": .honor, "play": .honor,
-        "meditate": .honor, "cold": .honor, "nofeed": .honor,
+        "meditate": .health, "cold": .honor, "nofeed": .honor,
         "gratitude": .honor, "light": .honor, "focus": .honor,
         // The four the routines needed and the library did not have. `workout`
         // is the only one the phone can settle: getting up, going to bed and
         // doing something for somebody are all things only the person who did
         // them can report.
-        "workout": .honor,
+        "workout": .health,
         "wake": .honor, "sleep": .honor, "help": .honor,
         // The twelve added with the dimensions. Nothing here is measurable by a
         // phone: none of them is a distance, a heart rate or a step count, and
@@ -1003,31 +1118,38 @@ struct Ritual: Identifiable, Equatable, Codable {
         "breathe": .honor, "silence": .honor, "worry": .honor,
         "prep": .honor,
         // The six the Arcs needed. Steps is the one a phone *could* measure,
-        // and it stays Your Word until Apple Health returns (DIRECTION_1_1 §8):
-        // until then the count is somebody looking at their own phone and
-        // saying so. See `ActivityMetric`.
-        "steps": .honor, "pages": .honor, "nightlines": .honor,
+        // and since 1.1 it is the phone's to tick off (DIRECTION_1_1 §8).
+        "steps": .health, "pages": .honor, "nightlines": .honor,
         "firstthirty": .honor, "bedroom": .honor, "noshort": .honor,
+        // Hours asleep, which Health counts and the person cannot really.
+        "slept": .health,
     ]
 
-    /// The activities a phone can one day measure, and what it would count.
+    /// The activities a phone can measure, and what it counts.
     ///
-    /// **Nothing reads this yet.** Session S5 brings Apple Health back
-    /// read-only (DIRECTION_1_1 §8), and this is the table it will tick these
-    /// off from; until then every one of them is Your Word, exactly as the
-    /// verification table above says. It is here now so the Arcs can be
-    /// written against the numbers Health will check — a step count, minutes
-    /// of training, hours asleep, mindful minutes — rather than against
-    /// sentences that would have to be rewritten when it arrives.
+    /// **`sleep` ("Lights out") is not here**, though the Arcs were first
+    /// written with it: it is a bedtime, kept tonight, and the only sleep
+    /// Health can report on a given day is the night that ended that morning.
+    /// Checking tonight's lights out against last night's hours would tick it
+    /// off for the wrong night. `slept` ("Get your sleep") is the activity that
+    /// number belongs to.
     static let metrics: [String: ActivityMetric] = [
         "steps": .steps,
         "workout": .workoutMinutes, "run": .workoutMinutes, "lift": .workoutMinutes,
         "meditate": .mindfulMinutes,
-        "sleep": .sleepMinutes,
+        "slept": .sleepMinutes,
     ]
 
-    /// What the phone would check this activity against, once it can: the
-    /// metric and the day's target. See `ActivityMetric`.
+    /// The activities that name one kind of workout. Everything else with
+    /// workout minutes counts any workout.
+    static let workoutKinds: [String: WorkoutKind] = [
+        "run": .running,
+        "lift": .strength,
+    ]
+
+    /// What the phone checks this activity against: the metric, the day's
+    /// target and, for a run or a lift, which workouts count. See
+    /// `ActivityMetric`.
     ///
     /// The target is **this person's own standard**, never a number Forge
     /// holds somewhere else. A timed activity is checked against the length on
@@ -1037,9 +1159,12 @@ struct Ritual: Identifiable, Equatable, Codable {
     /// default stand in.
     var measure: ActivityMeasure? {
         guard let metric = Ritual.metrics[id] else { return nil }
-        if let target { return ActivityMeasure(metric: metric, target: target) }
-        if metric.isDuration, minutes > 0 { return ActivityMeasure(metric: metric, target: minutes) }
-        return ActivityMeasure(metric: metric, target: metric.defaultTarget)
+        let kind = Ritual.workoutKinds[id]
+        if let target { return ActivityMeasure(metric: metric, target: target, workout: kind) }
+        if metric.isDuration, minutes > 0 {
+            return ActivityMeasure(metric: metric, target: minutes, workout: kind)
+        }
+        return ActivityMeasure(metric: metric, target: metric.defaultTarget, workout: kind)
     }
 
     /// The shipped activities, each with the length it actually takes.
@@ -1187,6 +1312,12 @@ struct Ritual: Identifiable, Equatable, Codable {
         Ritual(id: "firstthirty", label: "No phone first thing", iconKey: "nophone", sub: "From the moment you are up, screen face down", tail: "30 min", minutes: 30),
         Ritual(id: "bedroom", label: "Phone out of the bedroom", iconKey: "zzz", sub: "Charging in another room, all night", tail: ""),
         Ritual(id: "noshort", label: "No short-form video", iconKey: "noplay", sub: "Not one clip, all day", tail: ""),
+
+        // Apple Health (1.1, session S5). The one number Health has that the
+        // library could not ask for: "Lights out" is a bedtime, and this is the
+        // night that ended this morning. No length of its own (it is not
+        // something you spend time doing today), so it is never timed.
+        Ritual(id: "slept", label: "Get your sleep", iconKey: "moon", sub: "Asleep, not just in bed, last night", tail: "7 h"),
     ]
 
     static func find(_ id: String) -> Ritual? {
