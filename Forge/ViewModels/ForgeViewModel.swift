@@ -132,6 +132,10 @@ final class ForgeViewModel {
     var pull: Double = 0
     var pullProgress: Double = 0
     var showEditRituals: Bool = false
+    /// QuickAdd, from the day panel's `+`. On the view model, beside the
+    /// editor's flag, so a notification landing on the Forge tab can put it
+    /// away the same way (`ContentView.landOnHome`).
+    var showQuickAdd: Bool = false
     var reviewOpen: Bool = false
     var showTomorrow: Bool = false
 
@@ -724,24 +728,44 @@ final class ForgeViewModel {
     /// it can.
     private func tick(_ ritual: Ritual) {
         let isNew = !isDone(ritual.id)
+        let before = isNew ? blended : nil
         withAnimation(.forgeRow) {
             progress.complete(ritual.id, method: .basic)
         }
         if isNew { ForgeTelemetry.send(.activityCompleted(.basic)) }
+        if let before { noteGain(of: ritual.id, since: before) }
     }
 
     /// The promise was kept. Banked as honor however the activity is marked:
     /// saying so is not a measurement, and the history should not claim it was.
     func keepPromise(_ id: String) {
         let isNew = !isDone(id)
+        let before = isNew ? blended : nil
         withAnimation(.forgeRow) {
             progress.complete(id, method: .honor)
         }
         honorRitualID = nil
         if isNew { ForgeTelemetry.send(.activityCompleted(.honor)) }
+        if let before { noteGain(of: id, since: before) }
     }
 
     func cancelHonor() { honorRitualID = nil }
+
+    // MARK: - What a kept activity moved
+
+    /// The last completion's effect on the six, for the chip that rises from
+    /// its row on the Forge tab: "+4 Physical". See `StatGain`.
+    ///
+    /// In memory only, and replaced by the next completion. It is a reading of
+    /// one moment, taken from the blend before and after the write, and the
+    /// chip that shows it is gone a second and a half later — nothing about it
+    /// is stored (§5 #2), and nil when nothing rose.
+    private(set) var lastGain: StatGain?
+
+    private func noteGain(of id: String, since before: BlendedShape) {
+        guard let ritual = ritual(id) else { return }
+        lastGain = StatGain.between(before, blended, ritualID: id, filedUnder: ritual.category)
+    }
 
     // MARK: - First run
 
@@ -1113,6 +1137,73 @@ final class ForgeViewModel {
             activeRitualIDs.removeAll { $0 == id }
             progress.undo(id)
         }
+    }
+
+    // MARK: - Adding in one tap
+
+    /// Everything adding something can change about the week, taken whole so
+    /// it can be put back exactly.
+    ///
+    /// Four values and nothing else: the list, the activities somebody made,
+    /// the edits to library activities (which is where a pinned day or an
+    /// added weekday lands) and the day's parts. The record is not in it,
+    /// because adding writes nothing to the record — `publishPlanned` derives
+    /// today's planned list from these four again on the way back.
+    struct WeekSnapshot: Equatable {
+        let activeRitualIDs: [String]
+        let customRituals: [Ritual]
+        let libraryEdits: [String: RitualEdit]
+        let shape: DayShape
+    }
+
+    var weekSnapshot: WeekSnapshot {
+        WeekSnapshot(
+            activeRitualIDs: activeRitualIDs,
+            customRituals: customRituals,
+            libraryEdits: libraryEdits,
+            shape: storedShape
+        )
+    }
+
+    /// Put the week back exactly as a snapshot had it — the Undo on QuickAdd's
+    /// toast. Only ever handed the snapshot taken just before the add it
+    /// undoes, so nothing else can have moved in between.
+    func restore(_ snapshot: WeekSnapshot) {
+        withAnimation(.forgeRow) {
+            customRituals = snapshot.customRituals
+            libraryEdits = snapshot.libraryEdits
+            storedShape = snapshot.shape
+            activeRitualIDs = snapshot.activeRitualIDs
+        }
+    }
+
+    /// What one tap in QuickAdd did.
+    enum QuickAddOutcome: Equatable {
+        /// Put into the week, on the day being filled.
+        case added
+        /// Already in the week on other days; this day was added to it.
+        case dayAdded
+        /// Already on that day. Nothing changed, and nothing is duplicated.
+        case alreadyThere
+    }
+
+    /// One tap, one activity, on one day — QuickAdd's whole job.
+    ///
+    /// The three cases are the three doors `ActivityLibraryView` always had,
+    /// in one place so that no row can pick the wrong one: something new is
+    /// appended and pinned to the day (`addRitual(_:onWeekday:)`), something
+    /// already in the week gains the day and is never copied (`setWeekday`),
+    /// and something already on the day is left alone.
+    @discardableResult
+    func quickAdd(_ id: String, onWeekday weekday: Int) -> QuickAddOutcome {
+        guard ritual(id) != nil else { return .alreadyThere }
+        if activeRitualIDs.contains(id) {
+            if ritual(id)?.happens(on: weekday) == true { return .alreadyThere }
+            setWeekday(id, weekday, on: true)
+            return .dayAdded
+        }
+        addRitual(id, onWeekday: weekday)
+        return .added
     }
 
     /// Take several out of the day in one pass — what leaving an Arc does when
@@ -1504,6 +1595,47 @@ final class ForgeViewModel {
             // the blend as in the record (DIRECTION_1_1 §7).
             challenges: progress.challengeCredit
         )
+    }
+
+    /// The six as they read seven days ago, for the change on each tile — or
+    /// nil when there was nothing of this person to read a week ago. See
+    /// `StatGlance.weekAgo`.
+    var weekAgo: BlendedShape? {
+        StatGlance.weekAgo(
+            progress.byDay,
+            today: progress.currentDay,
+            activities: activeRituals,
+            assessment: assessment,
+            challenges: progress.challengeCredit
+        )
+    }
+
+    /// The six tiles on the Becoming tab, in the hexagon's order. See
+    /// `StatGlance`.
+    var statTiles: [GlanceTile] {
+        StatGlance.tiles(now: blended, weekAgo: weekAgo, focus: focus)
+    }
+
+    /// The dimension to build next, or nil when there is nothing honest to
+    /// name (§5 #3).
+    ///
+    /// With a focus: a chosen dimension nothing is filed under, first — it is
+    /// not being built at all — and otherwise the weakest of the chosen ones,
+    /// but only when it is fifteen points behind the best of the six, the bar
+    /// `DayPlanner` and `needsAttention` set before naming a weakest side.
+    /// With no focus it is `BlendedShape.needsAttention`, exactly. Read from
+    /// the blend, which is what the tiles above it show.
+    var weakestDimension: RitualCategory? {
+        let six = blended
+        guard !focus.isEmpty else { return six.needsAttention?.category }
+        let chosen = six.dimensions.filter { focus.contains($0.category) }
+        if let empty = chosen.first(where: { !$0.record.hasActivities }) { return empty.category }
+        guard let weakest = chosen.filter(\.hasScore).min(by: { $0.score < $1.score }),
+              let best = six.dimensions.filter(\.hasScore).max(by: { $0.score < $1.score }),
+              best.category != weakest.category,
+              best.score - weakest.score >= 15
+        else { return nil }
+        return weakest.category
     }
 
     /// The Becoming tab's first-week contract, or nil once the shape is drawn.

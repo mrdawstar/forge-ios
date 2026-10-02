@@ -1,4 +1,5 @@
 import SwiftUI
+import TipKit
 
 struct ForgeTabView: View {
     @Bindable var vm: ForgeViewModel
@@ -89,6 +90,22 @@ struct ForgeTabView: View {
     /// because the rule is about the list: opening one closes the others, the
     /// way it does in every system list.
     @State private var swipedID: String?
+
+    /// Where each row of the day list sits in the panel, and where the one
+    /// just tapped was when it was tapped — so the chip rises from the row that
+    /// was kept even though that row has already started for the foot of the
+    /// list. See `StatChip`.
+    @State private var rowFrames: [String: CGRect] = [:]
+    @State private var tappedFrames: [String: CGRect] = [:]
+    /// The chip on screen: what the completion moved, and where it starts.
+    @State private var chip: ChipPlacement?
+
+    private struct ChipPlacement: Equatable {
+        let gain: StatGain
+        let frame: CGRect
+    }
+
+    private static let panelSpace = "forge.panel"
 
     @Environment(\.dynamicTypeSize) private var typeSize
     /// Only for the accent a finished part takes. The panel is otherwise
@@ -333,6 +350,18 @@ struct ForgeTabView: View {
                         .padding(.bottom, 8)
                         .transition(.opacity)
                 } else {
+                    // The second tip, on the scene, pointing up at the blade
+                    // once it is loose. Inline for the reason the first is: a
+                    // popover would eat the first drag to put itself away, and
+                    // the drag is what it is asking for. It goes the moment a
+                    // hand is on the grip (`ForgeTips.isQuiet`), and for good
+                    // once the blade is out.
+                    if mode == .today, content == .loose, let tip = ForgeTips.current(PullTip.self) {
+                        TipView(tip, arrowEdge: .top)
+                            .padding(.horizontal, 20)
+                            .transition(.opacity)
+                    }
+
                     // "Winter Arc · Day 12 of 90 · Trial 3 of 7", above the
                     // controls and the day it is made of. The challenge
                     // capsule stays exactly where it was.
@@ -402,10 +431,29 @@ struct ForgeTabView: View {
             // present it without being asked.
             vm.reviewOpen = false
         }
-        // The picker is presented from inside the editor rather than here, so
-        // the two never contend for the same presentation slot.
+        // "Edit day", from the panel's ⋯ menu. QuickAdd is pushed from inside
+        // it rather than presented over it, so the two never contend for the
+        // same presentation slot.
         .sheet(isPresented: $vm.showEditRituals) {
-            DayEditorSheet(vm: vm)
+            DayEditorSheet(vm: vm, arcs: arcs)
+        }
+        // The `+`: one tap per activity, onto today. See `QuickAddSheet`.
+        .sheet(isPresented: $vm.showQuickAdd) {
+            QuickAddSheet(vm: vm, arcs: arcs)
+        }
+        // A completion just moved one of the six: the chip rises from the row
+        // that was kept. See `StatChip` for when it does not.
+        .onChange(of: vm.lastGain) { _, gain in
+            guard let gain, let frame = tappedFrames[gain.ritualID] ?? rowFrames[gain.ritualID] else { return }
+            tappedFrames[gain.ritualID] = nil
+            chip = ChipPlacement(gain: gain, frame: frame)
+            AccessibilityNotification.Announcement(gain.label).post()
+        }
+        .task(id: chip?.gain.id) {
+            guard chip != nil else { return }
+            try? await Task.sleep(for: .milliseconds(1600))
+            guard !Task.isCancelled else { return }
+            chip = nil
         }
         .sheet(isPresented: $vm.showTomorrow) {
             TomorrowSheet(vm: vm)
@@ -454,6 +502,7 @@ struct ForgeTabView: View {
                     // opens from the week and lands on the week.
                     brief: brief,
                     ai: ai,
+                    arcs: arcs,
                     canExpand: canExpand,
                     // The week's own chrome — the week bar, the day strip and
                     // the day header — is grip band too. Without it the only
@@ -473,7 +522,7 @@ struct ForgeTabView: View {
                         EmptyDayView(
                             onPlan: {
                                 ForgeHaptics.shared.tap()
-                                vm.showEditRituals = true
+                                vm.showQuickAdd = true
                             },
                             onCopy: vm.hasAnyOtherDayPlanned
                                 ? { ForgeHaptics.shared.tap(); showCopyDay = true }
@@ -492,6 +541,17 @@ struct ForgeTabView: View {
             }
         }
         .frame(height: sheetHeight)
+        .coordinateSpace(.named(Self.panelSpace))
+        // The chip rises inside the panel and never over the scene or the
+        // pull: it is drawn only while the panel is showing the list.
+        .overlay(alignment: .topLeading) {
+            if let chip, mode == .today, content == .list {
+                StatChip(gain: chip.gain)
+                    .id(chip.gain.id)
+                    .position(x: chip.frame.maxX - 66, y: chip.frame.midY)
+                    .allowsHitTesting(false)
+            }
+        }
         // Suppressed mid-drag so the sheet sits under the finger with no lag,
         // and restored for the snap.
         // The height follows whatever moved it. A drag owns the panel outright
@@ -645,12 +705,33 @@ struct ForgeTabView: View {
                 Spacer(minLength: 0)
             }
 
-            // One button for the whole of "change what my day is": add,
-            // reorder, remove. It opens the editor rather than adding on the
-            // spot, so nothing changes without the user seeing it change.
+            // The rest of changing the day — the order, taking things out, the
+            // parts — behind one menu, the same shape the week's own header
+            // has, so the two views put the same things in the same places.
+            Menu {
+                Button("Edit day", systemImage: "slider.horizontal.3") {
+                    ForgeHaptics.shared.tap()
+                    vm.showEditRituals = true
+                }
+            } label: {
+                Image(systemName: "ellipsis")
+                    .font(.footnote.weight(.medium))
+                    .frame(width: 34, height: 34)
+                    .contentShape(.rect)
+            }
+            .buttonStyle(.glass)
+            .buttonBorderShape(.circle)
+            .accessibilityLabel("More")
+            .accessibilityHint("Edit today: reorder, take things out, change an activity")
+
+            // Adding, in one tap per activity (`QuickAddSheet`). It used to
+            // open the editor, and adding was three screens and a dismissal
+            // each time; nothing is added without a tap on its own row, and
+            // every add can be undone from the toast.
             Button {
                 ForgeHaptics.shared.tap()
-                vm.showEditRituals = true
+                AddTip().invalidate(reason: .actionPerformed)
+                vm.showQuickAdd = true
             } label: {
                 Image(systemName: "plus")
                     .font(.footnote.weight(.medium))
@@ -659,8 +740,10 @@ struct ForgeTabView: View {
             }
             .buttonStyle(.glass)
             .buttonBorderShape(.circle)
-            .accessibilityLabel("Edit activities")
-            .accessibilityHint("Add, reorder or remove activities")
+            .accessibilityLabel("Add to today")
+            .accessibilityHint("Adds an activity in one tap")
+            // The last of the first week's tips.
+            .popoverTip(ForgeTips.current(AddTip.self), arrowEdge: .top)
         }
         .padding(.horizontal, 16)
         .padding(.bottom, 11)
@@ -674,6 +757,15 @@ struct ForgeTabView: View {
             // travelling to the bottom of the list has nothing to travel to.
             VStack(spacing: 0) {
                 bankedLine
+                // The first of the first week's tips, pointing down at the
+                // first row. Inline rather than a popover: a popover takes the
+                // first touch outside it to put itself away, and the touch this
+                // tip is asking for is a tap on that row.
+                if let tip = ForgeTips.current(RowTip.self) {
+                    TipView(tip, arrowEdge: .bottom)
+                        .padding(.horizontal, 12)
+                        .padding(.bottom, 6)
+                }
                 // A day with one part is the flat list Forge has always drawn,
                 // and that is the overwhelming majority of days: nobody who has
                 // not taken a routine ever sees a heading. The parts are the
@@ -789,18 +881,34 @@ struct ForgeTabView: View {
     /// list showing one day can only honestly mean that day — see
     /// `ForgeViewModel.removeFromDay`.
     private func row(_ ritual: Ritual, isLast: Bool) -> some View {
-        SwipeToDelete(id: ritual.id, openID: $swipedID) {
+        let today = vm.progress.currentDay.weekday
+        return SwipeToDelete(id: ritual.id, openID: $swipedID) {
             remove(ritual)
         } content: {
             RitualRowView(
                 ritual: ritual,
                 isDone: vm.isDone(ritual.id),
-                onComplete: { vm.tapRitual(ritual.id) },
+                onComplete: {
+                    // Where the row is now, for the chip, before the list
+                    // moves it — see `StatChip`.
+                    tappedFrames[ritual.id] = rowFrames[ritual.id]
+                    RowTip().invalidate(reason: .actionPerformed)
+                    vm.tapRitual(ritual.id)
+                },
                 onOpen: { editing = ritual },
-                onDelete: { remove(ritual) }
+                onDelete: { remove(ritual) },
+                // "Move" in the long press: off today and onto another day of
+                // the week, the same edit the week planner's menu makes.
+                moveTargets: WeekPlannerView.weekOrder.filter { $0 != today },
+                onMove: { weekday in vm.moveActivity(ritual.id, from: today, to: weekday) }
             )
         }
         .overlay(alignment: .bottom) { separator(isLast: isLast) }
+        .onGeometryChange(for: CGRect.self) { proxy in
+            proxy.frame(in: .named(Self.panelSpace))
+        } action: { frame in
+            rowFrames[ritual.id] = frame
+        }
     }
 
     private func remove(_ ritual: Ritual) {
@@ -854,6 +962,62 @@ struct ForgeTabView: View {
                 .fill(ForgeTheme.separator)
                 .frame(height: 0.5)
                 .padding(.leading, 53)
+        }
+    }
+}
+
+// MARK: - What a kept activity moved
+
+/// "+4 Physical", rising from the row that was just kept.
+///
+/// # What it says, and what it does not
+///
+/// The **real** change of the blended score, read before and after the write
+/// (`StatGain`): the number the tile on Becoming moved by, in that
+/// dimension's colour. Nothing about it is stored. No chip when the change
+/// rounds to nought, and none that is not upward — a completion is never
+/// answered with a minus (see `StatGain`).
+///
+/// # Where it is drawn
+///
+/// Inside the panel, at the row's trailing edge where the tap landed, rising
+/// eighteen points and gone in a second and a half. It never covers the scene
+/// or the pull: it is drawn only while the panel shows the list, so the
+/// completion that makes the blade loose — when the panel becomes the pull's
+/// prompt — draws no chip at all, and nothing here sits over the sword.
+/// **Reduce Motion: a fade only**, with no travel. VoiceOver hears the same
+/// words as an announcement.
+struct StatChip: View {
+    let gain: StatGain
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var isIn = false
+    @State private var isRisen = false
+    @State private var isGone = false
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Image(systemName: gain.dimension.symbol)
+                .font(.system(size: 10, weight: .bold))
+            Text(gain.label)
+                .font(.caption.weight(.semibold))
+                .monospacedDigit()
+        }
+        .foregroundStyle(gain.dimension.color)
+        .padding(.horizontal, 9)
+        .frame(height: 24)
+        .glassEffect(.regular.tint(gain.dimension.color.opacity(0.16)), in: .capsule)
+        .fixedSize()
+        .offset(y: reduceMotion || !isRisen ? 0 : -18)
+        .opacity(isGone ? 0 : (isIn ? 1 : 0))
+        .accessibilityHidden(true)
+        .task {
+            withAnimation(.easeOut(duration: 0.2)) { isIn = true }
+            if !reduceMotion {
+                withAnimation(.easeOut(duration: 1.3)) { isRisen = true }
+            }
+            try? await Task.sleep(for: .milliseconds(1050))
+            withAnimation(.easeIn(duration: 0.35)) { isGone = true }
         }
     }
 }

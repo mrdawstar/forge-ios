@@ -3573,3 +3573,137 @@ was used).
   your own voice before submission.
 - APP_STORE.md's description and screenshots do not mention Arcs yet. That
   belongs to the 1.1 listing work.
+
+### 17.4 Becoming at a glance, QuickAdd, the first week's tips, nine blades (2026-10-02)
+
+Session S4, branch `feat/becoming-glance`, against DIRECTION_1_1 §3 (numbers),
+§4 (the six have colours) and §6 (progression has no cap).
+
+#### What shipped
+
+- **Becoming at a glance** (`BecomingTabView`, `Models/StatGlance.swift`).
+  Above the fold, at the default text size and with no scroll on iPhone 17 Pro
+  and 17e: the hexagon with each score at its vertex in its dimension's colour
+  and OVR with its state in the middle; one line with the blade carried and the
+  days kept ("Enduring · 502 days"); a 3 × 2 grid of tiles in the hexagon's
+  order (`RitualCategory.dimensions`), each with its score in digits, its
+  BUILDING mark on a reserved line, and its change over seven days. The grid
+  replaces The Six list. The change is read, never stored: the blended shape
+  today minus the same function read as of seven days ago
+  (`StatGlance.weekAgo`), hidden when a week ago there was no record or the
+  answers had not been given yet. A tile opens its dimension
+  (`DimensionSheet`): what feeds it, what in the week is filed under it, three
+  one-tap adds, which way it is going. Below the fold, in order: the
+  assessment offer (only for an install without answers), Next move, Build
+  your weakest, the running Arc, **Share your stats** (a fourth Proof Card
+  door, `StatsProof`, 9:16 and 1:1), the weeks, the identities, the focus row.
+  Lists below the fold are read once per visit (`Visit`), so a row added there
+  keeps its place with a check.
+- **What a completion moved** (`StatGain`, `StatChip` in `ForgeTabView`):
+  "+3 Relationship", the real blended difference read before and after the
+  write, in the dimension that moved most, in its colour, rising from the row
+  that was tapped. No chip when the rounded change is nought or negative, none
+  over the scene or the pull (it is drawn only while the panel shows the list),
+  Reduce Motion fades it without travel, VoiceOver hears it as an announcement.
+- **QuickAdd** (`Views/Overlays/QuickAddSheet.swift`, `Models/QuickAdd.swift`).
+  The Forge tab's `+` (and the free state's) opens it; Edit day moved to the ⋯
+  menu. Sections Suggested for you (the running Arc's gaps, `ArcStore.gaps`,
+  then three for the weakest dimension), Already in your week, Yours, Library;
+  each activity once, read once when the sheet opens. Search; dimension chips
+  narrow only what is offered. One tap adds, the row takes a check, the toast
+  says "Added to today · Undo" for five seconds, the sheet stays open, Done
+  closes it. Something already in the week gains the day
+  (`ForgeViewModel.quickAdd` → `setWeekday`) and is never copied. Undo puts back
+  `WeekSnapshot` (the list, custom activities, library edits, the day's shape)
+  exactly. The week planner's `+` fills its own weekday; a search with no match
+  offers Create "name", which opens the composer prefilled, on that day. Long
+  press on a Forge row: Mark done, Edit, Move (to another weekday), Take off
+  today; swipe still deletes.
+- **The first week's five tips** (`Engine/ForgeTips.swift`, TipKit): one
+  ordered `TipGroup` — "Tap when it's done." (first row), "Drag the blade up to
+  keep the day." (scene, once loose), "Your six stats move with what you keep."
+  (Becoming), "Arcs have a start and an end. One at a time." (Arcs), "Add
+  anything in one tap." (the `+`, a popover; the rest are inline). Each at most
+  once and put away by the act it teaches. `ForgeTips.mayShow`: never in the
+  first run, never over a summary, a pull under way, a celebration, an honor
+  prompt, coming back, the chapter or the week. DEBUG → Reset Tips resets
+  eligibility now and the datastore on the next launch.
+- **Nine blades, no cap** (`Sword.collection`, `Ladder`): Rough, Struck,
+  Shaped, Folded, Quenched, Edged, Proven, then **Honed (90)** and **Enduring
+  (180)**. No rung id or threshold moved: `ninety` is new, `oneeighty` became
+  Enduring (it was the Patina state), `year` took the name Patina, and the
+  `honed` grade went with its name. Past Enduring a **temper mark** every
+  ninety days, `max(0, (daysKept − 180) / 90)` (`Ladder.temperMarks`),
+  derived, never stored, drawn as tally notches (`TemperMarks`) under the blade
+  on the Blade card and on every Proof Card. A long practice meeting Honed and
+  Enduring together celebrates once (`SwordStore` marks every blade beneath the
+  one shown). Installs from 1.0 keep their carried blade and seen state.
+  The onboarding's full potential is Enduring, "180 days kept".
+- **Sword art**: all nine bases and nine `-lit` variants are in the asset
+  catalogue at the shipped 483 × 1771 geometry; `docs/art/sword_lit.py`
+  records how they were packaged and lit from `new swords/final/`.
+- **Colour** (DIRECTION_1_1 §4): the six colours on the hexagon, the tiles,
+  the gain chip, the challenge cards and the dimension glyphs on activity rows
+  in QuickAdd and a dimension's sheet (the Forge tab's day list carries no
+  dimension glyph, as before); the accent stays the colour of an action.
+
+#### Fixed during verification (this session)
+
+- **QuickAdd's Undo added the row behind it.** Wherever the toast sat over the
+  list (ZStack, overlay, bottom inset), a tap on it went to the list. The toast
+  now sits under the list in a `VStack`, the list is `.clipped()` with
+  `.contentShape(.rect)` (without that a row scrolled below the list's frame
+  still took the tap), the toast's glass is not `.interactive()`, and the whole
+  capsule is the button. Confirmed with timestamped add/undo pairs on both
+  phones, at 1, 2 and 3 seconds after the add, and at AX5.
+- **The pull's tip was skipped for every new install.** The first run ends in
+  a real pull, which invalidated `PullTip` before any tip could show; an
+  ordered group passes over an invalidated tip, so Becoming's came second. The
+  first run's pull no longer retires it (`ForgeTips.pullRetiresTip`, tested).
+- **No blade past a hundred days could be chosen.** `bladeState`'s tint overlay
+  took every tap on a collection card once the grade had a tint. It no longer
+  hit-tests. (Present on main before S4.)
+- **Edit day showed a stale repeat line** ("Wed, Sun") after QuickAdd gave the
+  activity Friday: `Ritual`'s `==` compares ids, so the row never redrew.
+  `DayEditorRow` now carries what it draws as plain values.
+- **AX5**: tile scores scale with Dynamic Type (`@ScaledMetric`) and no longer
+  shrink below the label; tiles keep one height per row; "Free." and its time
+  stack instead of breaking mid-word next to the two header buttons; the toast
+  and the chips grow with the text.
+- **Proof Card**: room between the temper marks and the hexagon's top label.
+
+#### Files added to `project.pbxproj`
+
+Forge target: `Engine/ForgeTips.swift`, `Models/QuickAdd.swift`,
+`Models/StatGlance.swift`, `Views/Overlays/QuickAddSheet.swift`. ForgeTests:
+`GlanceTests.swift`, `LadderTests.swift`, `QuickAddTests.swift`. Image sets
+`sword8`, `sword8-lit`, `sword9`, `sword9-lit` (no project entries).
+
+#### Verified
+
+- `xcodebuild clean test`, iPhone 17 Pro simulator (iOS 26.5), final code:
+  **831 tests in 76 suites**, all passing.
+- **iPhone 17 Pro**, default size and AX5: fresh onboarding (Full potential
+  ENDURING · 180 days), no tip during the first run, the summary, the pull or
+  a celebration; tips 1–5 in order; the chip (+3 Relationship, +13 Physical
+  under Reduce Motion, fade only; none on the completion that loosens the
+  blade); Becoming above the fold on day one and with a seeded two years,
+  seven-day changes shown after eight days and hidden while unknowable, a tile
+  → its dimension, Build your weakest one-tap add, the section order, Share
+  your stats at 9:16 and 1:1; QuickAdd add → toast → Undo, in-week activity
+  gaining Friday with no copy, the week planner's `+` on Monday, search → Create
+  "Sauna" → composer → saved on Monday, chips, Done, long press Edit / Move /
+  Take off today; the nine blades, Enduring carried, three temper marks on the
+  Blade card and on both Proof Card formats, Enduring seated in the stone with
+  no seam.
+- **iPhone 17e**, default size and AX5: Becoming above the fold (day one and
+  seeded), a second fresh onboarding with the five tips in order after the
+  fix, the chip (+3 Mental), QuickAdd add → Undo, the nine blades and Honed
+  carried, three temper marks, the challenge card in Intellect gold.
+- Captures in `docs/verification/1.1-s4/`.
+
+#### Not verified
+
+- On a real iPhone: TipKit's persistence across a week of real launches, and
+  the share sheet's Save Image.
+- §17.3's own test count was left as a placeholder by S3 and is still one.

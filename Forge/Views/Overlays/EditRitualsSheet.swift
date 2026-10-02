@@ -3,11 +3,17 @@ import SwiftUI
 /// Everything "what is my day" in one place — reorder it, take things out
 /// of it, rename what you made, put more in.
 ///
-/// This is what the one `+` in the day header opens. Editing used to be a
-/// second button below the list ("Reorder & remove") competing with a `+` that
-/// went somewhere else; a day is one thing, so changing it is one door.
+/// "Edit day", in the day panel's ⋯ menu, opens it. It was what the `+` in the
+/// day header opened until 1.1, when adding became one tap of its own
+/// (`QuickAddSheet`) — adding is the commonest change anybody makes to a day,
+/// and three screens per activity made the third as much work as the first.
+/// What is left behind the menu is the rest of changing a day: the order,
+/// taking things out, the parts, and every activity's own settings. Its own
+/// "Add Activity" still pushes QuickAdd, so the editor is never a dead end.
 struct DayEditorSheet: View {
     @Bindable var vm: ForgeViewModel
+    /// For QuickAdd's Arc suggestions when it is pushed from here.
+    var arcs: ArcStore? = nil
     @Environment(\.dismiss) private var dismiss
 
     /// The movement being renamed, and the words so far.
@@ -232,7 +238,7 @@ struct DayEditorSheet: View {
 
     private var addButton: some View {
         NavigationLink {
-            ActivityLibraryView(vm: vm)
+            QuickAddView(vm: vm, arcs: arcs, isRoot: false)
         } label: {
             Label("Add Activity", systemImage: "plus")
                 .font(.body.weight(.semibold))
@@ -287,6 +293,17 @@ struct DayEditorSheet: View {
 /// the row is cargo being moved, not a thing to tick off.
 private struct DayEditorRow: View {
     let ritual: Ritual
+    /// Everything the row draws, as plain values. `Ritual`'s `==` compares ids
+    /// only, so a row handed the same activity with a day added looked
+    /// unchanged to SwiftUI and kept its old line — seen when QuickAdd, pushed
+    /// from here, gave Saturday to an activity already in the week and the row
+    /// still said "Wed, Sun" on the way back. This is what changes.
+    private let drawn: [String]
+
+    init(ritual: Ritual) {
+        self.ritual = ritual
+        drawn = [ritual.label, Self.settings(of: ritual), ritual.priority.badge ?? ""]
+    }
 
     var body: some View {
         HStack(spacing: 14) {
@@ -307,7 +324,7 @@ private struct DayEditorRow: View {
                 // them would be worse than none of them marking it at all.
                 HStack(spacing: 4) {
                     VerificationMark(method: ritual.verification)
-                    Text(settings)
+                    Text(Self.settings(of: ritual))
                 }
                 .font(.caption)
                 .monospacedDigit()
@@ -341,7 +358,7 @@ private struct DayEditorRow: View {
     /// Verification is always last and always present, because it is the one
     /// setting every activity has — so the line ends the same way on every row
     /// and the eye can find it without reading the rest.
-    private var settings: String {
+    private static func settings(of ritual: Ritual) -> String {
         var parts: [String] = []
         if let schedule = ritual.scheduleLabel {
             parts.append(schedule)

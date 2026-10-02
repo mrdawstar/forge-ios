@@ -30,7 +30,16 @@ struct RitualRowView: View {
     /// affordance: the menu and the accessibility action below are how the same
     /// thing is reached by VoiceOver, Switch Control, a keyboard and anybody who
     /// has never discovered that rows in this app swipe. See `SwipeToDelete`.
+    ///
+    /// Called **"Take off today"** in the menu since 1.1, because that is what
+    /// it does (`ForgeViewModel.removeFromDay`): an activity that also happens
+    /// on Thursday keeps Thursday. "Delete" read as throwing it away.
     var onDelete: (() -> Void)? = nil
+    /// The other days of the week this activity can be moved to, and the move
+    /// itself — "Move" in the long press. Empty, or nil, and the item is not
+    /// there.
+    var moveTargets: [Int] = []
+    var onMove: ((Int) -> Void)? = nil
 
     /// The row is two columns of text side by side, and that stops being a
     /// layout somewhere around the first accessibility size: the name is left
@@ -100,14 +109,29 @@ struct RitualRowView: View {
         // keyboard. Completion is repeated here rather than left implicit: a
         // menu that offers the secondary action and not the primary one reads as
         // though the primary one is unavailable.
+        //
+        // Edit, Move and Take off today since 1.1, when the `+` stopped
+        // opening the editor: this menu is where a single row is changed
+        // without opening anything, and "Edit day" in the panel's ⋯ menu is
+        // where the day as a whole is.
         .contextMenu {
             Button(
                 isDone ? "Mark not done" : "Mark done",
                 systemImage: isDone ? "arrow.uturn.backward" : "checkmark"
             ) { handleComplete() }
             Button("Edit", systemImage: "slider.horizontal.3") { onOpen() }
+            if let onMove, !moveTargets.isEmpty {
+                Menu("Move", systemImage: "arrow.turn.up.right") {
+                    ForEach(moveTargets, id: \.self) { weekday in
+                        Button(WeekPlannerView.weekdayName(weekday)) {
+                            ForgeHaptics.shared.detent()
+                            onMove(weekday)
+                        }
+                    }
+                }
+            }
             if let onDelete {
-                Button("Delete", systemImage: "trash", role: .destructive) {
+                Button("Take off today", systemImage: "minus.circle", role: .destructive) {
                     ForgeHaptics.shared.bottomOut()
                     onDelete()
                 }
@@ -119,7 +143,7 @@ struct RitualRowView: View {
         .accessibilityActions {
             Button("Edit activity") { onOpen() }
             if let onDelete {
-                Button("Delete activity") { onDelete() }
+                Button("Take off today") { onDelete() }
             }
         }
     }

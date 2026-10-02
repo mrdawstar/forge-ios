@@ -115,6 +115,25 @@ final class ArcStore {
     /// The running Arc's reading, or nil.
     var currentReading: ArcReading? { current.map(reading) }
 
+    /// What the running Arc asks for that the week does not hold — something
+    /// taken off since joining, or never added — by library id, in the Arc's
+    /// own order. Empty with no Arc running, before a Start Monday's Monday,
+    /// and for Lock In 7, which asks for nothing of its own.
+    ///
+    /// Read against the week every time, through the same `ArcPlan.resolve`
+    /// joining uses, so an activity that already does the job ("Read" for
+    /// Winter's reading) is never offered as a gap. QuickAdd lists these
+    /// first; adding one is an ordinary add, never a write by the Arc.
+    var gaps: [String] {
+        guard let current, current.isApplied, currentReading?.isRunning == true else { return [] }
+        let held = Set(week().map(\.id))
+        var seen: Set<String> = []
+        return ArcPlan.activities(of: current.program, picks: current.picks)
+            .filter { ArcPlan.resolve($0, in: held) == nil }
+            .map(\.ritualID)
+            .filter { seen.insert($0).inserted }
+    }
+
     /// Which id in the week does each of this Arc's activities.
     func resolved(_ enrollment: ArcEnrollment) -> [String: String] {
         ArcPlan.resolved(enrollment.program, picks: enrollment.picks, week: Set(week().map(\.id)))

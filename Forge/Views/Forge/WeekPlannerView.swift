@@ -34,6 +34,8 @@ struct WeekPlannerView: View {
     /// Plan lives on this screen — see `ForgeControlBar`.
     var brief: AIBrief
     var ai: ForgeAI
+    /// For QuickAdd's Arc suggestions, from the `+` on a day.
+    var arcs: ArcStore? = nil
 
     /// Whether the panel is at its tall detent, so the timeline can size itself
     /// to it. The planner opens expanded — see `ForgeTabView`.
@@ -107,8 +109,10 @@ struct WeekPlannerView: View {
         .sheet(item: $editing) { ritual in
             composer(for: ritual)
         }
+        // The same QuickAdd the day panel's `+` opens, filling the day this
+        // screen is showing — one tap per activity, Undo on the toast.
         .sheet(isPresented: $isAdding) {
-            AddToDaySheet(vm: vm, weekday: openDay.weekday) { isAdding = false }
+            QuickAddSheet(vm: vm, arcs: arcs, weekday: openDay.weekday)
         }
         .sheet(isPresented: $isPlanning) {
             PlanSheet(

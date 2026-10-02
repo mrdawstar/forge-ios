@@ -331,20 +331,21 @@ struct ChapterTests {
     ///
     /// `SwordStore` solved this once by seeding `celebratedIDs` from what is
     /// already unlocked when the key has never been written, and the merged
-    /// ladder does not change that: the blades are the same seven at the same
-    /// thresholds, so an install that predates all of this still queues nothing.
-    /// If this ever fails, the update itself throws a fortnight of parties.
+    /// ladder does not change that: the seven blades are at the same
+    /// thresholds, and the two 1.1 added are seeded with them, so an install
+    /// that predates all of this still queues nothing. If this ever fails, the
+    /// update itself throws a fortnight of parties.
     @Test("A long practice upgrading sees no celebration replay")
     func noCelebrationReplayOnUpgrade() {
         let progress = makeProgress()
-        for back in 1...120 { earn(progress, daysAgo: back) }
+        for back in 1...200 { earn(progress, daysAgo: back) }
 
         // A suite with no celebration key ever written: the state an install
         // from before the split arrives in.
         let suite = UserDefaults(suiteName: "forge.swords.\(UUID().uuidString)") ?? .standard
         let swords = SwordStore(progress: progress, defaults: suite)
 
-        #expect(progress.daysKept == 120)
+        #expect(progress.daysKept == 200)
         // Evaluated outside the macro: `allSatisfy` is rethrowing, and `#expect`
         // cannot swallow that. Same trap `PathTests` hit with `contains(where:)`.
         let whole = swords.swords.allSatisfy(\.isUnlocked)
@@ -354,8 +355,8 @@ struct ChapterTests {
 
         // And the ladder agrees about where they are standing, without having
         // celebrated anything on the way.
-        #expect(Ladder.current(daysKept: 120).id == "hundred")
-        #expect(Ladder.state(daysKept: 120) == .tempered)
+        #expect(Ladder.current(daysKept: 200).id == "oneeighty")
+        #expect(Ladder.state(daysKept: 200) == .tempered)
     }
 
     /// The next blade earned after an upgrade still gets its moment. Seeding
@@ -407,12 +408,13 @@ struct ChapterTests {
         #expect(chapter.reading(from: progress).canClose)
     }
 
-    // MARK: - 1.0.1: "Your blades · 1 of 6"
+    // MARK: - 1.0.1: "Your blades · 1 of 6" (1 of 8 since 1.1)
 
     /// The collection's count is over earned blades, and there is one blade
     /// for every rung of the ladder that carries one — the Starter at zero is
     /// given, not earned, on both. If a rung or a blade is ever added to one
-    /// and not the other, "1 of 6" stops being true.
+    /// and not the other, "1 of 8" stops being true. Honed and Enduring were
+    /// added to both (§17.4).
     @Test("The blade counter's denominator is the ladder's blade rungs")
     func bladeCounterMatchesTheLadder() {
         let progress = makeProgress()
@@ -420,12 +422,12 @@ struct ChapterTests {
         let swords = SwordStore(progress: progress, defaults: suite)
 
         let ladderBlades = Ladder.rungs.filter { $0.mark.bladeID != nil && $0.threshold > 0 }
-        #expect(ladderBlades.count == 6)
+        #expect(ladderBlades.count == 8)
         #expect(swords.earnable.count == ladderBlades.count)
         #expect(swords.earnable.map(\.requirement) == ladderBlades.map(\.threshold))
-        #expect(swords.ownedLabel == "0 of 6")
+        #expect(swords.ownedLabel == "0 of 8")
 
         earn(progress, daysAgo: 0)
-        #expect(swords.ownedLabel == "1 of 6")
+        #expect(swords.ownedLabel == "1 of 8")
     }
 }

@@ -26,6 +26,9 @@ struct ForgeApp: App {
         ForgeNotifications.shared.register()
         // A Live Activity outlives the process that started it.
         ForgePresence.shared.adoptRunningActivity()
+        // The first week's five tips: TipKit is configured once, here, before
+        // anything that shows a tip is drawn. See `ForgeTips`.
+        ForgeTips.configure()
     }
 
     var body: some Scene {

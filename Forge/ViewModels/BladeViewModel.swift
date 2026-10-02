@@ -65,6 +65,9 @@ final class BladeViewModel {
     /// What the blade looks like now. Derived from days kept on every read.
     var bladeState: BladeState { Ladder.state(daysKept: daysKept) }
 
+    /// Temper marks past Enduring. Derived on every read, like the state.
+    var temperMarks: Int { Ladder.temperMarks(daysKept: daysKept) }
+
     /// "Forty days to go" — what stands between here and the next rung.
     ///
     /// Said as a distance rather than as a percentage, because a percentage of

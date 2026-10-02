@@ -8,12 +8,18 @@
 
 /* Begin PBXBuildFile section */
 		CE104A33863755E5386DF523 /* ArcTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 561F20F90DDD1EE982F50BF5 /* ArcTests.swift */; };
+		B6C5599549DDF4D736161D22 /* LadderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F337B0DD6220CAF2A3EC69B3 /* LadderTests.swift */; };
+		883B355F3486273815B4DF3D /* QuickAddTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AA779B993E4D364D3B46846 /* QuickAddTests.swift */; };
+		F5A8D5FD4723D27DC0675B60 /* GlanceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 776E246F0FBFD5D25C14F70E /* GlanceTests.swift */; };
 		BB6C34B5D5580014E94DFF5D /* ArcComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 629B7934E5EB7A3A6805DAC7 /* ArcComponents.swift */; };
 		35410FC6091DB5F48C5D95B1 /* ArcDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF5524034A8E1DDE884DC618 /* ArcDetailView.swift */; };
 		01A93532CB388FE321F42F45 /* ArcsTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12578A4CC7FBE3E34E17FF36 /* ArcsTabView.swift */; };
 		1BFC0D0578C48B949001A83B /* ArcStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34922E5915B2AE9B1F7A3B1E /* ArcStore.swift */; };
+		C9744CC001883D767C6871CF /* ForgeTips.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AD7E7E895EA925CF699F66C /* ForgeTips.swift */; };
 		4D62E1A6E5B88DD36A2C66E2 /* ArcEnrollment.swift in Sources */ = {isa = PBXBuildFile; fileRef = B643E6D76B3364586DD9C447 /* ArcEnrollment.swift */; };
 		B0B6C2DA4FDC4C33FAF97556 /* Arc.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6080D44F17FF556A7B243E64 /* Arc.swift */; };
+		44249A7F8B5E60E3470FDB46 /* QuickAdd.swift in Sources */ = {isa = PBXBuildFile; fileRef = 702BE8CD49255232B5F56531 /* QuickAdd.swift */; };
+		70AB49A609810456350E6E5C /* StatGlance.swift in Sources */ = {isa = PBXBuildFile; fileRef = D64D6AE23AFB4610B04B5537 /* StatGlance.swift */; };
 		24BB399F2B23A83F38793928 /* TransformationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41FA1F8E3472E50381D3E4D8 /* TransformationTests.swift */; };
 		CF010ED4C197BECD0F946F54 /* BlendedShapeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35CE6FCBDC1D9F0243956A61 /* BlendedShapeTests.swift */; };
 		024CBC0C13D77FC0D3D94830 /* AssessmentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67F1AF5A513F5CACA50D43AF /* AssessmentTests.swift */; };
@@ -134,6 +140,7 @@
 		A1B2C3D4E5F60718293A4B5C /* NotificationPrimerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B5D /* NotificationPrimerView.swift */; };
 		A1F0RGE0AIPLAN0BUILD1 /* SchedulePlan.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1F0RGE0AIPLAN0FILE01 /* SchedulePlan.swift */; };
 		A1F0RGE0AISHET0BUILD1 /* PlanSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1F0RGE0AISHET0FILE01 /* PlanSheet.swift */; };
+		1C7B137FED0AA28EBE48EE68 /* QuickAddSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02E93C2694CD996AF769606B /* QuickAddSheet.swift */; };
 		F0A1B2C3D4E5F60718293A02 /* PaywallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0A1B2C3D4E5F60718293A01 /* PaywallView.swift */; };
 		F0A1B2C3D4E5F60718293B02 /* AIConsent.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0A1B2C3D4E5F60718293B01 /* AIConsent.swift */; };
 		F0A1B2C3D4E5F60718293C02 /* FirstWeek.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0A1B2C3D4E5F60718293C01 /* FirstWeek.swift */; };
@@ -216,12 +223,18 @@
 
 /* Begin PBXFileReference section */
 		561F20F90DDD1EE982F50BF5 /* ArcTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArcTests.swift; sourceTree = "<group>"; };
+		F337B0DD6220CAF2A3EC69B3 /* LadderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LadderTests.swift; sourceTree = "<group>"; };
+		0AA779B993E4D364D3B46846 /* QuickAddTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickAddTests.swift; sourceTree = "<group>"; };
+		776E246F0FBFD5D25C14F70E /* GlanceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlanceTests.swift; sourceTree = "<group>"; };
 		629B7934E5EB7A3A6805DAC7 /* ArcComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArcComponents.swift; sourceTree = "<group>"; };
 		FF5524034A8E1DDE884DC618 /* ArcDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArcDetailView.swift; sourceTree = "<group>"; };
 		12578A4CC7FBE3E34E17FF36 /* ArcsTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArcsTabView.swift; sourceTree = "<group>"; };
 		34922E5915B2AE9B1F7A3B1E /* ArcStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArcStore.swift; sourceTree = "<group>"; };
+		7AD7E7E895EA925CF699F66C /* ForgeTips.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForgeTips.swift; sourceTree = "<group>"; };
 		B643E6D76B3364586DD9C447 /* ArcEnrollment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArcEnrollment.swift; sourceTree = "<group>"; };
 		6080D44F17FF556A7B243E64 /* Arc.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Arc.swift; sourceTree = "<group>"; };
+		702BE8CD49255232B5F56531 /* QuickAdd.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickAdd.swift; sourceTree = "<group>"; };
+		D64D6AE23AFB4610B04B5537 /* StatGlance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatGlance.swift; sourceTree = "<group>"; };
 		41FA1F8E3472E50381D3E4D8 /* TransformationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransformationTests.swift; sourceTree = "<group>"; };
 		35CE6FCBDC1D9F0243956A61 /* BlendedShapeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlendedShapeTests.swift; sourceTree = "<group>"; };
 		67F1AF5A513F5CACA50D43AF /* AssessmentTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssessmentTests.swift; sourceTree = "<group>"; };
@@ -340,6 +353,7 @@
 		A1B2C3D4E5F60718293A4B5D /* NotificationPrimerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationPrimerView.swift; sourceTree = "<group>"; };
 		A1F0RGE0AIPLAN0FILE01 /* SchedulePlan.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SchedulePlan.swift; sourceTree = "<group>"; };
 		A1F0RGE0AISHET0FILE01 /* PlanSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanSheet.swift; sourceTree = "<group>"; };
+		02E93C2694CD996AF769606B /* QuickAddSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickAddSheet.swift; sourceTree = "<group>"; };
 		F0A1B2C3D4E5F60718293A01 /* PaywallView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaywallView.swift; sourceTree = "<group>"; };
 		F0A1B2C3D4E5F60718293B01 /* AIConsent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIConsent.swift; sourceTree = "<group>"; };
 		F0A1B2C3D4E5F60718293C01 /* FirstWeek.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirstWeek.swift; sourceTree = "<group>"; };
@@ -435,6 +449,7 @@
 			isa = PBXGroup;
 			children = (
 				A1F0RGE0AISHET0FILE01 /* PlanSheet.swift */,
+				02E93C2694CD996AF769606B /* QuickAddSheet.swift */,
 				F0A1B2C3D4E5F60718293A01 /* PaywallView.swift */,
 				A1F0RGE0CSHEET0FILE01 /* DailyChallengeSheet.swift */,
 				CF5389B684FA44A2BBF1C13B /* DaySummaryView.swift */,
@@ -485,6 +500,9 @@
 			isa = PBXGroup;
 			children = (
 				561F20F90DDD1EE982F50BF5 /* ArcTests.swift */,
+				F337B0DD6220CAF2A3EC69B3 /* LadderTests.swift */,
+				0AA779B993E4D364D3B46846 /* QuickAddTests.swift */,
+				776E246F0FBFD5D25C14F70E /* GlanceTests.swift */,
 				41FA1F8E3472E50381D3E4D8 /* TransformationTests.swift */,
 				35CE6FCBDC1D9F0243956A61 /* BlendedShapeTests.swift */,
 				67F1AF5A513F5CACA50D43AF /* AssessmentTests.swift */,
@@ -703,6 +721,8 @@
 			children = (
 				B643E6D76B3364586DD9C447 /* ArcEnrollment.swift */,
 				6080D44F17FF556A7B243E64 /* Arc.swift */,
+				702BE8CD49255232B5F56531 /* QuickAdd.swift */,
+				D64D6AE23AFB4610B04B5537 /* StatGlance.swift */,
 				9B6A12C291AF4B5E3442B7FC /* Transformation.swift */,
 				987B37A87B33357E9EC7853D /* BlendedShape.swift */,
 				90B91929027C134A7D6D4633 /* Assessment.swift */,
@@ -757,6 +777,7 @@
 			isa = PBXGroup;
 			children = (
 				34922E5915B2AE9B1F7A3B1E /* ArcStore.swift */,
+				7AD7E7E895EA925CF699F66C /* ForgeTips.swift */,
 				D914E431EC9A4F82B8527B64 /* RemoteForgeAI.swift */,
 				F0A1B2C3D4E5F60718293B01 /* AIConsent.swift */,
 				A1F0RGE0LOCAI00FILE01 /* LocalForgeAI.swift */,
@@ -907,6 +928,9 @@
 			buildActionMask = 2147483647;
 			files = (
 				CE104A33863755E5386DF523 /* ArcTests.swift in Sources */,
+				B6C5599549DDF4D736161D22 /* LadderTests.swift in Sources */,
+				883B355F3486273815B4DF3D /* QuickAddTests.swift in Sources */,
+				F5A8D5FD4723D27DC0675B60 /* GlanceTests.swift in Sources */,
 				24BB399F2B23A83F38793928 /* TransformationTests.swift in Sources */,
 				CF010ED4C197BECD0F946F54 /* BlendedShapeTests.swift in Sources */,
 				024CBC0C13D77FC0D3D94830 /* AssessmentTests.swift in Sources */,
@@ -948,8 +972,11 @@
 				35410FC6091DB5F48C5D95B1 /* ArcDetailView.swift in Sources */,
 				01A93532CB388FE321F42F45 /* ArcsTabView.swift in Sources */,
 				1BFC0D0578C48B949001A83B /* ArcStore.swift in Sources */,
+				C9744CC001883D767C6871CF /* ForgeTips.swift in Sources */,
 				4D62E1A6E5B88DD36A2C66E2 /* ArcEnrollment.swift in Sources */,
 				B0B6C2DA4FDC4C33FAF97556 /* Arc.swift in Sources */,
+				44249A7F8B5E60E3470FDB46 /* QuickAdd.swift in Sources */,
+				70AB49A609810456350E6E5C /* StatGlance.swift in Sources */,
 				E0ABEB1F5FADE22B87157A50 /* StatHexagon.swift in Sources */,
 				070E0631598E0C50676F7A45 /* PlanBeat.swift in Sources */,
 				31E40B5B1E3B8C5994931896 /* TransformationView.swift in Sources */,
@@ -1000,6 +1027,7 @@
 				A1F0RGE0MCOMP00BUILD1 /* MilestoneComposer.swift in Sources */,
 				A1F0RGE0ASHEET0BUILD1 /* AnalyticsSheet.swift in Sources */,
 				A1F0RGE0AISHET0BUILD1 /* PlanSheet.swift in Sources */,
+				1C7B137FED0AA28EBE48EE68 /* QuickAddSheet.swift in Sources */,
 				F0A1B2C3D4E5F60718293A02 /* PaywallView.swift in Sources */,
 				F0A1B2C3D4E5F60718293B02 /* AIConsent.swift in Sources */,
 				F0A1B2C3D4E5F60718293C02 /* FirstWeek.swift in Sources */,

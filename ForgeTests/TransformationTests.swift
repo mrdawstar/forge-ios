@@ -70,7 +70,9 @@ struct TransformationTests {
     func daysLines() {
         let all = frames(uniform(1), focus: [.physical])
         #expect(all.map(\.daysLine) == [
-            "No days kept yet", "Five days kept", "Twenty-one days kept", "Sixty days kept",
+            // Full potential is the last blade, Enduring, at a hundred and
+            // eighty days — past a hundred, so in digits (DIRECTION_1_1 §3).
+            "No days kept yet", "Five days kept", "Twenty-one days kept", "180 days kept",
         ])
     }
 

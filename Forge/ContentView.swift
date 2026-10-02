@@ -375,8 +375,26 @@ struct ContentView: View {
         // run cannot arrive on top of each other.
         .onChange(of: forgeVM.isOut) { wasOut, isOut in
             guard !wasOut, isOut else { return }
+            // The pull's tip has nothing left to teach once somebody has pulled
+            // — a pull of their own, not the first run's (`ForgeTips`).
+            if ForgeTips.pullRetiresTip(hasCompletedFirstRun: forgeVM.hasCompletedFirstRun) {
+                PullTip().invalidate(reason: .actionPerformed)
+            }
             Task { @MainActor in await settleThenSpeak() }
         }
+        // When the first week's tips may speak: never in the first run, never
+        // over the day. Worked out here, where every one of those moments is
+        // known, and handed to TipKit as it changes. See `ForgeTips`.
+        .modifier(
+            TipsModifier(
+                moment: ForgeTips.Moment(
+                    hasCompletedFirstRun: forgeVM.hasCompletedFirstRun,
+                    isFirstRunCovering: forgeVM.isFirstRunCovering,
+                    isDayMomentOnScreen: isDayMomentOnScreen
+                ),
+                isLoose: forgeVM.allDone && !forgeVM.isOut
+            )
+        )
         // Last, and it has to be: it puts the store into the environment, and
         // the environment only reaches what is *inside* the modifier that sets
         // it — the review and chapter sheets above included.
@@ -587,6 +605,7 @@ struct ContentView: View {
         selectedTab = .forge
         showSettings = false
         forgeVM.showEditRituals = false
+        forgeVM.showQuickAdd = false
         forgeVM.honorRitualID = nil
     }
 
@@ -892,11 +911,19 @@ struct ContentView: View {
     // MARK: - The rating
 
     /// Whether anything that is the day rather than a pause in it is on screen.
+    ///
+    /// **A pull under way is the blade off its seat while it is still in the
+    /// stone.** It read `pull > 0.01` alone, and once the blade breaks free the
+    /// engine settles at 1 and stays there for the rest of the day — so every
+    /// earned day counted as a pull in progress until four the next morning.
+    /// That silenced the rating prompt this guards (it is asked straight after
+    /// a blade's celebration, which only ever follows a pull) and the first
+    /// week's tips with it. Found while verifying the tips (§17.4).
     private var isDayMomentOnScreen: Bool {
         forgeVM.isFirstRunCovering
             || forgeVM.summary != nil
             || swords.pendingUnlock != nil
-            || forgeVM.pull > 0.01
+            || (forgeVM.pull > 0.01 && !forgeVM.isOut)
             || forgeVM.honorRitualID != nil
             || isReturning
             || showReview
@@ -995,7 +1022,9 @@ extension ContentView {
     fileprivate var becomingTab: some View {
         BecomingTabView(
             forge: forgeVM, identities: identities, reviews: reviews,
-            onSettings: { showSettings = true }
+            swords: swords, arcs: arcs, brief: aiBrief, ai: ai,
+            onSettings: { showSettings = true },
+            onArcs: { selectedTab = .arcs }
         )
     }
 
@@ -1137,5 +1166,26 @@ private struct MomentsModifier<Returning: View, Review: View, Close: View>: View
                 offer()
             }
             .onChange(of: currentDay) { _, _ in offer() }
+    }
+}
+
+// MARK: - The first week's tips
+
+/// Hands TipKit the two facts every tip's rules read, whenever either changes
+/// — including the value the root launches with, which `onChange` alone would
+/// never deliver. A modifier for the reason the others are: the root's body is
+/// at the edge of what the type checker will do in reasonable time.
+private struct TipsModifier: ViewModifier {
+    let moment: ForgeTips.Moment
+    let isLoose: Bool
+
+    func body(content: Content) -> some View {
+        content
+            .onChange(of: ForgeTips.mayShow(moment), initial: true) { _, may in
+                ForgeTips.isQuiet = may
+            }
+            .onChange(of: isLoose, initial: true) { _, loose in
+                ForgeTips.isLoose = loose
+            }
     }
 }
