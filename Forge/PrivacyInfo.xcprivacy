@@ -25,7 +25,7 @@
 	     cannot reverse. Neither is
 	     used for tracking. No activity name, identity, chapter, review, quote
 	     or health reading is ever included — `Event` has no case that could
-	     carry one. Still no account (§2n), so nothing else leaves the phone. -->
+	     carry one. Still no visible account (§2n). -->
 	<!-- **Apple Health is read, on the device, and not collected.**
 	     (FORGE_CONTEXT.md §17.5, APP_STORE.md §1)
 
@@ -33,10 +33,71 @@
 	     HealthKit, read-only (`HealthBridge`, an empty share set), to tick off
 	     the activities they measure. A reading is used on the phone and
 	     dropped: never stored, never synced, never sent to telemetry or an AI
-	     brief. Nothing leaves the device, so Health & Fitness is not a
+	     brief (Ask Forge sends whether today's activities are done, never a
+	     reading). Nothing leaves the device, so Health & Fitness is not a
 	     collected data type and is deliberately absent from the list below. -->
+	<!-- **Forge's AI, since 1.1 (FORGE_CONTEXT.md §17.6, APP_STORE.md §1).**
+
+	     Only for Forge Pro, only after the person presses Allow on the in-app
+	     disclosure (revocable in Settings -> Planning), and only when they press
+	     something that asks: Plan's "Work it out", the review's "Read my week",
+	     or a message in Ask Forge. The request goes to Forge's own Supabase
+	     edge function, which asks OpenAI to answer (`store: false`).
+
+	     - Other User Content: the `AIBrief` (activity names, times, lengths and
+	       days; identity statements and the chapter's intention; counts), for
+	       a reading one week's counts, Plan's typed request, and for Ask Forge
+	       the six scores and OVR, the running Arc's id/day/phase, today's list
+	       with what is done, and the last eight messages. Never stored by
+	       Forge's server; never a health reading, a date, a review's words.
+	     - Purchase History: the Apple-signed StoreKit transaction, verified by
+	       the server; its originalTransactionId keys the daily quota.
+	     - User ID: the invisible anonymous Supabase user, minted on the first
+	       request, used to authenticate and rate-limit.
+
+	     Declared LINKED, the conservative reading: every request travels under
+	     the anonymous user id, which identifies an account even though the
+	     account has no name, email or password. None of it is used for
+	     tracking. If this is ever changed to not linked, APP_STORE.md §1 must
+	     change with it. -->
 	<key>NSPrivacyCollectedDataTypes</key>
 	<array>
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeOtherUserContent</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypePurchaseHistory</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeUserID</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
 		<dict>
 			<key>NSPrivacyCollectedDataType</key>
 			<string>NSPrivacyCollectedDataTypeProductInteraction</string>

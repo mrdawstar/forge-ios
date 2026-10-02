@@ -9,14 +9,16 @@ Two things must be filled in before publishing:
   (Optional) [DEVELOPER NAME] — the legal name shown on the App Store listing.
 
 Section 7 has two versions:
-  - 7A "Current version" — publish NOW, while RemoteForgeAI.isModelEnabled is false.
-  - 7B "When AI features are active" — publish ON THE DAY the activation build
-    goes live, replacing 7A, and update the effective date. Also switch the
-    App Store privacy labels (docs/APP_STORE.md §1) at the same time.
-Section 8's table has one row marked "(when AI is active)" — keep it hidden or
-labelled until then; it is already worded correctly for both states.
-
-Nothing else needs to change at activation.
+  - 7A "Current version" — what the live site says while the App Store still
+    sells a build without remote AI (1.0.1).
+  - 7B "When AI features are active" — **the 1.1 build is the activation build**
+    (RemoteForgeAI.isModelEnabled = true since FORGE_CONTEXT §17.6). Publish 7B
+    in place of 7A ON THE DAY 1.1 goes live, update the effective date, and
+    switch the App Store privacy labels (docs/APP_STORE.md §1) at the same time.
+    7B describes Ask Forge, the Weekly Reading and Plan in your own words
+    exactly as the 1.1 build sends them.
+Section 8's table has rows marked "(when AI is active)" — drop the marker when
+7B is published.
 -->
 
 # Forge Privacy Policy
@@ -38,8 +40,9 @@ unclear, contact us at [CONTACT EMAIL].
 - Purchases are handled by Apple. We never see your payment details.
 - Forge has no advertising, does not track you across apps or websites, and
   does not sell your information.
-- Forge's AI features are optional, require your explicit permission, and are
-  described in section 7.
+- Forge's AI features (Ask Forge, the Weekly Reading, Plan in your own words)
+  are optional, need Forge Pro and your explicit permission, and are described
+  in section 7.
 
 ## 1. Your Forge record
 
@@ -75,8 +78,9 @@ created when you open the app, open Settings, or use any other feature.
 If you allow it, Forge **reads** steps, workout minutes, sleep and mindful
 minutes from Apple Health to mark activities your phone can measure as done.
 Forge never writes to Apple Health, does not store the readings, and does not send health data anywhere —
-not to analytics, not to our backend, and not to any AI provider. Health access
-is optional; every feature works without it.
+not to analytics, not to our backend, and not to any AI provider. (If you use
+Ask Forge, it is told which of today's activities are done, never a reading.)
+Health access is optional; every feature works without it.
 
 ## 4. Notifications, widgets and the Live Activity
 
@@ -122,7 +126,8 @@ Forge sends no analytics events.
 
 ## 7. AI features
 
-Forge Pro includes optional AI features: the **Weekly Reading** and **Plan in
+Forge Pro includes optional AI features: **Ask Forge**, a coach that reads your
+record and answers questions about it; the **Weekly Reading**; and **Plan in
 your own words**.
 
 ### 7A. Current version
@@ -164,10 +169,29 @@ you press a button that asks for one.
   intention;
 - for a **Weekly Reading**: that week's counts, per day, per activity and per
   identity statement;
-- for **Plan in your own words**: the request you typed.
+- for **Plan in your own words**: the request you typed;
+- for **Ask Forge**: what you write, with the conversation before it (at most
+  the last eight messages, yours and its replies); your six stats and overall
+  score as shown in Forge; where you are in an Arc you are running (which Arc,
+  which day, which phase); and today's list of activities, with which are done.
 
-Weekly review answers, dates of individual days, health data, your name, email,
-location and contacts are **not** sent.
+Weekly review answers, dates, the record of any past day, health readings, your
+name, email, location and contacts are **not** sent.
+
+**Your Ask Forge conversation stays on your device.** Forge keeps the last 40
+messages on your iPhone so you can read them back, and you can clear them at any
+time in Ask Forge. Our backend does not keep them.
+
+**What Ask Forge will not do.** It does not give medical, psychiatric or
+nutritional diagnosis or treatment, advice about drugs, performance-enhancing
+substances or supplement doses, extreme diets or fasting protocols, sexual
+content, or help with harassing anyone. A message that suggests you may be in
+crisis is answered on your device with the 988 Suicide & Crisis Lifeline, and
+that message is not sent. Ask Forge is not medical advice.
+
+**Reporting a reply.** A long press on an Ask Forge reply offers *Report*,
+which opens an email to our support address with that reply in it. Nothing is
+sent unless you send the email yourself.
 
 **How the request is authorised.** Each request carries the anonymous session
 described in section 2 and Apple's signed proof of your Forge Pro purchase (the
@@ -189,8 +213,10 @@ and misuse monitoring. See openai.com/policies for OpenAI's current terms.
 **What it is used for.** Only to provide the feature you asked for (App
 Functionality). AI data is **not** used for advertising, is **not** used to
 track you, is **not** sold, and is **not** combined with data from other
-companies. Every sentence an AI model writes is checked against your own record
-before it is shown, and is labelled on screen as written by a model.
+companies. Every reply, reading and plan an AI model writes is labelled on
+screen as written by AI; a Weekly Reading is checked against your own record
+before it is shown, and a proposed change to your week is only ever applied
+after you review it and confirm it.
 
 ## 8. Service providers
 
@@ -232,12 +258,15 @@ your personal information for advertising.
   it cannot be linked back to you by us.
 - **When AI is active:** the anonymous session is kept on your device and in our
   backend's authentication system; usage counts are kept per day to enforce
-  limits. The content of AI requests is not stored by our backend.
+  limits. The content of AI requests is not
+  stored by our backend. The Ask Forge conversation is kept on your device
+  only (the last 40 messages) until you clear it or delete the app.
 
 ## 12. Your choices and rights
 
 - Turn off anonymous usage sharing in **Settings → Privacy**.
 - Decline or withdraw permission for AI features in **Settings → Planning**.
+- Clear the Ask Forge conversation with **Clear** in Ask Forge.
 - Turn off Apple Health access in the iOS Settings app.
 - Delete your Forge record by deleting the app.
 

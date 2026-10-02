@@ -23,13 +23,21 @@
 // An anonymous user alone gets nothing. Every call also needs a verified
 // StoreKit 2 Premium transaction (`storekit.ts`), and draws on two daily
 // quotas: per user, and per purchase (`originalTransactionId`, migration 0008).
+// Ask Forge (`coach`) draws on a bucket of its own, the same two keys
+// (migration 0009).
 //
 // Deploy:   supabase functions deploy forge-ai
 // Secrets:  OPENAI_API_KEY (required), FORGE_ALLOW_SANDBOX ("true" only while
 //           testing with StoreKit Sandbox). See supabase/README.md.
 
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { createHandler, DAILY_TRANSACTION_LIMIT, DAILY_USER_LIMIT } from "./handler.ts";
+import {
+  createHandler,
+  DAILY_COACH_TRANSACTION_LIMIT,
+  DAILY_COACH_USER_LIMIT,
+  DAILY_TRANSACTION_LIMIT,
+  DAILY_USER_LIMIT,
+} from "./handler.ts";
 import type { ClaimResult } from "./handler.ts";
 import { createOpenAIProvider } from "./openai.ts";
 import { APPLE_PRODUCTION_TRUST, verifyEntitlementJWS } from "./storekit.ts";
@@ -69,18 +77,21 @@ const handler = createHandler({
     });
   },
 
-  async claim(userId, originalTransactionId) {
-    const { data, error } = await service.rpc("claim_ai_entitled_call", {
+  async claim(userId, originalTransactionId, bucket) {
+    // The reading and the plan share 0008's allowance; the coach has 0009's.
+    const coach = bucket === "coach";
+    const fn = coach ? "claim_ai_coach_call" : "claim_ai_entitled_call";
+    const { data, error } = await service.rpc(fn, {
       p_user: userId,
-      p_user_limit: DAILY_USER_LIMIT,
+      p_user_limit: coach ? DAILY_COACH_USER_LIMIT : DAILY_USER_LIMIT,
       p_original_transaction_id: originalTransactionId,
-      p_transaction_limit: DAILY_TRANSACTION_LIMIT,
+      p_transaction_limit: coach ? DAILY_COACH_TRANSACTION_LIMIT : DAILY_TRANSACTION_LIMIT,
     });
-    if (error) throw new Error("claim_ai_entitled_call failed");
+    if (error) throw new Error(`${fn} failed`);
     if (data === "ok" || data === "user_limit" || data === "transaction_limit") {
       return data as ClaimResult;
     }
-    throw new Error("claim_ai_entitled_call returned an unknown answer");
+    throw new Error(`${fn} returned an unknown answer`);
   },
 
   provider: OPENAI_API_KEY ? createOpenAIProvider({ apiKey: OPENAI_API_KEY }) : null,

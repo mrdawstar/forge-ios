@@ -520,34 +520,32 @@ struct DayCountTests {
     }
 }
 
-// MARK: - Nothing leaves the phone
+// MARK: - What leaves the phone
 
-/// The promise 1.0 makes about the network, held by a test rather than by
+/// Forge's project host, as `Forge/Info.plist` names it. The one host besides
+/// TelemetryDeck's that Forge may reach (§17.6).
+let forgeProjectHost = "eslaeueyeuaejdnqfasv.supabase.co"
+
+/// The promise Forge makes about the network, held by a test rather than by
 /// somebody remembering.
 ///
-/// **Until the activation step (§2r), Forge sends nothing anywhere for any AI
-/// feature** — the consent, the entitlement proof and the Weekly Reading flow
-/// are prepared (`AIPrepTests`), the switch is off. Not for a plan, not
-/// for a challenge, not for the weekly reading — and not on a phone that is
-/// signed in to a fully configured project, which is the case that would
-/// otherwise slip through, because everything about it looks like the case that
-/// should work.
+/// **Since activation (§17.6) the model is switched on**, and this suite is the
+/// tripwire that pins exactly how far: two hosts and no more — TelemetryDeck's
+/// ingest for anonymous usage, and Forge's own Supabase project for the AI —
+/// and even on, **nothing is asked for and nothing is sent without consent**:
+/// no StoreKit read, no anonymous sign-up, no request. A configured project, a
+/// valid-looking token and a valid-looking transaction are not enough on
+/// their own; the person's Allow is read first.
 ///
-/// This is a tripwire and it is meant to fail loudly the day somebody turns the
-/// model on. When that day comes, the thing to change is
-/// `RemoteForgeAI.isModelEnabled` **and** the privacy nutrition labels in
-/// `APP_STORE.md` §1, which currently answer "not collected" for the AI brief
-/// on the strength of exactly this.
-///
-/// **One host is allowed, and only one** (since 2p, `FORGE_CONTEXT.md`):
-/// TelemetryDeck's ingest host, for anonymous usage. The last three tests here
-/// hold that to exactly one host, prove a request to any other host is refused
-/// before a socket exists, and prove the telemetry itself is silent under test.
-@Suite("Nothing leaves the phone but anonymous usage")
+/// It was built to fail the day the model was turned on, and it did. If it
+/// fails again, something changed what leaves the phone, and the privacy
+/// labels in `APP_STORE.md` §1, `PrivacyInfo.xcprivacy` and the disclosure
+/// have to move with it.
+@Suite("Only anonymous usage and Forge's AI leave the phone")
 struct NoNetworkTests {
 
     /// A project that is configured in every way that matters, so the test is
-    /// about the switch and not about a missing key.
+    /// about consent and not about a missing key.
     private var configured: SupabaseConfig {
         SupabaseConfig(
             url: URL(string: "https://example.supabase.co")!,
@@ -555,120 +553,115 @@ struct NoNetworkTests {
         )
     }
 
-    @Test("The model is off in this release")
-    func theModelIsOff() {
-        #expect(RemoteForgeAI.isModelEnabled == false)
-    }
-
-    /// The one that matters. A configured project **and** a valid token still
-    /// produces a disconnected client, because the switch is read before either.
-    @Test("A configured project with a signed-in token is still not connected")
-    func aConfiguredProjectStaysOffline() {
-        let ai = RemoteForgeAI(
-            config: configured,
-            token: { "a-valid-looking-token" },
-            entitlement: { "a-valid-looking-transaction" }
-        )
-        #expect(!ai.isConnected)
-    }
-
-    @Test("No project configured is not connected either")
-    func noProjectStaysOffline() {
-        #expect(!RemoteForgeAI(config: nil, token: { nil }, entitlement: { nil }).isConnected)
-    }
-
-    /// Every answer comes from the arithmetic, and says so. `isModelWritten` is
-    /// what every screen reads to decide whether to claim a model wrote
-    /// something; nothing may come back true.
-    @Test("Every answer is the phone's own, and admits it")
-    func everyAnswerIsLocal() async throws {
-        let ai = RemoteForgeAI(
-            config: configured,
-            token: { "a-valid-looking-token" },
-            entitlement: { "a-valid-looking-transaction" }
-        )
-
-        var brief = AIBrief()
-        brief.activities = [
-            ScheduledActivity(
-                id: "read", name: "Read", startMinute: nil, minutes: 15, weekdays: []
-            ),
-        ]
-        brief.wakeMinutes = 7 * 60
-
-        let plan = try await ai.plan(brief: brief, request: "plan my week")
-        #expect(!plan.isModelWritten)
-
-        // Off the shipped shelf, which is the proof it was not written
-        // anywhere else: every local answer is one of the sixty.
-        let challenge = try await ai.challenge(
-            brief: brief, difficulty: .medium, focus: .discipline, wish: ""
-        )
-        #expect(ChallengeCatalog.all.contains { $0.title == challenge.title })
-    }
-
-    /// A reading is the widest thing the app could transmit — it carries
-    /// `ReviewFacts` on top of the brief — and it is also the only AI call that
-    /// was ever made without a button being pressed. It has to come back
-    /// phone-written too.
-    @Test("A weekly reading is written by the rules")
-    func theReadingIsLocal() async throws {
-        let ai = RemoteForgeAI(
-            config: configured,
-            token: { "a-valid-looking-token" },
-            entitlement: { "a-valid-looking-transaction" }
-        )
-        var brief = AIBrief()
-        brief.week = ReviewFacts(kept: 3, asked: 7)
-
-        let reading = try await ai.reading(brief: brief)
-        #expect(!reading.isModelWritten)
-    }
-
-    /// The anonymous identity is only ever minted on the way to a model, and
-    /// with the model off nothing is on the way to one. Neither credential is
-    /// even asked for — no StoreKit read, no sign-up, no refresh.
-    @Test("With the model off, neither credential is ever asked for")
-    func credentialsAreNeverRequested() async throws {
-        let asked = CredentialCounter()
-        let ai = RemoteForgeAI(
-            config: configured,
-            token: { await asked.token() },
-            entitlement: { await asked.entitlement() }
-        )
-
+    private var oneActivity: AIBrief {
         var brief = AIBrief()
         brief.activities = [
             ScheduledActivity(id: "read", name: "Read", startMinute: nil, minutes: 15, weekdays: []),
         ]
+        brief.wakeMinutes = 7 * 60
         brief.week = ReviewFacts(kept: 3, asked: 7)
-        _ = try await ai.plan(brief: brief, request: "plan my week")
-        _ = try await ai.reading(brief: brief)
-        _ = try await ai.challenge(brief: brief, difficulty: .medium, focus: .discipline, wish: "")
+        return brief
+    }
 
+    @Test("The model is on in this release")
+    func theModelIsOn() {
+        #expect(RemoteForgeAI.isModelEnabled == true)
+    }
+
+    /// Building it — which the app does at launch — calls nothing.
+    @Test("A configured project connects, and building it asks for nothing")
+    func aConfiguredProjectConnects() async {
+        let asked = CredentialCounter()
+        let ai = RemoteForgeAI(
+            config: configured,
+            token: { await asked.token() },
+            entitlement: { await asked.entitlement() },
+            consent: { true }
+        )
+        #expect(ai.isConnected)
         #expect(await asked.tokens == 0)
         #expect(await asked.entitlements == 0)
     }
 
-    // MARK: - The one host
+    @Test("No project configured is not connected")
+    func noProjectStaysOffline() {
+        #expect(!RemoteForgeAI(config: nil, token: { nil }, entitlement: { nil }).isConnected)
+    }
+
+    /// Every answer comes from the arithmetic without a yes, and says so.
+    /// `isModelWritten` is what every screen reads to decide whether to claim
+    /// a model wrote something; nothing may come back true.
+    @Test("Without consent, every answer is the phone's own, and admits it")
+    func everyAnswerIsLocalWithoutConsent() async throws {
+        let ai = RemoteForgeAI(
+            config: configured,
+            token: { "a-valid-looking-token" },
+            entitlement: { "a-valid-looking-transaction" },
+            consent: { false }
+        )
+        let plan = try await ai.plan(brief: oneActivity, request: "plan my week")
+        #expect(!plan.isModelWritten)
+        #expect(!(try await ai.reading(brief: oneActivity)).isModelWritten)
+
+        // Off the shipped shelf, which is the proof it was not written
+        // anywhere else: every challenge is one of the sixty, always.
+        let challenge = try await ai.challenge(
+            brief: oneActivity, difficulty: .medium, focus: .discipline, wish: ""
+        )
+        #expect(ChallengeCatalog.all.contains { $0.title == challenge.title })
+    }
+
+    /// The anonymous identity is only ever minted on the way to a model, and
+    /// without a yes nothing is on the way to one. Neither credential is even
+    /// asked for — no StoreKit read, no sign-up, no refresh — and Ask Forge
+    /// answers nothing rather than sending.
+    @Test("Without consent, neither credential is ever asked for, Ask Forge included")
+    func credentialsAreNeverRequestedWithoutConsent() async throws {
+        let asked = CredentialCounter()
+        let ai = RemoteForgeAI(
+            config: configured,
+            token: { await asked.token() },
+            entitlement: { await asked.entitlement() },
+            consent: { false }
+        )
+        _ = try await ai.plan(brief: oneActivity, request: "plan my week")
+        _ = try await ai.reading(brief: oneActivity)
+        _ = try await ai.challenge(brief: oneActivity, difficulty: .medium, focus: .discipline, wish: "")
+        await #expect(throws: CoachError.unreachable) {
+            _ = try await ai.coach(
+                brief: CoachBrief(brief: oneActivity),
+                turns: [CoachTurn(role: "user", text: "Why is Discipline slipping?")]
+            )
+        }
+        #expect(await asked.tokens == 0)
+        #expect(await asked.entitlements == 0)
+    }
+
+    // MARK: - The two hosts
 
     /// Changing this list is changing the privacy labels. See `ForgeNetwork`.
-    @Test("TelemetryDeck's ingest host is the only one Forge may reach")
-    func onlyTelemetryDeck() {
-        #expect(ForgeNetwork.allowedHosts == ["nom.telemetrydeck.com"])
+    @Test("TelemetryDeck's ingest host and Forge's project are the only hosts Forge may reach")
+    func exactlyTwoHosts() {
+        #expect(ForgeNetwork.allowedHosts == ["nom.telemetrydeck.com", forgeProjectHost])
         #expect(ForgeTelemetry.host == "nom.telemetrydeck.com")
         #expect(ForgeNetwork.permits(URL(string: "https://nom.telemetrydeck.com/v2/")))
+        #expect(ForgeNetwork.permits(URL(string: "https://\(forgeProjectHost)/functions/v1/forge-ai")))
 
         for other in [
             "https://example.supabase.co/rest/v1/days",
+            "https://api.openai.com/v1/responses",
             "https://api.anthropic.com/v1/messages",
             "https://forgebetter.app/privacy",
             // Not https.
             "http://nom.telemetrydeck.com/v2/",
+            "http://\(forgeProjectHost)/functions/v1/forge-ai",
             // A suffix match would let these through.
             "https://nom.telemetrydeck.com.example.net/v2/",
+            "https://\(forgeProjectHost).example.net/",
             "https://evil-nom.telemetrydeck.com/",
+            "https://evil\(forgeProjectHost)/",
             "https://telemetrydeck.com/",
+            "https://supabase.co/",
         ] {
             #expect(!ForgeNetwork.permits(URL(string: other)), Comment(rawValue: other))
         }
@@ -677,8 +670,8 @@ struct NoNetworkTests {
 
     /// The transport is the one place Forge's own code opens a connection.
     /// Anything off the list is refused before the session is touched — the
-    /// tripwire standing where the network would be sees nothing — and the one
-    /// host on the list gets through to it.
+    /// tripwire standing where the network would be sees nothing — and the two
+    /// hosts on the list get through to it.
     @Test("A request to any other host is refused before it reaches the network")
     func otherHostsNeverLeave() async throws {
         let marker = UUID().uuidString
@@ -686,8 +679,10 @@ struct NoNetworkTests {
 
         for other in [
             "https://example.supabase.co/rest/v1/\(marker)",
+            "https://api.openai.com/\(marker)",
             "https://api.anthropic.com/\(marker)",
             "http://nom.telemetrydeck.com/\(marker)",
+            "http://\(forgeProjectHost)/\(marker)",
         ] {
             let request = URLRequest(url: URL(string: other)!)
             await #expect(throws: BackendError.notConfigured) {
@@ -696,10 +691,12 @@ struct NoNetworkTests {
         }
         #expect(NetworkTripwire.requests(containing: marker).isEmpty)
 
-        let allowed = URLRequest(url: URL(string: "https://nom.telemetrydeck.com/\(marker)")!)
-        let (_, response) = try await transport.send(allowed)
-        #expect(response.statusCode == 200)
-        #expect(NetworkTripwire.requests(containing: marker).map(\.host) == ["nom.telemetrydeck.com"])
+        for allowed in ["https://nom.telemetrydeck.com/\(marker)", "https://\(forgeProjectHost)/\(marker)"] {
+            let (_, response) = try await transport.send(URLRequest(url: URL(string: allowed)!))
+            #expect(response.statusCode == 200)
+        }
+        #expect(Set(NetworkTripwire.requests(containing: marker).compactMap(\.host))
+                == ["nom.telemetrydeck.com", forgeProjectHost])
     }
 
     /// The whole of the telemetry is behind this. A test run that could send a

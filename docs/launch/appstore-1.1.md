@@ -9,10 +9,10 @@ Everything in this file is written against what the app actually does on the
 > so nothing in this listing may say "Forge is free". The record stays
 > readable to everybody, and that is what the listing promises instead.
 >
-> The AI features (the Weekly Reading, Plan in your own words, Ask Forge) are
-> named in the listing only once remote AI is activated
-> (`RemoteForgeAI.isModelEnabled`, currently `false` — §2r). Until then use
-> **Variant A** below; at activation, **Variant B**.
+> The AI features (Ask Forge, the Weekly Reading, Plan in your own words) are
+> named in the listing only once remote AI is activated. **1.1 is the
+> activation build** (`RemoteForgeAI.isModelEnabled = true`, FORGE_CONTEXT
+> §17.6): use **Variant B** below for 1.1. Variant A stays for reference.
 
 ---
 
@@ -109,8 +109,9 @@ Annual with a 7-day free trial, or monthly. Forge reminds you two days before th
 ```
 FORGE PRO — SEVEN DAYS FREE, THEN DECIDE
 
-Keeping new days takes Forge Pro: the daily loop, any number of activities, the six stats scored on what you actually do, a blade for every stretch of days you keep, a challenge every day, and Plan. With it, Forge's AI:
-- Weekly Reading: a written reading of what held and what slipped, checked against your own record before you see it. Written by an AI model through Forge's own server, only after you allow it.
+Keeping new days takes Forge Pro: the daily loop, any number of activities, the six stats scored on what you actually do, a blade for every stretch of days you keep, a challenge every day, and Plan. With it, Forge's AI, only after you allow it:
+- Ask Forge: ask about your week, your six stats or your Arc. It reads your record and can propose changes to your week, which you review before anything moves. Not medical advice.
+- Weekly Reading: a written reading of what held and what slipped, checked against your own record before you see it.
 - Plan in your own words: tell Plan the hours you cannot move and what you want fitted around them.
 
 Annual with a 7-day free trial, or monthly. Forge reminds you two days before the trial ends. Subscriptions renew automatically unless cancelled at least 24 hours before the end of the current period. Manage or cancel them in your Apple Account settings. A one-time Lifetime purchase is in Settings.
@@ -136,9 +137,10 @@ Save the proof
 When a blade is earned or a chapter closes, you can save an image of it, in portrait or square.
 ```
 
-At AI activation, add one line under Forge Pro: *"Weekly Reading: a written
-reading of your week, checked against your own record. Only after you allow
-it."*
+For 1.1 (the activation build), add one line under Forge Pro: *"Ask Forge
+reads your record and answers questions about your week, your stats and your
+Arc. The Weekly Reading and Plan in your own words use it too. Only after you
+allow it."*
 
 ---
 
