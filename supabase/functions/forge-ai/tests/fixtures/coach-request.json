@@ -1,0 +1,37 @@
+{
+  "task": "coach",
+  "brief": {
+    "daysKept": 12,
+    "streak": 4,
+    "activities": [
+      { "id": "read", "name": "Read", "startMinute": 1260, "minutes": 20, "weekdays": [1, 2, 3, 4, 5, 6, 7] },
+      { "id": "workout", "name": "Work out", "minutes": 45, "weekdays": [2, 4, 6] }
+    ],
+    "parts": [],
+    "wakeMinutes": 420,
+    "identities": ["Someone who trains"],
+    "chapterIntention": "",
+    "coach": {
+      "arc": { "id": "monk30", "day": 12, "phase": "Build" },
+      "scores": [
+        { "dimension": "Intellect", "score": 62 },
+        { "dimension": "Relationship", "score": null },
+        { "dimension": "Discipline", "score": 41 },
+        { "dimension": "Ambition", "score": 47 },
+        { "dimension": "Mental", "score": 50 },
+        { "dimension": "Physical", "score": 58 }
+      ],
+      "overall": 52,
+      "today": [
+        { "name": "Read", "done": true },
+        { "name": "Work out", "done": false }
+      ]
+    }
+  },
+  "request": "",
+  "messages": [
+    { "role": "user", "text": "Why is Discipline slipping?" },
+    { "role": "assistant", "text": "Work out was kept on one of its last three days." },
+    { "role": "user", "text": "Make week 3 harder" }
+  ]
+}

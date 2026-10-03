@@ -1,12 +1,14 @@
 # Forge — backend setup
 
 Forge works with none of this done. A build with no Supabase project in
-`Forge/Info.plist` makes no request of any kind, and the app is the local-only
-one it has always been.
+`Forge/Info.plist` makes no AI request of any kind, and the app is the
+local-only one it has always been. **Since 1.1 (session S6,
+`docs/FORGE_CONTEXT.md` §17.6) the project is in `Info.plist` and the switch is
+on.**
 
 **What the backend is for now:** the `forge-ai` Edge Function, which runs
-Forge's two model jobs — the weekly **Reading** and **Plan** — for Premium
-users, through the OpenAI API. There is **no visible account** (see
+Forge's three model jobs — the weekly **Reading**, **Plan** in your own words,
+and **Ask Forge** (`coach`) — for Forge Pro users, through the OpenAI API. There is **no visible account** (see
 `docs/FORGE_CONTEXT.md` §2n and §2q): the app signs in *anonymously and
 invisibly* so every request carries a Supabase JWT, and proves Premium with the
 signed StoreKit 2 transaction. The account and sync code further down is
@@ -14,11 +16,11 @@ dormant and needs no setup.
 
 | Piece | Where |
 |---|---|
-| Edge Function | `functions/forge-ai/` — `index.ts` (wiring), `handler.ts` (request rules), `storekit.ts` (Apple JWS verification), `openai.ts` (provider), `prompts.ts` (models, rules, schemas) |
-| Tests | `functions/forge-ai/tests/` — Deno; no network, no real keys |
-| Quotas | migrations `0007_ai_usage.sql` (per user) and `0008_ai_transaction_quota.sql` (per purchase) |
+| Edge Function | `functions/forge-ai/` — `index.ts` (wiring), `handler.ts` (request rules), `storekit.ts` (Apple JWS verification), `openai.ts` (provider), `prompts.ts` (models, rules, schemas), `safety.ts` (Ask Forge's screen and answer check) |
+| Tests | `functions/forge-ai/tests/` — Deno; no network, no real keys; `fixtures/` are the wire contract the app's `AskForgeTests` also read. `tests/ai_coach_quota.test.sql` — 0009 against a throwaway Postgres |
+| Quotas | migrations `0007_ai_usage.sql` (per user), `0008_ai_transaction_quota.sql` (per purchase) — 10 a day each, shared by Reading and Plan — and `0009_ai_coach_quota.sql`, Ask Forge's own bucket: 30 messages a day per purchase and per user |
 | Server secrets | `OPENAI_API_KEY` (required), `FORGE_ALLOW_SANDBOX` (optional) |
-| Models | Reading → `gpt-6-sol`, Plan → `gpt-6-luna` (fixed in `prompts.ts`) |
+| Models | Reading → `gpt-6-sol`; Plan and Ask Forge → `gpt-6-luna` (`COACH_MODEL = PLAN_MODEL`, fixed in `prompts.ts`) |
 
 ## 0. Where to run the CLI
 
@@ -39,8 +41,9 @@ cd path/to/Forge && supabase migration list
 ## 1. Deploying AI — the checklist
 
 Do these in order. Nothing here puts a secret in the repository, and nothing
-here changes the app: the shipped build keeps `RemoteForgeAI.isModelEnabled =
-false` until step 1.9.
+here changes the app. Steps 1.1–1.8 were done by hand before session S6; S6 did
+step 1.9 (`RemoteForgeAI.isModelEnabled = true`) and added migration `0009` and
+the `coach` task, which need 1.3 and 1.7 run once more.
 
 ### 1.1 Log in and link the project
 
@@ -69,8 +72,15 @@ filling up.
 
 ```bash
 supabase db push
-supabase migration list        # 0001 … 0008 applied on both sides
+supabase migration list        # 0001 … 0009 applied on both sides
 ```
+
+`0009` adds Ask Forge's own allowance (`ai_coach_usage`,
+`ai_coach_usage_by_transaction`, `claim_ai_coach_call`): 30 messages a day per
+purchase and per user, row-locked, failing closed, service role only. Push it
+**before** deploying the function that calls it — until it exists, every Ask
+Forge message fails closed with 503 (nothing is spent, the app shows its one
+"can't reach the server" line).
 
 `0008` adds the per-purchase quota (`ai_usage_by_transaction`,
 `claim_ai_entitled_call`) and closes an old grant: 0007's functions were still
@@ -79,6 +89,7 @@ executable by client roles through `PUBLIC`. Check it took:
 ```sql
 select has_function_privilege('anon', 'public.claim_ai_call(uuid,integer)', 'execute');                      -- false
 select has_function_privilege('anon', 'public.claim_ai_entitled_call(uuid,integer,text,integer)', 'execute'); -- false
+select has_function_privilege('anon', 'public.claim_ai_coach_call(uuid,integer,text,integer)', 'execute');    -- false
 select tablename, rowsecurity from pg_tables where schemaname = 'public';                                    -- all true
 ```
 
@@ -96,7 +107,8 @@ select tablename, rowsecurity from pg_tables where schemaname = 'public';       
    limit and an email alert. The per-purchase cap bounds each user; this bounds
    the total.
 4. If your OpenAI project restricts which models it may use (the project's
-   **Limits** page), make sure `gpt-6-sol` and `gpt-6-luna` are both allowed.
+   **Limits** page), make sure `gpt-6-sol` and `gpt-6-luna` are both allowed
+   (Ask Forge uses `gpt-6-luna`).
 5. Create the key: **API keys** (https://platform.openai.com/api-keys) →
    *Create new secret key*, in the project above. Permissions *All* works; if
    you choose *Restricted*, it needs write access to the Responses API and
@@ -135,7 +147,8 @@ Two things to know:
   labelled, never an error). If you want them to see the model, set it to
   `true` for the review window and unset it after release — accepting that,
   meanwhile, any Sandbox/TestFlight purchase can reach the model (each still
-  capped at 10 a day per purchase).
+  capped at 10 readings and plans, and 30 Ask Forge messages, a day per
+  purchase).
 - **Xcode's local StoreKit testing never works here.** `Forge.storekit`
   transactions are signed by Xcode, not Apple, and are refused with or without
   this flag. Test AI with a Sandbox account on a device.
@@ -168,15 +181,30 @@ curl -s -w '\n%{http_code}\n' -X POST "$URL/functions/v1/forge-ai" \
   -d '{"task":"reading","brief":{}}'
 ```
 
+Ask Forge the same way — 402 without a purchase, and 400 before anything else
+when the conversation does not end in the person's turn:
+
+```bash
+curl -s -w '\n%{http_code}\n' -X POST "$URL/functions/v1/forge-ai" \
+  -H "Authorization: Bearer $TOKEN" -H "apikey: $KEY" -H 'Content-Type: application/json' \
+  -d '{"task":"coach","brief":{},"messages":[{"role":"user","text":"Why is Discipline slipping?"}]}'   # 402
+curl -s -w '\n%{http_code}\n' -X POST "$URL/functions/v1/forge-ai" \
+  -H "Authorization: Bearer $TOKEN" -H "apikey: $KEY" -H 'Content-Type: application/json' \
+  -d '{"task":"coach","brief":{},"messages":[]}'                                                       # 400
+```
+
 A 200 needs a real Premium transaction from a device (Sandbox with step 1.6 on).
+If OpenAI rejects a model name, the app shows its fallback and
+`supabase functions logs forge-ai` shows `forge-ai upstream` with the status
+OpenAI returned (400 or 404) — never the body.
 `supabase functions logs forge-ai` shows only the task and a reason — never a
 brief, a JWS or a key.
 
-### 1.9 Turning it on in the app — a separate, deliberate PR
+### 1.9 Turning it on in the app — done in 1.1, session S6
 
-The app side is written and wired (`AnonymousIdentity`, `ForgeStore
-.entitlementProof`, `RemoteForgeAI`), but the shipped build cannot reach any of
-it. Turning it on is its own change, because it changes what the app collects:
+*Done (`docs/FORGE_CONTEXT.md` §17.6), together with Ask Forge.* Kept as the
+record of what the change had to touch, because it changes what the app
+collects:
 
 1. Put the project in `Forge/Info.plist` (`ForgeSupabaseURL`,
    `ForgeSupabaseAnonKey` — the publishable key only, never the service-role
@@ -197,8 +225,22 @@ it. Turning it on is its own change, because it changes what the app collects:
 Deno only — no Supabase, no Apple, no OpenAI, no keys:
 
 ```bash
-deno test --allow-env --no-lock supabase/functions/forge-ai/tests/
+deno test --allow-env --allow-read --no-lock supabase/functions/forge-ai/tests/
 deno check --no-lock supabase/functions/forge-ai/index.ts
+```
+
+`--allow-read` is for the wire fixtures. If a `package.json` sits in a parent
+folder (the home folder, on the owner's Mac), Deno switches to a manual
+`node_modules` and cannot resolve `npm:` imports: prefix both commands with
+`DENO_NO_PACKAGE_JSON=1`.
+
+Migration `0009`'s quota semantics, grants and RLS are tested in SQL against a
+throwaway Postgres (never the project): create the roles `anon`,
+`authenticated`, `service_role` and a stub `auth.users (id uuid primary key)`,
+apply `0007`, `0008` and `0009`, then
+
+```bash
+psql -v ON_ERROR_STOP=1 -f supabase/tests/ai_coach_quota.test.sql   # "ai_coach_quota tests passed"
 ```
 
 The StoreKit tests generate a throwaway CA chain each run and inject trust in

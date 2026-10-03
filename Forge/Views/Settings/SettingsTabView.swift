@@ -23,6 +23,8 @@ struct SettingsTabView: View {
     /// it that could quietly fall out of step. See `AIBrief`.
     var aiBrief: AIBrief
     var aiReadingBrief: AIBrief
+    /// Ask Forge's additions, from the same builder Ask Forge uses.
+    var aiCoachBrief: CoachBrief? = nil
     var isAIConnected: Bool
     /// Whether Forge's AI has been allowed — shown, and revocable, under
     /// Planning. See `AIConsentStore`.
@@ -483,6 +485,7 @@ struct SettingsTabView: View {
                 AIDisclosureView(
                     brief: aiBrief, readingBrief: aiReadingBrief,
                     isConnected: isAIConnected,
+                    coachBrief: aiCoachBrief,
                     consent: aiConsent
                 )
             } label: {
@@ -508,7 +511,7 @@ struct SettingsTabView: View {
         } footer: {
             Text(
                 isAIConnected
-                    ? "Plan opens from the week, under the More button. It works out its moves on this phone; when you type a request in your own words it is sent by Forge's own server, never by this app, and only at the moment you ask."
+                    ? "Plan opens from the week, under the More button. It works out its moves on this phone. A request typed in your own words, the Weekly Reading and Ask Forge go to Forge's own server only at the moment you ask, and only with Forge Pro."
                     : "Plan opens from the week, under the More button. It reads your own week, your history and the six parts of your Shape, and works every move out on this phone. Forge's AI is not switched on in this version, so nothing is sent."
             )
         }

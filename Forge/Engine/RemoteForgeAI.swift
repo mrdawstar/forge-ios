@@ -39,7 +39,7 @@ import Foundation
 /// `connect()` checks four things and stops at the first that fails, so the
 /// later ones never run:
 ///
-/// 1. **The switch** — `isModelEnabled`. Off in this build (§2r).
+/// 1. **The switch** — `isModelEnabled`. On since 1.1 (§17.6).
 /// 2. **Consent** — `AIConsentStore`. Nobody's words leave the phone until they
 ///    have read the disclosure and pressed Allow.
 /// 3. **The purchase** — the StoreKit JWS. Somebody without Forge Pro never
@@ -51,11 +51,14 @@ import Foundation
 /// pressed. Nothing here runs at launch, on opening Settings, or on opening a
 /// weekly review (`FORGE_CONTEXT.md` §2q, §2r).
 ///
-/// # The two jobs
+/// # The three jobs
 ///
-/// `reading` and `plan`, and nothing else. It is not a chat: there is no
-/// conversation and no free-form answer, only the shapes below, each checked on
-/// this phone before it is shown.
+/// `reading`, `plan` and — since 1.1 — `coach`, Ask Forge. The reading and the
+/// plan are single shapes, each checked on this phone before it is shown. The
+/// coach is the one conversation: the phone keeps it (`CoachHistory`) and
+/// sends the last eight turns each time; its reply is text in Forge's voice,
+/// and a proposal it makes is a plan, re-checked here and shown in Plan's
+/// review, never applied (§5 #9).
 ///
 /// # Why `LocalForgeAI` is still here
 ///
@@ -67,13 +70,14 @@ import Foundation
 /// false, and every screen that shows either of them says which it got.
 struct RemoteForgeAI: ForgeAI {
 
-    /// **Whether this release may talk to a model at all. It may not.**
+    /// **Whether this release may talk to a model at all. Since 1.1 it may.**
     ///
     /// # Why this is a constant and not a setting
     ///
-    /// Until activation (§2r) Forge sends nothing anywhere for any AI feature —
-    /// remote AI is prepared, not on — and that has to be a fact
-    /// about the binary rather than a state it can be talked into. A toggle —
+    /// Before activation (§2r) Forge sent nothing anywhere for any AI feature,
+    /// and that had to be a fact about the binary rather than a state it could
+    /// be talked into. Activation (§17.6) is the same kind of fact: this line,
+    /// and the project in `Info.plist`. A toggle —
     /// in Settings, in a config file, behind an entitlement — is a thing that
     /// can be flipped by a bug, a stale default, a merge or a sync, and the
     /// failure mode of every one of those is somebody's own sentences about
@@ -116,13 +120,15 @@ struct RemoteForgeAI: ForgeAI {
     /// prepared "once AI is activated" labels. The whole checklist is
     /// `FORGE_CONTEXT.md` §2r, "Activation".
     ///
-    /// **Still `false` after §2r.** The consent screen, the entitlement proof,
-    /// the Weekly Reading flow and the tests are all in place; this line is the
-    /// one thing the activation PR changes.
-    static let isModelEnabled = false
+    /// **`true` since 1.1, session S6 (FORGE_CONTEXT §17.6).** Even on, nothing
+    /// runs until a button that asks is pressed, the person has allowed it, and
+    /// a Forge Pro transaction is in hand — see `connect()`. The tests that were
+    /// built to fail at this moment (`NoNetworkTests`, `AIActivationTests`,
+    /// `BackendRegressionTests`) now pin the two hosts the app may reach.
+    static let isModelEnabled = true
 
-    /// Nil in a build with no Supabase project configured — and nil in **every**
-    /// build of 1.0, see `isModelEnabled`. Either way this whole type is then a
+    /// Nil in a build with no Supabase project configured, and in any build
+    /// with `isModelEnabled` false. Either way this whole type is then a
     /// passthrough to the arithmetic.
     private let endpoint: AIEndpoint?
 
@@ -307,6 +313,61 @@ struct RemoteForgeAI: ForgeAI {
         }
     }
 
+    // MARK: - Ask Forge
+
+    /// One answer in Ask Forge, or `CoachError.unreachable`.
+    ///
+    /// Unlike the reading and the plan there is nothing on the phone that can
+    /// write a reply, so every failure — no consent, no purchase, offline, sign
+    /// ups off, 402, 429, 5xx, an unreadable or empty answer — is the one error
+    /// the screen turns into "Ask Forge can't reach the server right now. Your
+    /// record is fine." and, where a sentence is one the phone's planner
+    /// understands, its own proposal (`AskForgeView`).
+    ///
+    /// The reply is held to Forge's voice here as well as on the server
+    /// (`CoachSafety.inVoice`), and a reply carrying the 988 line keeps no
+    /// proposal: nothing is coached in that turn.
+    func coach(brief: CoachBrief, turns: [CoachTurn]) async throws -> CoachReply {
+        guard let last = turns.last, last.role == "user" else { throw CoachError.unreachable }
+        guard let call = await connect() else { throw CoachError.unreachable }
+        let answer: AIWireCoachAnswer
+        do {
+            answer = try await call.endpoint.coach(
+                AIRequest(
+                    task: .coach,
+                    brief: AIWireBrief(brief.brief, coach: AIWireCoach(brief)),
+                    messages: turns
+                ),
+                credentials: call.credentials
+            )
+        } catch {
+            throw CoachError.unreachable
+        }
+        let text = CoachSafety.inVoice(answer.reply)
+        guard text.contains(where: { $0.isLetter || $0.isNumber }) else { throw CoachError.unreachable }
+        let isSafety = CoachSafety.mentionsLifeline(text)
+        return CoachReply(
+            text: text,
+            proposal: isSafety ? nil : answer.proposal.flatMap { $0.changes.isEmpty ? nil : $0 },
+            isSafety: isSafety
+        )
+    }
+
+}
+
+/// What Ask Forge got back, already in Forge's voice.
+struct CoachReply: Equatable, Sendable {
+    let text: String
+    /// Untrusted until `CoachProposal.plan(against:)` resolves it.
+    let proposal: CoachProposal?
+    /// The 988 reply: shown with Call and Text, and never sent again.
+    let isSafety: Bool
+}
+
+enum CoachError: Error, Equatable {
+    /// Every way Ask Forge can fail to answer. One line on screen, whatever
+    /// the cause (`AskForgeCopy.unreachable`).
+    case unreachable
 }
 
 // MARK: - The wire
@@ -347,6 +408,10 @@ struct AIEndpoint: Sendable {
         try await send(AIWireReading.self, request, credentials: credentials)
     }
 
+    func coach(_ request: AIRequest, credentials: AICredentials) async throws -> AIWireCoachAnswer {
+        try await send(AIWireCoachAnswer.self, request, credentials: credentials)
+    }
+
     private func send<T: Decodable>(
         _ type: T.Type, _ request: AIRequest, credentials: AICredentials
     ) async throws -> T {
@@ -368,7 +433,7 @@ struct AICredentials: Sendable {
     let transaction: String
 }
 
-/// What Forge posts. One shape for both tasks, because a request type per task
+/// What Forge posts. One shape for every task, because a request type per task
 /// for one endpoint is a place per task to add a field and forget one.
 ///
 /// Carries nothing that says who is asking or what they bought — those travel
@@ -376,12 +441,15 @@ struct AICredentials: Sendable {
 /// there alone.
 struct AIRequest: Encodable, Sendable {
     enum Task: String, Encodable, Sendable {
-        case plan, reading
+        case plan, reading, coach
     }
 
     let task: Task
     let brief: AIWireBrief
     var request: String = ""
+    /// Ask Forge's last eight turns, oldest first. Absent for the other two
+    /// tasks, so their bodies are exactly what they always were.
+    var messages: [CoachTurn]? = nil
 }
 
 /// `AIBrief`, flattened for JSON.
@@ -436,8 +504,11 @@ struct AIWireBrief: Encodable, Sendable {
     let identities: [String]
     let chapterIntention: String
     let week: Week?
+    /// Ask Forge's additions (`CoachBrief`), sent only by Ask Forge.
+    let coach: AIWireCoach?
 
-    init(_ brief: AIBrief) {
+    init(_ brief: AIBrief, coach: AIWireCoach? = nil) {
+        self.coach = coach
         daysKept = brief.daysKept
         streak = brief.streak
         world = brief.world
@@ -485,6 +556,49 @@ struct AIWireBrief: Encodable, Sendable {
     }
 }
 
+/// `CoachBrief`'s additions, flattened for JSON: the running Arc (id, day,
+/// phase), the six as shown with OVR, and today's list. Nothing else of it is
+/// sent — the Arc's name and length and the seven-day changes stay on the phone.
+struct AIWireCoach: Encodable, Sendable {
+    struct Arc: Encodable, Sendable {
+        let id: String
+        let day: Int
+        let phase: String
+    }
+
+    struct Score: Encodable, Sendable {
+        let dimension: String
+        let score: Int?
+
+        /// A dimension with nothing to score is sent as `null`, not left out:
+        /// "Relationship: no score yet" is part of the picture.
+        func encode(to encoder: Encoder) throws {
+            var c = encoder.container(keyedBy: CodingKeys.self)
+            try c.encode(dimension, forKey: .dimension)
+            try c.encode(score, forKey: .score)
+        }
+
+        private enum CodingKeys: String, CodingKey { case dimension, score }
+    }
+
+    struct Today: Encodable, Sendable {
+        let name: String
+        let done: Bool
+    }
+
+    let arc: Arc?
+    let scores: [Score]
+    let overall: Int?
+    let today: [Today]
+
+    init(_ coach: CoachBrief) {
+        arc = coach.arc.map { Arc(id: $0.id, day: $0.day, phase: $0.phase) }
+        scores = coach.scores.map { Score(dimension: $0.category.label, score: $0.score) }
+        overall = coach.overall
+        today = coach.today.map { Today(name: $0.name, done: $0.isDone) }
+    }
+}
+
 // MARK: - What comes back
 
 /// Hand-written and tolerant, the same as every other decoder in this codebase:
@@ -502,6 +616,22 @@ struct AIWireReading: Decodable, Sendable {
     }
 
     private enum CodingKeys: String, CodingKey { case observation }
+}
+
+/// Ask Forge's answer: a reply, and perhaps a proposal in the plan's shape.
+/// Tolerant like the rest: a missing reply is an empty one (and the caller
+/// treats that as no answer), an unreadable proposal is no proposal.
+struct AIWireCoachAnswer: Decodable, Sendable {
+    var reply: String = ""
+    var proposal: CoachProposal?
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        reply = try c.decodeIfPresent(String.self, forKey: .reply) ?? ""
+        proposal = try? c.decodeIfPresent(CoachProposal.self, forKey: .proposal)
+    }
+
+    private enum CodingKeys: String, CodingKey { case reply, proposal }
 }
 
 struct AIWirePlan: Decodable, Sendable {
@@ -537,6 +667,16 @@ struct AIWirePlan: Decodable, Sendable {
         }
 
         private enum CodingKeys: String, CodingKey { case kind, id, minute, minutes, weekdays }
+
+        /// A change from Ask Forge's kept proposal (`CoachProposal`), checked by
+        /// exactly the rule below.
+        init(kind: String, id: String, minute: Int? = nil, minutes: Int? = nil, weekdays: [Int]? = nil) {
+            self.kind = kind
+            self.id = id
+            self.minute = minute
+            self.minutes = minutes
+            self.weekdays = weekdays
+        }
 
         /// The change this describes, or nil when it describes nothing real.
         ///

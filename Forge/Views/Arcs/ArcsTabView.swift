@@ -18,6 +18,8 @@ struct ArcsTabView: View {
     var arcs: ArcStore
     var forge: ForgeViewModel
     var swords: SwordStore
+    /// Ask Forge about the running Arc. Nil in a build with no model to reach.
+    var onAskForge: (() -> Void)? = nil
 
     @Environment(ForgeStore.self) private var store: ForgeStore?
     @State private var paywallDoor: ForgeTelemetry.PaywallDoor?
@@ -55,6 +57,7 @@ struct ArcsTabView: View {
                             arcs: arcs,
                             forge: forge,
                             swords: swords,
+                            onAsk: onAskForge,
                             onLeave: { isLeaving = true }
                         )
                         .padding(.bottom, ForgeTheme.Space.section)
@@ -175,6 +178,8 @@ private struct ArcRunningCard: View {
     var arcs: ArcStore
     var forge: ForgeViewModel
     var swords: SwordStore
+    /// "Ask about this Arc", or nil where there is no model to ask.
+    let onAsk: (() -> Void)?
     let onLeave: () -> Void
 
     private var program: ArcProgram { enrollment.program }
@@ -195,6 +200,16 @@ private struct ArcRunningCard: View {
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
+                }
+                if let onAsk {
+                    Button(action: onAsk) {
+                        Label("Ask about this Arc", systemImage: "text.bubble")
+                            .font(.subheadline.weight(.medium))
+                            .frame(maxWidth: .infinity)
+                            .frame(minHeight: 44)
+                    }
+                    .buttonStyle(.glass)
+                    .buttonBorderShape(.roundedRectangle(radius: ForgeTheme.Radius.control))
                 }
                 share
             }

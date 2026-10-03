@@ -38,6 +38,9 @@ struct AIDisclosureView: View {
     let readingBrief: AIBrief
     /// Whether a model is reachable at all from this build.
     let isConnected: Bool
+    /// What Ask Forge sends on top of the brief, the widest of the three.
+    /// Nil only in a preview; the section then says nothing yet.
+    var coachBrief: CoachBrief? = nil
     /// The consent, to show and to take back. Nil in a preview.
     var consent: AIConsentStore? = nil
     /// Set when this screen *is* the consent: `true` for Allow, `false` for
@@ -59,6 +62,7 @@ struct AIDisclosureView: View {
             activitiesSection
             identitiesSection
             weekSection
+            coachSection
             typedSection
             absentSection
             whereSection
@@ -106,24 +110,60 @@ struct AIDisclosureView: View {
     }
 
     static let explanations: [String] = [
-        "What is sent: the values listed below — your practice in counts, your week's activities, what you said you are becoming, and, for the Weekly Reading, one week's counts.",
+        "What is sent: the values listed below — your practice in counts, your week's activities and what you said you are becoming; for the Weekly Reading, one week's counts; for Ask Forge, your six stats and OVR, your Arc, today's list and the conversation.",
         "Where it goes: to Forge's own backend (run on Supabase), under an anonymous identifier with no name or email, together with Apple's proof of your Forge Pro purchase.",
         "Who processes it: the Forge backend asks OpenAI to write the answer. The app never talks to OpenAI directly and holds no OpenAI key.",
-        "Your own words: anything you typed that the feature needs — activity names, what you said you are becoming, a chapter's intention, and a request you type into Plan — may be processed to answer it.",
+        "Your own words: anything you typed that the feature needs — activity names, what you said you are becoming, a chapter's intention, a request you type into Plan, and what you write to Ask Forge — may be processed to answer it.",
         "What it is never used for: advertising or tracking. It is not sold, not linked to you, and OpenAI does not train on it.",
     ]
 
-    /// Plan's free-text request, which is the one thing typed at the moment of
-    /// asking rather than read from the record.
+    /// What is typed at the moment of asking rather than read from the record:
+    /// Plan's request, and Ask Forge's messages.
     private var typedSection: some View {
         Section {
             Text("The request you type into Plan, as you typed it — for example “I work 9 to 17 and want to read every evening”.")
                 .font(.subheadline)
                 .fixedSize(horizontal: false, vertical: true)
+            Text("What you write to Ask Forge, with the conversation before it: at most the last eight messages, yours and its replies.")
+                .font(.subheadline)
+                .fixedSize(horizontal: false, vertical: true)
         } header: {
-            Text("When you ask Plan in your own words, also")
+            Text("When you ask in your own words, also")
         } footer: {
-            Text("Sent only when you press Work it out. Plan's own suggestions are worked out on this phone and never sent.")
+            Text("Sent only when you press Work it out or send a message. Plan's own suggestions are worked out on this phone and never sent. The Ask Forge conversation is kept on this phone; Forge's server keeps none of it.")
+        }
+    }
+
+    /// Ask Forge's additions (`CoachBrief`): everything on Becoming, the
+    /// Arc's card and the Forge tab that the coach is told, drawn as it would
+    /// be sent this minute.
+    @ViewBuilder
+    private var coachSection: some View {
+        if let coach = coachBrief {
+            Section {
+                ForEach(coach.scores, id: \.category) { score in
+                    row(score.category.label, score.score.map(String.init) ?? "No score yet")
+                }
+                if let overall = coach.overall {
+                    row("OVR", "\(overall)")
+                }
+                if let arc = coach.arc {
+                    row(arc.name, "Day \(arc.day) of \(arc.length) · \(arc.phase)")
+                } else {
+                    row("Arc", "None running")
+                }
+                if coach.today.isEmpty {
+                    row("Today", "Nothing today")
+                } else {
+                    ForEach(Array(coach.today.enumerated()), id: \.offset) { _, item in
+                        row(item.name, item.isDone ? "Done today" : "Not yet today")
+                    }
+                }
+            } header: {
+                Text("When you use Ask Forge, also")
+            } footer: {
+                Text("The numbers on Becoming, where you are in your Arc, and today's list with what is done. Only the Arc's id, day and phase are sent, and only today: no other day's record.")
+            }
         }
     }
 
@@ -220,7 +260,7 @@ struct AIDisclosureView: View {
         } header: {
             Text("Your week")
         } footer: {
-            Text("The name, the time, the length and the days. Not whether you did any of them.")
+            Text("The name, the time, the length and the days. Not whether you did any of them, except today's list for Ask Forge, below.")
         }
     }
 
@@ -284,9 +324,9 @@ struct AIDisclosureView: View {
     static let absent: [String] = [
         "Your name, email, or account",
         "Your device, or anything that identifies it",
-        "Any single day's record",
+        "Any past day's record",
         "Any date at all",
-        "Health or workout data",
+        "Any reading from Apple Health: steps, minutes or sleep",
         "Anything you wrote in a weekly review",
         "Photographs, location, or contacts",
     ]
@@ -363,6 +403,9 @@ struct AIDisclosureView: View {
 struct AIDisclosureBriefs {
     let brief: AIBrief
     let readingBrief: AIBrief
+    /// Ask Forge's additions, when Ask Forge is the one asking — and from
+    /// Settings, so the screen there shows all three.
+    var coach: CoachBrief? = nil
 }
 
 /// Presents the disclosure as a consent — Allow / Not now — and records the
@@ -383,6 +426,7 @@ private struct AIConsentPresenter: ViewModifier {
                     brief: briefs?.brief ?? AIBrief(),
                     readingBrief: briefs?.readingBrief ?? AIBrief(),
                     isConnected: true,
+                    coachBrief: briefs?.coach,
                     decision: { allowed in
                         if allowed { consent?.allow() } else { consent?.decline() }
                         isPresented = false

@@ -47,6 +47,10 @@ enum ForgeLinks {
     /// tell when it is wrong.
     static let support: URL? = url("https://forgebetter.app/support")
 
+    /// The address the support page publishes, for Ask Forge's Report: a
+    /// pre-filled email the person reads and sends themselves.
+    static let supportEmail = "forge.discipline.daily@gmail.com"
+
     /// Apple's Standard License Agreement, which is the Terms of Use Forge Pro
     /// is sold under. Linked from the paywall because App Review requires a
     /// functional link to the terms beside every auto-renewing subscription;
