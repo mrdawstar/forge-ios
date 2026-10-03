@@ -4145,28 +4145,43 @@ project (server and docs): `supabase/functions/forge-ai/safety.ts`,
   transaction: the one line, and no request (`connect()` stops at the proof).
   Captures in `docs/verification/1.1-s6/`.
 
+#### Deployed to production (2026-10-03, with the owner's approval)
+
+- `supabase db push`: a dry run listed only `0009_ai_coach_quota.sql` (no
+  seeds, no roles); applied. `supabase migration list`: 0001–0009 on both
+  sides. Read-only checks: `claim_ai_coach_call` executable by `service_role`
+  only (not `anon`, `authenticated` or `public`), RLS on all four `ai_*`
+  tables, no policies on the two new ones.
+- `supabase functions deploy forge-ai` (no `--no-verify-jwt`): version 2,
+  `ACTIVE`, `verify_jwt: true`.
+- Post-deploy smoke test, no purchase: no JWT → 401 (reading and coach);
+  anonymous sign-up → 200; reading and plan without a purchase or with a
+  garbage transaction → 402; coach with valid messages, a garbage transaction
+  or a crisis sentence → 402 (the entitlement check comes before the server's
+  screen; the app answers a crisis itself); coach with empty, missing or
+  assistant-last messages → 400 `messages`; `challenge` and `chat` → 400
+  `task`; a non-JSON or array body → 400 `body`; GET → 405. No quota row was
+  written by any of them.
+
+#### Verified by the owner on a physical iPhone (Sandbox)
+
+The whole real path — a Forge Pro Sandbox purchase, StoreKit → Supabase →
+`forge-ai` → OpenAI — works: Ask Forge returns real OpenAI answers, questions
+about the record are answered from it, and proposals arrive, go through Plan's
+review rather than applying, and change existing activities when applied. So
+OpenAI accepts the configured `gpt-6-luna` with the coach's schema.
+
 #### Not verified
 
-- **A real model answer.** Nothing here reached OpenAI: the function refuses
-  Xcode StoreKit transactions, and a Sandbox purchase needs a device and a
-  tester. So whether OpenAI accepts `gpt-6-sol` / `gpt-6-luna` with these
-  schemas and ceilings, the coach's real tone and length, and the screen's
-  false-positive rate on real messages are unverified until the owner's
-  iPhone run below.
+- The Weekly Reading's real model answer (`gpt-6-sol`) was not reported on
+  from the device run, and the coach's long-run tone and the screen's
+  false-positive rate on real messages need use, not a session.
 - VoiceOver on Ask Forge; Report through a real Mail compose.
 
 #### For the owner
 
-- **Production changes awaiting approval** (not done in the session):
-  `supabase db push` (0009), then `supabase functions deploy forge-ai`. In
-  that order: the coach fails closed (503) until 0009 exists.
-- **The real path on an iPhone** — TestFlight or a development build, with a
-  Sandbox tester (APP_STORE.md §7 H) and `FORGE_ALLOW_SANDBOX=true`: start the
-  free week; Becoming → Ask Forge → a starter → Allow → a reply within ~10 s,
-  labelled; "Make week N harder" during an Arc → a proposal → review → apply;
-  Weekly review → Read my week; Plan → type → Work it out (model-written
-  label). `supabase functions logs forge-ai` should show no `forge-ai
-  upstream` lines; a 400/404 there means OpenAI rejected the model name.
+- **Done:** 0009 pushed and `forge-ai` v2 deployed (above), the real path
+  checked on an iPhone.
 - **Decide**: the "linked" labels (§1); add Analytics to Purchase History for
   the paywall events or not (§1); unset `FORGE_ALLOW_SANDBOX` after App Review.
 - **Publish** `docs/launch/privacy-policy.md` 7B the day 1.1 goes live, and set

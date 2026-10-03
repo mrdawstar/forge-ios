@@ -723,8 +723,8 @@ field above is empty.
       and make the labels and `PrivacyInfo.xcprivacy` say the same thing
 - [x] `forge-ai` redeployed with the annual offer in `PREMIUM_PRODUCTS` before
       the model is switched on (owner, before S6)
-- [ ] `forge-ai` redeployed with the `coach` task and migration `0009` pushed
-      (S6, `FORGE_CONTEXT.md` §17.6) before the 1.1 build is submitted
+- [x] `forge-ai` redeployed with the `coach` task (v2) and migration `0009`
+      pushed (S6, 2026-10-03, `FORGE_CONTEXT.md` §17.6)
 
 **H. Sandbox, before submitting**
 
