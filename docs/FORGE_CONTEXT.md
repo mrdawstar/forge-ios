@@ -7,10 +7,18 @@
 
 ## ⚠️ Status: read this first
 
-**Release 1.1 is in progress (from 2026-09-29).** Read **§2t** and **§17**
-first, then [docs/DIRECTION_1_1.md](DIRECTION_1_1.md), which wins wherever it
-disagrees with this file. 1.1 is built in eight sessions (S0–S7); each one adds a
-dated subsection to §17. The 1.0 status below is kept as history.
+**Release 1.1 is a release candidate (2026-10-04, §17.7).** All eight
+sessions (S0–S7) are built and the build is **1.1 (4)**. What is left is the
+owner's: App Store Connect (every field, the review notes, the labels and the
+age rating in [docs/launch/appstore-1.1.md](launch/appstore-1.1.md); the
+products in [docs/APP_STORE.md](APP_STORE.md) §7), six screenshots, a
+TestFlight pass on a phone, and on release day the privacy policy changes in
+[docs/launch/privacy-policy.md](launch/privacy-policy.md). Production
+(migrations 0001–0009, `forge-ai` v2 with `verify_jwt`) is as S6 left it, and
+`FORGE_ALLOW_SANDBOX` stays `true` through TestFlight and App Review. Read
+**§2t** and **§17** first, then [docs/DIRECTION_1_1.md](DIRECTION_1_1.md),
+which wins wherever it disagrees with this file. The 1.0 status below is kept
+as history.
 
 **Forge was feature-complete for 1.0 and had no submission blockers left.**
 Last verified against the codebase: **2026-09-15**. Read **§2n** first — it is
@@ -2498,6 +2506,20 @@ would need a tap to undo.
 
 ## 12. ⚠️ Live blockers before TestFlight / App Store
 
+### 1.1 (2026-10-04, §17.7)
+
+**No blocker in the code.** 1.1 (4) archives with the entitlements it needs
+and answers export compliance in the build. Before submitting, all of it the
+owner's and none of it doable from the repository: App Store Connect's fields,
+notes, labels and age rating (`docs/launch/appstore-1.1.md`); the four
+products attached to the version (APP_STORE.md §7); six new screenshots (the
+1.0 plates show 1.0); a TestFlight run with a Sandbox tester on a phone; and,
+at upload, a look at Organizer's entitlement summary for
+`healthkit.background-delivery` (§17.7 F). On release day: the privacy policy
+changes. Open items for 1.1.x are listed in §17.7.
+
+### 1.0
+
 **None. All three are closed** — see §2l for the first two and the list below
 for the third.
 
@@ -2602,7 +2624,7 @@ xcodebuild -project Forge.xcodeproj -scheme Forge -sdk iphonesimulator \
   -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build
 ```
 
-Run the tests — **700 tests in 56 suites, all passing** (2026-10-01, §17.0):
+Run the tests — **944 tests in 94 suites, all passing** (2026-10-04, §17.7):
 
 ```bash
 xcodebuild -project Forge.xcodeproj -scheme Forge \
@@ -2685,7 +2707,30 @@ it by touching the store.
   Build test-adjacent things normally, use `-derivedDataPath` for the unsigned
   ones, and `rm -rf <DerivedData>/Build/Products` to recover.
 - Settings → DEBUG has "Seed 12 Weeks of History", "Clear History" and "Run
-  First Launch Again"; reach for those before hand-writing defaults.
+  First Launch Again"; reach for those before hand-writing defaults. Since 1.1
+  also "Seed a Year of History" and "Seed Two Years of History", the simulated Forge Pro
+  access (StoreKit, Pro, Trial, Founder, Lapsed, None), "Start Arc 14 Days
+  Ago", "Read Pending Notifications" and "Open Paywall As…".
+- **Walking the paywall by hand needs a StoreKit server that stays up** (§17.7).
+  After an ordinary test run a simctl-installed build still shows
+  `Forge.storekit`'s prices, but every purchase fails (§17.2). Hold one open
+  for as long as the walk takes, then use the app as normal:
+  `TEST_RUNNER_FORGE_HOLD_STOREKIT=1800 xcodebuild test -project Forge.xcodeproj
+  -scheme Forge -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
+  -only-testing:'ForgeTests/StoreKitHold/hold()'`. `TEST_RUNNER_FORGE_STOREKIT_RATE=minute`
+  (or `tenSeconds`) shortens every period, the free week included;
+  `TEST_RUNNER_FORGE_STOREKIT_KEEP=1` keeps the last hold's transactions. The
+  `TEST_RUNNER_` prefix is what carries a variable into the hosted app. If a
+  run sits at "Waiting on currently running validation", storekitd is stuck:
+  `xcrun simctl spawn <udid> launchctl kill SIGTERM system/com.apple.storekitd`.
+- **CoreGraphics names its NaNs** when the app is launched with
+  `SIMCTL_CHILD_CG_NUMERICS_SHOW_BACKTRACE=1 xcrun simctl launch --console-pty
+  <udid> com.dawid.forge` (§17.7 found `SoftPool` that way).
+- **The accessibility tree in a unit test** exists only once something asks
+  for it: `AccessibilityTests` switches it on through
+  `_AXSApplicationAccessibilitySetEnabled` in `/usr/lib/libAccessibility.dylib`,
+  then hosts the view in a `UIWindow` and walks `accessibilityElements`
+  (§17.7 E). Test code only.
 
 ## 15. Toolchain
 
@@ -2696,7 +2741,7 @@ SDK: iOS 26.5 / iOS Simulator 26.5
 Deployment target: iOS 26.0
 Swift language mode: 5.0 (no strict concurrency on the app target)
 Bundle: com.dawid.forge     App Group: group.com.dawid.forge
-Marketing version: 1.0
+Marketing version: 1.1 (build 4) — CURRENT_PROJECT_VERSION must stay above 2 (founders)
 ```
 
 > **Note:** the memory file `toolchain-cannot-build-forge.md` describes an
@@ -4186,3 +4231,308 @@ OpenAI accepts the configured `gpt-6-luna` with the coach's schema.
   the paywall events or not (§1); unset `FORGE_ALLOW_SANDBOX` after App Review.
 - **Publish** `docs/launch/privacy-policy.md` 7B the day 1.1 goes live, and set
   App Store Connect's labels to match §1.
+
+### 17.7 The release candidate: QA, hardening, the store (2026-10-04)
+
+Session S7, branch `release/1.1`, from main at `90853f2` (S6, PR #17). **No
+production change**: no migration, no function deploy, no secret, no OpenAI
+setting; `FORGE_ALLOW_SANDBOX` stays `true` through TestFlight and App Review,
+and S6's verified Sandbox → Supabase → OpenAI path is untouched. Three
+simulators, fresh installs and one upgrade from 1.0.1, found what section A
+fixes; sections B–F are the hardening the session's brief set; G and H are
+the store.
+
+#### A. Found in QA, fixed
+
+- **The paywall's plans had dropped below the fold.** At five feature rows
+  (Apple Health and Ask Forge joined in S5 and S6) Annual sat wholly under the
+  pinned button on the 17e and the 17 Pro at the default size, against §17.2's
+  rule that the plan and its price are what a first screen owes somebody. The
+  hero is 88 pt (80 at accessibility sizes), the headline's gap `.inner`, the
+  rows `.subheadline` at `.tight` spacing: Annual and the top of Monthly show
+  above the button on both phones.
+- **The free week's reminder was due at 1:16 at night**, the minute the trial
+  began two days earlier (read from the pending notifications in Settings →
+  Debug). `TrialReminder.fireDate(…, morning:)` now lands at the start of the
+  person's day (Settings' "Start of day", `ForgeNotifications.wakeMinutes`) on
+  the day two days before the end, which is still more than a day before the
+  charge; if that morning has passed there is no reminder rather than a second
+  one.
+- **A free week that ended while the app was away was not told to anything.**
+  The day's notifications had been planned for an unlocked day and the widgets
+  still read "3 left · Breathe". `ForgeProModifier` now calls back on every
+  answer about access, which re-plans the notifications and republishes the
+  snapshot. `ForgeSnapshot.isLocked` (tolerant, absent in old snapshots,
+  carried over the rollover) makes every widget family say "New days need
+  Forge Pro" with the record still drawn (days kept, the weeks behind), the
+  day's rail empty, no TODAY count and a lock in the circular one; and
+  `ForgePresence.wantsActivity` starts no Live Activity for a locked day.
+- **An upgrade from 1.0.1 with fifty days on the record opened to "Tap when
+  it's done."** `ForgeTips.retireKnown(founderRecorded:)` invalidates the tap
+  and pull tips at launch for an install `Founder` recorded; the six, Arcs and
+  `+` tips are new to them too and stay.
+- **The first question's caption said the stats move "from tomorrow".** The
+  first run's pull already moves them: "Seven questions. Your starting stats
+  come from your answers. After that, from what you do."
+- **NaN at the handover.** Launched with `CG_NUMERICS_SHOW_BACKTRACE`,
+  CoreGraphics logged a dozen NaN scales on the 17 Pro and the 17e in the frame
+  where the first run hands over to the day: `SoftPool` divided its sides by a
+  zero side while the scene was laid out at zero size. `SoftPool.squash` is
+  finite at any size (1 × 1 at none).
+- **A first run left at the paywall began with a day nobody could keep.** The
+  app writes today's plan the moment it opens, so somebody who stopped at the
+  paywall and finished three days later, or whose first run crossed four in the
+  morning, had a planned, unkept day as the record's first miss.
+  `finishFirstRun()` now calls `ProgressStore.forgetUnstartedDays(before:)`:
+  every earlier day with nothing done and nothing pulled goes.
+- **The first run's Arc opened on "Day 2 of 7"** on the 17e, the first run
+  having crossed 4 AM. `ArcStore.settleFirstRunStart(on:)` re-dates the
+  running enrollment to the day the first run finishes; nothing else about it
+  changes, and a left Arc is never touched.
+- **VoiceOver** (found by the new tests, E): the paywall's loading spinner
+  read as "1" ("Asking the App Store for the plans"); Ask Forge's field had no
+  name once something was typed ("Message to Ask Forge"); the Health primer's
+  title is now a heading.
+
+#### B. Decoders meet garbage
+
+Every 1.1 decoder was fed a garbage corpus — not JSON, the wrong shape,
+`null` elements, unknown enum values, missing keys, impossible days — and
+held to "the bad row costs only itself" (`DecoderHardeningTests`, ten
+tests):
+
+- **`LossyList`** (`[Slot?]`, because `JSONDecoder` throws on a `null`
+  element before any initialiser runs) for the history, custom activities, Ask
+  Forge's history, a plan's and a proposal's changes; `[Lossy?]` for Arcs and
+  kept challenges. Before, one unreadable record emptied the whole history and
+  the next write saved the empty list over it; the same for custom activities
+  (the week then dropped every custom id) and the Ask Forge conversation.
+- **`CoachMessage`** decodes by hand: role and words required; an unknown kind
+  drops the line rather than calling a reply the model's or the phone's on a
+  guess (§5 #10); a missing kind is the person's message.
+- **`ForgeDay.isPlausible`** (1970…2200, a real month and day, and one the
+  calendar can step on from). A day of year 1,000,000 has no anchor, so
+  `adding(days:)` returned it unchanged and every loop walking toward it spun
+  for ever; the year 1 is seven hundred thousand steps from today. The record,
+  Arcs, kept challenges, the assessment and Health's ledger drop such days;
+  `ArcEnrollment.count(from:to:)` and `ForgeShape.creditedDays` are bounded by
+  the span they walk.
+- 1.1's activity targets, the AI's wire answers and the widgets' snapshot are
+  tolerant per field.
+
+#### C. One frame on the main thread
+
+`BudgetTests` holds three readings to **8.333 ms, one frame at 120 Hz**, as the
+fastest of fifteen runs (suites run side by side; the fastest is the work's
+own cost), with the heaviest realistic input. iPhone 17 Simulator on an M1 Max,
+so not a phone's CPU; the numbers are printed:
+
+| Reading | Before | After (fastest / median) |
+|---|---|---|
+| Onboarding projection, all six in the plan (`Transformation.frames`) | 3.1–3.6 ms | 3.4 / 4.0 ms |
+| Becoming's grid on two years: the six now and a week ago, the tiles | **7.6 ms** | **5.1 / 5.9 ms** |
+| Days kept and the streak on two years | 0.14 ms | 0.13 ms |
+
+The grid fix: `ForgeShape.creditedDays` filtered and sorted every day on the
+record for each of the thirty-six calls a reading makes; it now steps from the
+window's first day to its last with **`ForgeDay.next`**, a Gregorian successor
+that is exactly `adding(days: 1)` for every day from 1970 to 2200 (a test walks
+them all) and about a hundred times cheaper. Same records, same order, the same
+sum to the last bit.
+
+#### D. Settings → Your Data: Export Backup, Import Backup
+
+`Models/ForgeBackup.swift`, `YourDataSection` in `SettingsTabView`.
+
+- **What travels**: every key the person's record and choices live in —
+  history, day start, rest days, kept challenges, the first-run flag, the
+  week, custom activities, verification memory, library edits, commitment,
+  day shape, focus, the challenge, the assessment, identities, chapters,
+  reviews and their weekday, milestones, Arcs, the Ask Forge conversation,
+  blades, wake time, accent, sound, haptics (`ForgeBackup.carried`, with each
+  value's type). **What never travels**, each with its reason
+  (`ForgeBackup.left`): the founder record, the exit offer, the trial
+  reminder, the rating prompt, AI consent, the usage switch, Apple Health's
+  and notifications' answers, the widget snapshot, the dormant account's
+  bookkeeping, and the keychain's credentials. A file cannot make a founder,
+  allow the AI or change a permission, whatever it says.
+- **The file**: `Forge backup YYYY-MM-DD.json`, `{format: "forge-backup",
+  version: 1, exportedAt, app: "1.1 (4)", values}`, each value typed (bool,
+  int, double, string, base64 data, date, array, dictionary) because JSON alone
+  cannot tell a `true` from a `1`. Exported through a `ShareLink`
+  (`ForgeBackupExport`, `Transferable`); only values that read are written.
+- **Import** (`.fileImporter`, security-scoped): refused, with the reason and
+  "Nothing was changed.", if over 20 MB, not a backup, from a newer version, a
+  value of the wrong type, a record that does not decode strictly, no record,
+  or a day no calendar holds. Otherwise a confirmation: "This backup is from 4
+  Oct 2026: one day kept and eight activities in the week. It replaces
+  everything Forge keeps on this iPhone, and what is here now cannot be brought
+  back. Permissions, Forge Pro and your privacy choices stay as they are."
+  **Replace** writes every carried key the file has, removes every carried key
+  it lacks, leaves `left` alone, and posts `ForgeBackup.didReplace`:
+  notifications and appearance reload, and `ContentView().id(generation)`
+  rebuilds every store from the App Group exactly as a launch does.
+- `BackupTests` (eight): every `forge.*.vN` key in the source is carried or
+  left, never both or neither (it reads the source, so a new key fails the run
+  until it is decided); a round trip of every carried value, types included;
+  the store reads the import; replace semantics; a file never grants; the
+  refusals; value garbage; the confirmation's words.
+- Not collected and no network: the person saves or sends the file
+  (APP_STORE.md §1).
+
+#### E. Accessibility tests read the real tree
+
+`AccessibilityTests` (thirteen) draws each control 1.1 added in a `UIWindow`,
+the way the app does, and reads back what VoiceOver is handed: label, value,
+hint, traits, actions. A test process has no accessibility tree until
+something asks, so the suite switches it on through the accessibility
+library's own switch (`dlopen("/usr/lib/libAccessibility.dylib")`,
+`_AXSApplicationAccessibilitySetEnabled(true)`), test code only. Covered: the
+first run's bar (Back, Skip), a question, the drawing, the four stops, the
+sources, the plan and its Arc choices, the locked state, the paywall and a
+plan's spoken line (`PaywallView.spokenPlan`), a stat tile, a trial's marks,
+the Health primer, Ask Forge, Your Data. Nobody has listened to it.
+
+#### F. Version, archive, upload
+
+- **1.1 (4)**: `MARKETING_VERSION` 1.1 and `CURRENT_PROJECT_VERSION` 4 in all
+  six configurations (above `Founder.lastFounderBuild`, 2).
+  **`ITSAppUsesNonExemptEncryption` = NO** in `Forge/Info.plist`: HTTPS
+  through the system only; the one hash is SHA-256 in the dormant account code.
+  `PremiumTests.uploadable` holds the widget extension's version and build to
+  the app's (an upload refuses a mismatch) and the encryption answer.
+- **Release archive**, signed with the Development identity (the only one on
+  the build machine; Organizer re-signs for the store, §2m): Forge.app carries
+  `healthkit`, an empty `healthkit.access`, `healthkit.background-delivery`
+  (needed: `HealthBridge` enables background delivery) and the App Group;
+  `ForgeWidgets.appex` only the App Group; both 1.1 (4).
+- **The App ID** (S5's open item): the Xcode-managed App Store profile on this
+  Mac for `com.dawid.forge`, created 2026-09-03, already carries
+  `healthkit`, `healthkit.access` (health-records) and
+  `healthkit.background-delivery`, so the App ID has HealthKit and background
+  delivery comes with it; the widget's store profile has neither, as it
+  should. It also still carries Sign in with Apple from the 1.0 account,
+  harmless to leave. **The developer portal itself was not opened**: at upload,
+  Organizer's summary lists each binary's entitlements; if
+  `healthkit.background-delivery` is missing there, enable HealthKit on the App
+  ID and let Xcode regenerate the profile.
+
+#### G. Privacy labels
+
+Purchase History gains **Analytics** beside App Functionality, still linked:
+the paywall's anonymous events name the plan (`trial_started`,
+`purchase_completed`) and the door (`paywall_view`), which are purchase
+tendencies in Apple's sense, and a label is one row per type, so the AI's
+"linked" (S6's conservative reading, kept) governs. `PrivacyInfo.xcprivacy`
+and `AskForgeGateTests.manifest` changed together. Nothing else moved: the
+backup is not collected, and Health stays read on the device.
+
+#### H. The store
+
+- **`docs/launch/appstore-1.1.md`, rewritten**: three name and subtitle pairs
+  and the recommendation, **A: "Forge: Habit & Discipline" / "Winter Arc ·
+  Level Up Daily"**; keywords (99 of 100, nothing repeated from name or
+  subtitle); promotional text for the season and from February; the
+  description, whose first line is "Free for 7 days, then $49.99 a year. Or
+  $12.99 a month with no trial. Cancel anytime."; What's New; the App Review
+  notes; the labels as clicked; six 6.9" frames (transformation, the hexagon
+  with numbers, Winter Arc, the pull, Ask Forge, "Checked by Apple Health")
+  with headlines and how to capture each; the age rating, **13+** under
+  Apple's 2025 questionnaire (weapons: the sword, Frequent). Every count is a
+  script's.
+- **The review notes did not fit.** App Store Connect takes 4,000 bytes; the
+  block in APP_STORE.md §6 was 6,251. The new one is 3,897, plain ASCII, and
+  still covers the hard paywall and how to reach it, the Sandbox trial, the
+  founder rule, the AI consent (Guideline 5.1.2(i)), 988 and Report, and
+  Apple Health.
+- **The privacy policy.** The live page (forgebetter.app/privacy, "LAST
+  UPDATED 27 SEPTEMBER 2026") is the owner's own and already accountless, so
+  `docs/launch/privacy-policy.md` is now the 1.1 changes against it, section
+  by section: the short version, the device, analytics' events, Apple Health's
+  four types and background delivery, "Forge Pro and the App Store" (trial
+  reminder, earlier users, purchase events, the AI's proof), and a new "AI
+  features (Forge Pro)" section from S6's 7B. To apply the day 1.1 goes live.
+- **`APP_STORE.md`**: §1 (Purchase History, the backup), §2 (the live policy
+  read), §3 (13+), §4–§6 (pointers to the listing; the 1.0 plates show 1.0's
+  UI and a film quote), §7 G and §8 (1.1 (4), compliance, labels, rating).
+
+#### Found, not fixed (for 1.1.x)
+
+- **The reminders screen asks after iOS already said no.** With
+  notifications denied at the paywall's prompt, the closing beat still offers
+  "Turn on reminders", which then cannot ask again (17e).
+- **"Trial 0 of 5"** on the Forge tab's Arc line is the Arc's weekly trial,
+  shown during the free week, which the paywall also calls a trial.
+- **The plan's Arc rows** read "6:30 · Every day" beside the plan's own
+  "Daily · 7:00".
+- **The first run's "do one now" can pick an evening activity in the
+  morning**: "Phone out of the bedroom" (22:30) at 9:41.
+
+#### Files added to `project.pbxproj`
+
+Forge target: `Models/ForgeBackup.swift`. ForgeTests: `BackupTests.swift`,
+`DecoderHardeningTests.swift`, `BudgetTests.swift`. Not in the project:
+`docs/verification/1.1-s7/`.
+
+#### Verified
+
+- `xcodebuild test`, iPhone 17 Simulator (iOS 26.5): **944 tests in 94
+  suites**, all passing, the StoreKit hold skipped as it is unless asked for
+  (S6 ended at 897 in 87).
+- **iPhone 17 Pro, fresh install** (a StoreKit session held open by
+  `StoreKitHold`, §14): cold open, the seven questions with Back keeping an
+  answer, What to build with Skip, the four stops, Why it works, the plan with
+  Winter Arc, pull to begin, the paywall (rows, timeline, plans above the
+  button), Not now → the offer once → Not now again: the line, and the paywall
+  stays; Start my free week → StoreKit's sheet → the reminder prompt → do one →
+  the pull → Struck Sword → reminders → day one. Lapsed through Settings →
+  Debug: the Forge tab locked with the record kept, the no-trial paywall
+  ("Keep the practice going."), Arcs and Blade readable. The final build again
+  from a fresh install: Winter Arc on Day 1 of 90; the Health primer and Keep
+  it Your Word; Your Data: Export → Save to Files → Import → the confirmation
+  → replaced; two years seeded (the ladder past Enduring, temper marks);
+  Winter Arc on day 15 with its trial and phase offer; Leave; Ask Forge's
+  disclosure and a reply against the scripted backend; the Settings footer
+  "Forge 1.1".
+- **iPhone 17e**: the same first run; both Proof Card formats and the share
+  sheet; notifications denied (the open item above); the 4 AM "Day 2 of 7"
+  (fixed); Becoming above the fold; locked; the paywall at AX5.
+- **iPhone 17 Pro Max, founder**: 1.0.1 built from `65734ba` in a worktree,
+  walked and seeded, then 1.1 installed over it: the record carried (51 days),
+  Settings "Founder", Becoming from the record, the Ask Forge door → the
+  paywall (AI needs Pro), the weekly review with the Reading locked; with the
+  final build, no tap or pull tip.
+- **Every share card renders** (`ShareCardRenderTests`): blade, chapter, Arc
+  and stats, square and portrait, full size and not blank.
+- Captures in `docs/verification/1.1-s7/`.
+
+#### Not verified
+
+- **On hardware**: anything in this session. Background delivery waking the
+  app; a real Sandbox expiry (the lapsed state was reached through the Debug
+  switch, and StoreKit's own lapse is held by `PremiumTests`); the trial
+  reminder's new hour read back from a device's pending list.
+- **By hand this session**: Restore Purchases, buying Monthly or Lifetime,
+  finishing an Arc and its mark, leaving an Arc *and* taking its activities
+  off, QuickAdd's undo, Reduce Motion, Ask Forge offline, an error and Report
+  (walked in S6), Health samples ticking a row (walked in S5). Each is held by
+  its tests.
+- **VoiceOver by ear.** The tree is now tested (E); nobody has listened.
+- **The widgets drawn locked on a Home Screen**: the snapshot's flag was read
+  from the App Group and every family's locked branch is tested, but none was
+  placed and photographed this pass.
+- **Portal-only**: the App ID page, the distribution profile Organizer will
+  make, App Store Connect's products, prices, agreements, labels and rating.
+
+#### For the owner
+
+- **App Store Connect**: everything in `docs/launch/appstore-1.1.md` (fields,
+  notes, labels, rating) and APP_STORE.md §7's checklist (four products
+  attached to the version, Paid Applications agreement, Sandbox tester).
+- **Screenshots**: six frames per the listing's §8; frame 5 from a physical
+  iPhone with a real Sandbox purchase.
+- **On release day**: apply `docs/launch/privacy-policy.md` to the live page.
+- **Keep `FORGE_ALLOW_SANDBOX=true`** through TestFlight and review, and for
+  every later review (each is a Sandbox purchase).
+- Optional: schedule `prune_ai_usage()` daily if the policy should promise a
+  retention period for the AI counts.

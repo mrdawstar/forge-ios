@@ -1,12 +1,17 @@
 # Forge — App Store submission
 
 > Everything App Store Connect asks for, written down so it is decided once
-> rather than improvised in the form. Last updated **2026-10-03** — Forge's AI
-> switched on with Ask Forge (`FORGE_CONTEXT.md` §17.6): §1's labels, §2's
-> privacy paragraph and §6's review note changed. Before that, **2026-09-25** —
-> anonymous usage (TelemetryDeck) added; §1 changed. Before that, **2026-09-15**: the
+> rather than improvised in the form. Last updated **2026-10-04**, the 1.1
+> release candidate (`FORGE_CONTEXT.md` §17.7): Purchase History gained
+> Analytics (§1); the live privacy policy was read and §2 says what 1.1
+> changes in it; the age rating was answered again under Apple's 2025
+> questionnaire, **13+** (§3); 1.1's name, keywords, description, screenshots
+> and review notes are in [`docs/launch/appstore-1.1.md`](launch/appstore-1.1.md),
+> which is what gets pasted (§4–§6); the build is **1.1 (4)** (§7, §8). Before
+> that, **2026-10-03** — Forge's AI switched on with Ask Forge (§17.6);
+> **2026-09-25** — anonymous usage (TelemetryDeck) added; **2026-09-15** — the
 > submission after the Guideline 2.1 reply, where the account was removed
-> outright (§1 and §6).
+> outright.
 >
 > Items marked **BLOCKER** cannot be filled in from this repository and must be
 > done before a build is submitted for review. Everything else is ready to paste.
@@ -30,16 +35,17 @@ receives no identifier it could join to anything. `grep` for
 
 ### Data linked to you
 
-**Three rows, all from Forge's AI, since 1.1** (`FORGE_CONTEXT.md` §17.6). Each
-is collected only for Forge Pro users, only after they press **Allow** on the
-in-app disclosure (revocable in Settings → Planning), and only when they press
-something that asks: Plan's "Work it out", the review's "Read my week", or a
-message in Ask Forge.
+**Three rows since 1.1, all from Forge's AI** (`FORGE_CONTEXT.md` §17.6), and
+Purchase History serves Analytics as well since 2026-10-04 (§17.7, below). What
+the AI collects is collected only for Forge Pro users, only after they press
+**Allow** on the in-app disclosure (revocable in Settings → Planning), and only
+when they press something that asks: Plan's "Work it out", the review's "Read
+my week", or a message in Ask Forge.
 
 | Data type | Purpose | Linked | Tracking | What it is |
 |---|---|---|---|---|
 | **User Content → Other User Content** | App Functionality | Yes | No | The `AIBrief`: activity names, times, lengths and days; identity statements and the chapter's intention; counts of days kept. For a Weekly Reading, one week's counts per weekday, activity and identity. For Plan, the request typed. For **Ask Forge**, the message and the conversation before it (at most the last eight messages), the six scores and OVR as shown on Becoming, the running Arc's id, day and phase, and today's list with which are done (`CoachBrief`). Never weekly-review answers, dates, any past day's record, health readings, names, email, location or contacts. Forge's server stores none of it; OpenAI is asked not to (`store: false`). |
-| **Purchases → Purchase History** | App Functionality | Yes | No | The Apple-signed StoreKit 2 transaction (`X-Forge-Transaction`), verified offline by the backend to confirm Forge Pro; its `originalTransactionId` keys the per-purchase daily quotas (`ai_usage_by_transaction`, `ai_coach_usage_by_transaction`). |
+| **Purchases → Purchase History** | App Functionality, Analytics | Yes | No | App Functionality: the Apple-signed StoreKit 2 transaction (`X-Forge-Transaction`), verified offline by the backend to confirm Forge Pro; its `originalTransactionId` keys the per-purchase daily quotas (`ai_usage_by_transaction`, `ai_coach_usage_by_transaction`). Analytics: the paywall's anonymous events — `trial_started` and `purchase_completed` with the plan, `paywall_view` with the door — which Apple's "purchase tendencies" counts. |
 | **Identifiers → User ID** | App Functionality | Yes | No | The anonymous Supabase user id minted on the first AI request — no email, password, name or provider. Used only to authenticate and rate-limit (`ai_usage`, `ai_coach_usage`). |
 
 **Why "linked".** Every request travels under the anonymous user id, which
@@ -67,7 +73,9 @@ recorded below, because each comes straight back the day sync does:
 
 In App Store Connect: **Data Linked to You: User Content (Other User Content),
 Purchases (Purchase History), Identifiers (User ID)** — each App Functionality,
-not used for tracking. `PrivacyInfo.xcprivacy` declares the same three.
+Purchase History Analytics as well, none used for tracking.
+`PrivacyInfo.xcprivacy` declares the same three with the same purposes, and
+`AskForgeGateTests.manifest` holds it.
 
 ### Data not linked to you
 
@@ -106,14 +114,13 @@ They carry only a closed `door` or `plan` value — `door` is "onboarding",
 anonymous like every other event. `paywall_dismissed` was retired with the
 three doors.
 
-> ⚠️ **Decide before submitting 1.1:** with the paywall events sent, the
-> conservative reading of Apple's definition ("an individual's purchases or
-> purchase tendencies") also counts them as **Purchases → Purchase History**
-> for **Analytics**. Since 1.1's AI, Purchase History is already declared (App
-> Functionality, linked — §1 above), so the choice is only whether to add
-> **Analytics** to that row's purposes in App Store Connect and to the
-> `PrivacyInfo.xcprivacy` entry. A label is one row per type, so it cannot be
-> both linked and not linked; the AI's "linked" governs.
+**Decided 2026-10-04 (`FORGE_CONTEXT.md` §17.7):** with the paywall events
+sent, the conservative reading of Apple's definition ("an individual's
+purchases or purchase tendencies") counts them as **Purchases → Purchase
+History** for **Analytics**, so Analytics is now a purpose of that row, in
+App Store Connect and in `PrivacyInfo.xcprivacy`. A label is one row per type,
+so it cannot be both linked and not linked; the AI's "linked" governs, and the
+anonymous telemetry half is over-stated rather than under-stated.
 
 ### Forge's AI — active since 1.1 (`FORGE_CONTEXT.md` §17.6)
 
@@ -139,6 +146,11 @@ every Usage Data and Diagnostics row other than the two above.
 **Customer Support specifically.** Ask Forge's *Report* opens a pre-filled
 email in the person's own mail app; the app sends nothing. Mail they choose to
 send is ordinary support email, not data collected by the app.
+
+**The backup file specifically** (Settings → Your Data, 1.1, §17.7). Export
+Backup writes the record to a file the person saves or sends with the share
+sheet; Import Backup reads a file they pick. Neither touches the network and
+Forge never receives either: not collected.
 
 **Health data specifically.** Since 1.1 (session S5, `FORGE_CONTEXT.md`
 §17.5) Forge reads **steps, workout minutes, sleep and mindful minutes** from
@@ -169,7 +181,8 @@ same in a comment beside its collected-data list.
 
 ### What the app does over the network, in full
 
-Re-audited 2026-10-03, when Forge's AI was switched on (§17.6); before that
+Re-audited 2026-10-03, when Forge's AI was switched on (§17.6), and checked
+again 2026-10-04 for the backup (§17.7), which added no path; before that
 2026-09-25, when anonymous usage was added (§2p). Every path, and what starts
 it:
 
@@ -249,29 +262,20 @@ something wrong. Each row is still absent rather than broken if its URL were
 ever unset. `Forge/Forge.storekit` carries the same two strings in `eula` and
 `policyURL`.
 
-⚠️ **The hosted policy is a version behind and must be updated before this
-build is submitted.** It still describes signing in with Apple or Google, an
-account that stores an email and a user id, device information, and an
-entitlement row — and 1.0 has none of those. An over-disclosing policy is not a
-rejection by itself, but it contradicts a nutrition label saying nothing is
-collected, and that contradiction is checkable in thirty seconds.
+**The hosted policy, read on 2026-10-04.** forgebetter.app/privacy says
+"LAST UPDATED 27 SEPTEMBER 2026" and describes 1.0.1 correctly: no account,
+TelemetryDeck with its switch, Apple Health read-only, no AI, no purchase
+events. The 1.0-era warning that stood here (sign-in, a server, an entitlement
+row) no longer applies. What 1.1 changes in it is
+[`docs/launch/privacy-policy.md`](launch/privacy-policy.md): section by section
+against the live page's own headings, which sections to replace, the new "AI
+features (Forge Pro)" section, and the exact text. **Apply it the day 1.1 goes
+live**, not before: the live 1.0.1 makes no AI request and sells nothing, and a
+policy describing either is as wrong as one omitting them. Its Apple Health
+paragraph also corrects the live page's types (steps, walking and running
+distance, workouts — 1.0's) to 1.1's four.
 
-What it must say after the edit, at minimum: that everything is stored locally
-on the device; that **there is no account and no way to make one**; that the app
-makes **no network requests** other than Apple's own StoreKit; that deleting the
-app deletes the data; and that HealthKit data (steps, workout minutes, sleep,
-mindful minutes) is read-only, read on the device, and never stored or
-transmitted. The sections about signing in, about what the server stores, and
-about the account-deletion route should be **deleted**, not softened — there is
-no server-side data and no account to delete.
-
-**1.1 is the activation build** (§1, `FORGE_CONTEXT.md` §17.6). Publish
-`docs/launch/privacy-policy.md` section **7B** — which describes Ask Forge, the
-Weekly Reading and Plan in your own words exactly as 1.1 sends them — in place
-of 7A **on the day 1.1 goes live**, and not before: the live 1.0.1 makes no AI
-request, and a policy that describes transmission the app cannot perform is as
-wrong as one that omits transmission it can. The short form, for anywhere a
-paragraph is wanted:
+The short form, for anywhere a paragraph is wanted:
 
 **"Forge's AI features" (1.1):**
 
@@ -302,244 +306,80 @@ paragraph is wanted:
 
 ---
 
-## 3. Age rating
+## 3. Age rating — **13+** under Apple's 2025 questionnaire
 
-**4+.** No objectionable content of any kind. Answer "None" to every
-questionnaire item.
+Answered again on 2026-10-04 (`FORGE_CONTEXT.md` §17.7). The 1.0 answer that
+stood here ("4+, answer None to everything") predates Apple's current
+questionnaire, which has five ratings (4+, 9+, 13+, 16+, 18+) and new
+questions; under it, 4+ would be wrong twice. Every answer, with Apple's
+definition and the reason, is in
+[`docs/launch/appstore-1.1.md`](launch/appstore-1.1.md) §9. The three that are
+not "No"/"None":
 
-Two questions need care:
+- **Guns or Other Weapons: Frequent** — Apple's definition names swords, and
+  the sword is the main screen. This alone gives 13+.
+- **Health or Wellness Topics: Yes** — Arcs recommend training, steps, sleep
+  and early mornings; Apple Health ticks off four kinds of activity (9+).
+- **Medical or Treatment Information: Infrequent** — the conservative answer
+  for Ask Forge's 988 crisis reply; Forge diagnoses and treats nothing and Ask
+  Forge declines to (13+; "None" is arguable and changes nothing).
 
-- **"Does your app contain user-generated content?"** — Yes, technically: users
-  write activity names, chapter names and review answers. They **never leave the
-  device**: there is no account, no server, no feed, no sharing surface other
-  than an image the user explicitly exports, no comments and no profiles.
-  Answer yes and say so in the review notes; this does not raise the rating.
-- **"Unrestricted web access?"** — No.
-
----
-
-## 4. Description
-
-**Subtitle (30 char max):**
-
-> A day you earn, not one you tick
-
-**Promotional text (170):**
-
-> The blade comes loose when the day is done — and you still have to pull it
-> free. Forge keeps the practice, not the score.
-
-**Description:**
-
-```
-Forge is for keeping a daily practice.
-
-You keep a short list of the things a day asks of you. When you have done all of
-them, a sword in a stone comes loose — and you still have to drag it out. That
-pull banks the day.
-
-WHAT IT IS NOT
-
-There is no score. Nothing congratulates you, nothing guilts you, and no number
-in Forge goes down when you have a bad week. Days you have already kept are
-never taken away or hidden.
-
-SIX PARTS OF A PERSON
-
-Physical, Intellect, Discipline, Mental, Relationship, Ambition. Every activity
-belongs to one of them, so Forge can show you the shape of the last four weeks
-rather than only the size of it — which parts of you are getting stronger, and
-which are getting nothing.
-
-Choose one to three to build. Forge points what it suggests at them, and then
-tells you honestly how it is going.
-
-PLAN
-
-One tap, and Forge reads your own week back to you: two things booked at the
-same time, four activities with no hour on them, the part of you that is getting
-the least, the thing you ask for every day and keep twice a week. Every
-suggestion states the arithmetic behind it, and nothing changes until you say
-so. It all happens on your phone.
-
-ONE SUNDAY EVENING A WEEK
-
-Ninety seconds. Your week, one true observation drawn from your own record, and
-two questions in your own words. Skippable forever, and skipping costs nothing.
-
-FORGE PRO — SEVEN DAYS FREE, THEN DECIDE
-
-Keeping new days takes Forge Pro: the daily loop, any number of activities,
-the six stats scored on what you actually do, a blade for every stretch of days
-you keep, a challenge every day, and Plan. Start with a free week.
-
-YOUR RECORD STAYS YOURS
-
-If you ever stop, nothing is deleted or hidden. Your history, the shape, the
-heatmap, the trends, the blades, the weekly reviews and the widgets stay
-readable for good.
-
-Annual with a 7-day free trial, or monthly. Forge reminds you two days before
-the trial ends. Subscriptions renew automatically unless cancelled at least 24
-hours before the end of the period; manage or cancel them in your Apple Account
-settings. A one-time Lifetime purchase is in Settings.
-
-Terms of Use: https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
-Privacy Policy: https://forgebetter.app/privacy
-```
-
-**Keywords (100 char max):**
-
-```
-habit,routine,discipline,daily,practice,streak,ritual,morning,identity,journal
-```
-
-## 5. Screenshots — **supplied, with one caveat to decide**
-
-Five finished marketing images were supplied in `screenshots/` (`1s`…`5s`):
-designed plates, each a headline over a device mockup of a Forge screen, on the
-product's own black-and-blue. They are the ones to use.
-
-**They arrived at 853×1844**, which App Store Connect does not accept — the 6.9"
-slot takes 1290×2796 or 1320×2868. Resized copies at exactly **1290×2796**, sRGB
-and opaque, are in **`screenshots/appstore-6.9/`** and are what to upload. The
-scale is 1.51×, so type in them is very slightly softer than a native capture;
-nothing in them is cropped and the aspect is corrected by seven pixels of the
-plate's own black rather than by stretching.
-
-⚠️ **The app UI inside the mockups is from an earlier build.** Plate 1 shows the
-control bar as `[TODAY|WEEK] [+ PLAN ✕]` — the crossed-swords glyph and the
-waiting dot, both deleted in §2j.2, and Plan itself moved to the week in §2j.1.
-Plate 3 shows the Becoming tab with "You're building…" *above* The Six, which is
-the pre-2026-09-03 order, enumerating four dimensions with four glyphs. Both
-also carry the old road-sign tab icon.
-
-That is a **guideline 2.3.3 risk** ("screenshots should accurately reflect the
-app"), not a certainty — reviewers routinely pass marketing plates whose device
-art is a version behind, and nothing in these shows a feature that does not
-exist. It is a judgement call and the decision is the author's: ship as-is and
-accept a small rejection risk, or re-render the two device mockups against the
-current build. Recorded here so it is a decision rather than an oversight.
-
-6.5" is optional when a 6.9" set is supplied; App Store Connect scales down.
+**User-Generated Content: No** and **Messaging and Chat: No** under Apple's
+current definitions ("broad distribution of content created by users";
+"users can directly communicate with one another"): nothing a person writes
+reaches another person, and Ask Forge is a person and a model. The 1.0 answer
+to the old UGC question was "yes, technically"; the question changed. 13+ costs
+nothing with an audience of 18 to 30 and matches the privacy policy's "not
+intended for children under 13".
 
 ---
+
+## 4. Description, name, subtitle, keywords, promotional text
+
+**For 1.1, everything that is pasted is in
+[`docs/launch/appstore-1.1.md`](launch/appstore-1.1.md)** — three name and
+subtitle pairs with the recommendation (§1), keywords (§2), promotional text
+for the season and after it (§3), the description whose first lines give the
+price (§4) and What's New (§5), each counted by a script. The 1.0 description,
+subtitle ("A day you earn, not one you tick") and keywords that stood here
+describe a free app with no Arcs, stats or AI; they are in git history and must
+not be pasted for 1.1. The description still ends with the Terms of Use (EULA)
+and Privacy Policy lines §7 requires.
+
+## 5. Screenshots — **a new set is needed for 1.1**
+
+The five plates in `screenshots/appstore-6.9/` (1290 × 2796, outside the
+repository, beside it) show 1.0's interface: Settings as the fourth tab where
+1.1 has Arcs, no Arc, no Forge Pro, the home screen's control bar from before
+§2j, and on plate 1 a film quote with its character's name, a line the app
+removed on 2026-09-15 (§2o). Against a 1.1 description that names Arcs, Forge Pro
+and Ask Forge, they would be a real Guideline 2.3.3 risk rather than the small
+one recorded for 1.0. **The plan for
+1.1 — six frames at 1320 × 2868 with headlines, and how to capture each — is
+[`docs/launch/appstore-1.1.md`](launch/appstore-1.1.md) §8.** Frame 5 (Ask
+Forge) has to come from a real Sandbox purchase on an iPhone, because the
+Simulator's purchases cannot reach the model.
 
 ## 6. App Review notes
 
-Rewritten 2026-09-15 against the current build, and again on 2026-10-01 for
-1.1's hard paywall (`FORGE_CONTEXT.md` §6, §17.2). Paste the block below.
-
-```
-No account is required, and none can be created. Forge has no sign-in, no
-registration and no password anywhere in the app. Launch it and the full app is
-immediately available — there are no demo credentials to supply because there is
-nothing to sign in to.
-
-Forge works offline. Besides Apple's own StoreKit product lookup at launch,
-the network is used for two things: anonymous usage statistics sent to
-TelemetryDeck (which screens and actions are used — never anything the user
-writes), which can be turned off in Settings → Privacy → Share anonymous usage;
-and Forge Pro's optional AI features, described below, only after the user
-allows them. No screen depends on the network. Everything a user creates is
-stored locally on the device.
-
-To review it in about three minutes:
-1. Launch. A short first run asks seven one-tap questions, shows the starting
-   stats and a plan, and asks you to pull the blade once to rehearse it.
-2. The Forge Pro paywall follows (see "Forge Pro" below). Tap "Start my free
-   week" and confirm with the Sandbox account: the 7-day trial costs nothing.
-3. Do the one activity it names and tap "I kept my promise", then drag the blade
-   upward on the Forge tab to earn the first day.
-4. The Blade tab shows the record: blade, chapter, heatmap and milestones.
-5. The Becoming tab shows the six areas every activity is filed under.
-6. The Settings tab has Forge Pro (status, Restore Purchases, Manage
-   Subscription, Lifetime), appearance, and the Privacy Policy, Terms and
-   Support links.
-
-HealthKit is read-only and optional. It is used solely to tick off activities
-the phone can already measure (steps, workout minutes, sleep and mindful
-minutes). It is requested in context, after a short screen listing exactly those
-four types, the first time such an activity enters the day after onboarding —
-never at launch and never during onboarding. No health data is stored, synced
-or transmitted, and the app never writes to Health. Declining it leaves every
-feature working; activities are then completed by tapping. To see it: add "Hit
-your steps" from the + on the Forge tab, close the sheet, and the screen
-appears.
-
-Forge Pro includes three optional AI features: Ask Forge (the speech-bubble
-button in the Becoming tab's top bar, or "Ask about this Arc" on a running
-Arc's card), the Weekly Reading (Weekly review → "Read my week") and Plan in
-your own words (the Forge tab → Week → More → Plan the week → type a request →
-"Work it out"). Before the first request, the app shows a disclosure of
-exactly what is sent, where, and to whom, with "Allow" and "Not now". "Not now"
-keeps everything on the device. Consent can be withdrawn in Settings →
-Planning. Requests go to Forge's own backend (a Supabase edge function), which
-verifies the StoreKit transaction and asks OpenAI to write the answer; the app
-contains no OpenAI key and never contacts OpenAI directly. Requests are made
-under an anonymous identifier — there is still no account or sign-in.
-
-Ask Forge is a calm chat about the user's own record: no persona, no avatar,
-"Not medical advice" under its title. It declines medical, psychiatric or
-nutritional diagnosis or treatment, drugs, PEDs and supplement doses, extreme
-diets and fasting protocols, sexual content and harassment. A message that
-suggests self-harm or a crisis is answered on the device with one caring line
-and the 988 Suicide & Crisis Lifeline (call or text 988) and is not sent. A
-long press on a reply offers "Report", which opens a pre-filled email to
-support that the user sends. Every AI reply, reading and plan is labelled as
-written by AI; a proposed change to the user's week opens a review screen and
-is applied only when the user confirms it. The Plan feature's own suggestions
-are worked out on the device.
-
-To test the AI: use a Sandbox account, start Forge Pro (the annual trial is
-free), then open Ask Forge from the Becoming tab and tap one of the three
-suggested questions; allow the disclosure when it appears.
-
-User-generated content — activity names, chapter names, weekly review answers —
-is stored on the device. Weekly review answers never leave it; the AI features
-send what is listed above only when the user asks. There is no social surface,
-no feed and no sharing between users.
-
-Forge Pro (in-app purchase) — a hard paywall with a free week. A new install
-meets the paywall at the end of the first run, before the first day is kept.
-Keeping new days needs Forge Pro: Annual ($49.99/year with a 7-day free trial,
-preselected) or Monthly ($12.99/month, no trial). The paywall shows the trial as
-a timeline (today everything unlocked, a reminder on day 5, the charge on day 7
-unless cancelled), says "Nothing is charged today", offers a reminder before
-the trial ends, and has Restore Purchases, the Terms of Use (Apple's standard
-EULA) and the Privacy Policy. Every price is read from StoreKit.
-
-There is no close button on that one screen. "Not now" at the bottom shows, the
-first time, one lower annual price offered once ($29.99/year, still with the
-7-day free trial; "No thanks" returns to the paywall); after that it shows one
-line and the paywall stays. A Sandbox purchase or Restore Purchases continues
-into the app. Lifetime ($129.99) is sold only in Settings → Forge Pro.
-
-Nothing already recorded is ever locked: if a subscription ends, the history,
-blades, Becoming, reviews and widgets stay readable, and only keeping new days,
-the daily challenge and the AI features ask for Forge Pro again.
-
-The free trial in Sandbox: the trial is free, and Sandbox runs on Apple's
-accelerated clock — the 1-week trial lasts about 3 minutes and a year about an
-hour. To see what a lapsed subscriber sees, cancel in Settings → Forge Pro →
-Manage Subscription and wait for the period to end: the Forge tab then shows
-"New days need Forge Pro. Your record stays yours." with Continue, and the rest
-of the app stays readable.
-
-Founders: installs that ran Forge 1.0 or 1.0.1 keep everything except the AI
-features free, recognised on the device from their existing record or from the
-App Store's original-purchase record in production. This never applies in
-Sandbox, TestFlight or App Review, so a review device always sees the paywall
-exactly as a new customer does.
-```
+**For 1.1, paste the block in
+[`docs/launch/appstore-1.1.md`](launch/appstore-1.1.md) §6** (3,897 bytes).
+App Store Connect's Notes field takes at most **4,000 bytes**; the block that
+stood here (rewritten 2026-10-01 and 2026-10-03) was **6,251** and could not
+have been pasted whole. The new one keeps everything a reviewer needs: how the
+hard paywall is reached and why it cannot be closed,
+the Sandbox trial, the founder rule and why a reviewer never meets it, the AI
+consent (Guideline 5.1.2(i)), the safety reply and Report, and where Apple
+Health is asked. It is plain ASCII, so no character costs more than one byte.
 
 ### The AI paragraph, applied
 
-The prepared activation paragraph (§2r) is now part of the block above,
-extended for Ask Forge (`FORGE_CONTEXT.md` §17.6). App Review buys in Sandbox,
-so `FORGE_ALLOW_SANDBOX` must be `true` on the server for the review window if
-the reviewer is to see the model rather than the one "can't reach the server"
-line (`supabase/README.md` §1.6).
+App Review buys in Sandbox, so `FORGE_ALLOW_SANDBOX` must stay `true` on the
+server through TestFlight and the review window if the reviewer is to see the
+model rather than the one "can't reach the server" line (`supabase/README.md`
+§1.6). It also applies to every later review: each update is reviewed with a
+Sandbox purchase, so turning it off after 1.1 is approved means turning it on
+again for each review.
 
 ## 7. Subscription metadata — **Forge Pro (1.1)**
 
@@ -707,20 +547,31 @@ field above is empty.
 
 **G. The 1.1 version**
 
-- [ ] Upload a build with **build number above 2** (`CURRENT_PROJECT_VERSION`
-      is 3). `AppTransaction.originalAppVersion` is the build number, and the
+- [ ] Upload **1.1 (4)**: `MARKETING_VERSION` 1.1, `CURRENT_PROJECT_VERSION`
+      4 in all six build configurations, the widget extension's the same
+      (`PremiumTests.uploadable`). The build number must stay above 2:
+      `AppTransaction.originalAppVersion` is the build number, and the
       founder rule reads anything ≤ 2 as a 1.0 / 1.0.1 install
-      (`Founder.lastFounderBuild`)
+      (`Founder.lastFounderBuild`). If App Store Connect already has a 4 for
+      1.1 (a TestFlight upload), raise it in all six places before archiving
+- [ ] Export compliance: answered in the build (`ITSAppUsesNonExemptEncryption`
+      = NO in `Forge/Info.plist`: HTTPS through the system only), so the
+      build is not held at "Missing Compliance"
 - [ ] On the version page, **In-App Purchases and Subscriptions** → add all
       four. A first subscription must be submitted together with an app
       version; products left off are not reviewed and do not go live
 - [ ] App Description ends with the Terms of Use (EULA) line above
-- [ ] App Review Information → Notes: §6's block, unchanged; demo account
-      empty, "Sign-in required" off
-- [ ] Hosted privacy policy has the purchase sentence above
-- [ ] **App Privacy**: decide the Purchases question in §1 (not collected,
-      or Purchases → Purchase History, Analytics, not linked, not tracking)
-      and make the labels and `PrivacyInfo.xcprivacy` say the same thing
+- [ ] App Review Information → Notes: the block in
+      `docs/launch/appstore-1.1.md` §6 (3,897 bytes); demo account empty,
+      "Sign-in required" off
+- [ ] Hosted privacy policy: `docs/launch/privacy-policy.md` applied the day
+      1.1 goes live (§2); its "Forge Pro and the App Store" section carries the
+      purchase sentence above
+- [ ] **App Privacy** in App Store Connect set to §1's five rows
+      (`docs/launch/appstore-1.1.md` §7). The Purchases question is decided:
+      Purchase History, App Functionality and Analytics, linked, not
+      tracking; `PrivacyInfo.xcprivacy` already says so
+- [ ] Age rating questionnaire answered as §3 (13+)
 - [x] `forge-ai` redeployed with the annual offer in `PREMIUM_PRODUCTS` before
       the model is switched on (owner, before S6)
 - [x] `forge-ai` redeployed with the `coach` task (v2) and migration `0009`
@@ -761,20 +612,23 @@ field above is empty.
       `CFBundleIconName` confirmed in the built Release `Info.plist` and the tile
       seen on the Simulator's Home Screen (§1a)
 - [x] Privacy policy URL live, and `ForgeLinks.privacy` set (§2)
-- [ ] Privacy policy: publish `docs/launch/privacy-policy.md` **7B** (Ask Forge,
-      the Weekly Reading, Plan in your own words) the day 1.1 goes live (§2);
-      until then 7A stays, because 1.0.1 makes no AI request
+- [ ] Privacy policy: apply `docs/launch/privacy-policy.md` (the 1.1 changes,
+      section by section, to the live page) the day 1.1 goes live (§2); until
+      then the live 27 September text stays, because 1.0.1 makes no AI request
+      and sells nothing
 - [x] Terms URL live, and `ForgeLinks.terms` set; **Support** set too, and the
       row leads the About section
 - [x] `#warning` in `Shared/ForgeLink.swift` deleted — replaced by a test that
       fails if any of the three URLs stops being the live one
-- [x] Screenshots supplied and resized to 1290×2796 in `screenshots/appstore-6.9/`
-      (§5) — **one judgement call left open there about the UI version inside
-      the mockups**
+- [ ] **1.1 screenshots**: six frames at 1320 × 2868
+      (`docs/launch/appstore-1.1.md` §8). The 1.0 plates in
+      `screenshots/appstore-6.9/` show 1.0's interface and are not for 1.1 (§5)
 - [x] Dynamic Type at AX5 and Reduce Motion walked in the Simulator (2026-09-03)
-- [ ] **VoiceOver** — still not exercised. It cannot be driven synthetically;
-      the labels, values and hints are in the source and covered by
-      `AccessibilityTests`, but nobody has heard them
+- [ ] **VoiceOver** — still not exercised by ear. Since 1.1's release pass
+      (`FORGE_CONTEXT.md` §17.7) `AccessibilityTests` renders every 1.1
+      control in a window and reads back what VoiceOver is handed (label,
+      traits, hint, selected), which found and fixed two gaps; nobody has
+      listened to it
 - [x] **Device pass on the first run specifically** — walked twice more on
       2026-09-03 from a wiped install, including the pull and a cold relaunch.
       Still never on hardware
@@ -794,11 +648,14 @@ field above is empty.
       found and fixed
 - [x] Privacy nutrition labels decided (§1) — rewritten 2026-10-03 for the AI:
       Other User Content, Purchase History and User ID, linked, App
-      Functionality; plus §2p's two anonymous-usage rows
-- [x] Age rating decided (§3)
-- [x] Description, subtitle, keywords written (§4)
-- [x] Review notes written (§6) — rewritten 2026-09-15 against the accountless
-      build
+      Functionality; plus §2p's two anonymous-usage rows; Purchase History
+      gained Analytics on 2026-10-04
+- [x] Age rating decided (§3) — answered again 2026-10-04 under Apple's 2025
+      questionnaire: 13+
+- [x] Name, subtitle, keywords, promotional text, description and What's New
+      written for 1.1 (`docs/launch/appstore-1.1.md` §1–§5)
+- [x] Review notes written for 1.1 (`docs/launch/appstore-1.1.md` §6) —
+      2026-10-04, inside the 4,000-byte limit
 - [ ] **Forge Pro (1.1):** the four IAPs are set up and attached to the version
       (§7 checklist), the App Description ends with the EULA line, and the
       Purchases label decision in §1 is made
@@ -815,15 +672,14 @@ field above is empty.
       longer linked into the Release binary (`otool -L`). This closes the demo-
       credentials question a Guideline 2.1 reply asks, by removing the thing it
       asks about
-- [ ] **Hosted privacy policy updated** to match the accountless build — see §2.
-      It still describes sign-in, a server and an entitlement row. **Do this
-      before submitting**
-- [ ] **App Privacy in App Store Connect set to "Data Not Linked to You":
-      Usage Data → Product Interaction and Diagnostics → Other Diagnostic
-      Data**, Analytics only, not used for tracking — matching
-      `PrivacyInfo.xcprivacy` (§1, changed 2026-09-25 for anonymous usage)
-- [ ] **Hosted privacy policy gains the anonymous-usage paragraph** (the
-      TelemetryDeck PR carries it ready to paste)
+- [x] **Hosted privacy policy matches the accountless build** — read
+      2026-10-04: the live page (27 September 2026) has no account, sign-in or
+      server, and carries the anonymous-usage section (§2)
+- [ ] **App Privacy in App Store Connect** — for 1.1, all five rows of §1:
+      linked Other User Content, Purchase History (App Functionality,
+      Analytics) and User ID; not linked Product Interaction and Other
+      Diagnostic Data (Analytics); nothing used for tracking — matching
+      `PrivacyInfo.xcprivacy`
 - [ ] **App Review Information: leave the demo account fields empty** and tick
       "Sign-in not required" 
 - [x] **Both HealthKit purpose strings in `Forge/Info.plist`** (2026-09-04) —
@@ -834,6 +690,13 @@ field above is empty.
       only certificate on the build machine is an Apple *Development* one, so
       the archive carries `get-task-allow` and must be distributed through
       Xcode's Organizer, which re-signs it for the store
+- [x] **1.1 (4) archived** (2026-10-04, Release): the app carries
+      `healthkit`, an empty `healthkit.access`, `healthkit.background-delivery`
+      and the App Group; the widget extension only the App Group; both 1.1 (4).
+      The Xcode-managed App Store profile on the build machine for
+      `com.dawid.forge` (created 2026-09-03) already carries HealthKit and
+      background delivery, so the App ID has the capability; the portal page
+      itself was not opened (`FORGE_CONTEXT.md` §17.7)
 - [x] `PrivacyInfo.xcprivacy` present and matching §1 — **and §1 was corrected
       to match it**: Diagnostics is collected for a signed-in account and used
       to say "not collected"
