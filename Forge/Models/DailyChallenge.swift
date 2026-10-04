@@ -225,9 +225,14 @@ struct KeptChallenge: Codable, Equatable, Sendable {
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         day = try c.decode(ForgeDay.self, forKey: .day)
+        // Not a day on anybody's record: the row is dropped (§17.7).
+        guard day.isPlausible else {
+            throw DecodingError.dataCorruptedError(forKey: .day, in: c, debugDescription: "Not a day.")
+        }
         focus = try c.decode(ChallengeFocus.self, forKey: .focus)
-        id = try c.decodeIfPresent(String.self, forKey: .id) ?? ""
-        at = try c.decodeIfPresent(Date.self, forKey: .at) ?? day.startOfDay()
+        // Neither is counted, so neither may cost the row (§17.7).
+        id = (try? c.decodeIfPresent(String.self, forKey: .id)) ?? ""
+        at = (try? c.decodeIfPresent(Date.self, forKey: .at)) ?? day.startOfDay()
     }
 
     private enum CodingKeys: String, CodingKey { case day, id, focus, at }
@@ -239,7 +244,9 @@ struct KeptChallenge: Codable, Equatable, Sendable {
             let value: KeptChallenge?
             init(from decoder: Decoder) throws { value = try? KeptChallenge(from: decoder) }
         }
-        return ((try? JSONDecoder().decode([Lossy].self, from: data)) ?? []).compactMap(\.value)
+        // `Lossy?`: a `null` element is an error before any initialiser runs,
+        // and it used to cost the whole list (§17.7).
+        return ((try? JSONDecoder().decode([Lossy?].self, from: data)) ?? []).compactMap { $0?.value }
     }
 }
 

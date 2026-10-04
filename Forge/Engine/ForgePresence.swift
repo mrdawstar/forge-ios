@@ -60,10 +60,7 @@ final class ForgePresence {
             isEarned: snapshot.isEarned
         )
 
-        // Earned, or nothing done yet. The second covers the day rolling over
-        // as well as somebody taking their last activity back: both leave a
-        // day that has not started, and neither is worth a Lock Screen.
-        guard !snapshot.isEarned, snapshot.done > 0 else {
+        guard Self.wantsActivity(snapshot) else {
             await end(with: state, earned: snapshot.isEarned)
             return
         }
@@ -82,6 +79,17 @@ final class ForgePresence {
                 pushType: nil
             )
         }
+    }
+
+    /// Whether a day is under way and worth a Lock Screen.
+    ///
+    /// Not earned, and not nothing: the second covers the day rolling over as
+    /// well as somebody taking their last activity back — both leave a day that
+    /// has not started. **And not locked** (§17.7): a free week that ends
+    /// mid-day would otherwise leave "1 of 3" on the Lock Screen for a day the
+    /// app no longer lets anybody finish.
+    nonisolated static func wantsActivity(_ snapshot: ForgeSnapshot) -> Bool {
+        !snapshot.isLocked && !snapshot.isEarned && snapshot.done > 0
     }
 
     /// The blade coming out is the payoff, so it is allowed to sit there for a

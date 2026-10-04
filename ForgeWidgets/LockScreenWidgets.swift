@@ -21,11 +21,15 @@ struct CircularView: View {
     let snapshot: ForgeSnapshot
 
     var body: some View {
-        Gauge(value: snapshot.fraction) {
+        Gauge(value: snapshot.isLocked ? 0 : snapshot.fraction) {
             // Never shown by the capacity style, but it is what VoiceOver reads.
             Text(label)
         } currentValueLabel: {
-            if snapshot.isEarned {
+            if snapshot.isLocked {
+                // New days need Forge Pro: no count of things nobody can keep.
+                Image(systemName: "lock.fill")
+                    .font(.system(.title3, design: .rounded, weight: .semibold))
+            } else if snapshot.isEarned {
                 Image(systemName: "checkmark")
                     .font(.system(.title3, design: .rounded, weight: .semibold))
             } else if snapshot.total == 0 {
@@ -46,6 +50,7 @@ struct CircularView: View {
     }
 
     private var label: String {
+        if snapshot.isLocked { return ForgeSnapshot.lockedHeadline }
         if snapshot.isEarned { return "The blade is free" }
         if snapshot.total == 0 { return "Nothing set" }
         return snapshot.remaining == 1 ? "One activity left" : "\(snapshot.remaining) activities left"
@@ -92,7 +97,7 @@ struct RectangularView: View {
                     .minimumScaleFactor(0.8)
             }
 
-            if !snapshot.isEarned, snapshot.total > 0 {
+            if !snapshot.isLocked, !snapshot.isEarned, snapshot.total > 0 {
                 DayRail(fraction: snapshot.fraction, tint: .primary, height: 2)
                     .padding(.top, 1)
             }
@@ -105,6 +110,7 @@ struct RectangularView: View {
 
     /// The state, in as few words as it takes.
     private var headline: String {
+        if snapshot.isLocked { return ForgeSnapshot.lockedHeadline }
         if snapshot.isEarned { return "The blade is free" }
         if snapshot.total == 0 { return "Today is open" }
         return snapshot.remaining == 1 ? "One left" : "\(snapshot.remaining) left"
@@ -114,6 +120,7 @@ struct RectangularView: View {
     /// them when there is not — an earned day has nothing outstanding to name,
     /// and the days kept is the fact that belongs to a finished one.
     private var detail: String? {
+        if snapshot.isLocked { return keptLabel(snapshot.daysKept) }
         if snapshot.isEarned { return keptLabel(snapshot.daysKept) }
         if snapshot.total == 0 { return "Nothing planned yet" }
         return next

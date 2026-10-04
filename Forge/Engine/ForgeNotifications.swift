@@ -778,6 +778,15 @@ final class ForgeNotifications: NSObject, UNUserNotificationCenterDelegate {
         defaults.set(hasAsked, forKey: Key.asked)
     }
 
+    /// Read again after a backup replaced the App Group (Settings → Your
+    /// Data): the start of the day travels with a backup, and this instance
+    /// outlives the rebuild of everything else. The switch and the one ask are
+    /// this iPhone's and were not replaced, so reading them changes nothing.
+    func reloadAfterReplace() {
+        isLoaded = false
+        load()
+    }
+
     // MARK: Reading
 
     /// The wake time as an instant, for the native picker. Only the hour and the

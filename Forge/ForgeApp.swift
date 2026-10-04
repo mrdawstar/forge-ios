@@ -34,18 +34,35 @@ struct ForgeApp: App {
         // A Live Activity outlives the process that started it.
         ForgePresence.shared.adoptRunningActivity()
         // The first week's five tips: TipKit is configured once, here, before
-        // anything that shows a tip is drawn. See `ForgeTips`.
+        // anything that shows a tip is drawn. See `ForgeTips`. An install that
+        // ran 1.0 or 1.0.1 already taps and pulls; it is shown only the three
+        // about what 1.1 added.
         ForgeTips.configure()
+        ForgeTips.retireKnown(founderRecorded: Founder.isRecorded(in: ForgeShared.defaults))
     }
+
+    /// Raised when a backup has replaced the App Group (Settings → Your
+    /// Data). Every store `ContentView` owns read the App Group once, when it
+    /// was built, and any of them would write its older copy back over the
+    /// backup the next time anything moved — so the whole tree is built again
+    /// from what is there now, exactly as a launch builds it (§17.7).
+    @State private var generation = 0
 
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .id(generation)
                 .preferredColorScheme(.dark)
                 // Brand tint applied once at the root, so every native
                 // control — toggles, buttons, links, progress views — picks it
                 // up instead of each call site setting its own.
                 .tint(ForgeTheme.accent)
+                .onReceive(NotificationCenter.default.publisher(for: ForgeBackup.didReplace)) { _ in
+                    // The two that outlive the tree, then the tree.
+                    ForgeNotifications.shared.reloadAfterReplace()
+                    ForgeAppearance.shared.reloadAfterReplace()
+                    generation += 1
+                }
         }
     }
 }

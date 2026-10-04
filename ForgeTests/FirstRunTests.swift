@@ -236,7 +236,7 @@ struct FirstDayCopyTests {
         #expect(FirstRunCopy.coldOpenLine == "You pull it free.")
         #expect(FirstRunCopy.coldOpenButton == "Begin")
         #expect(FirstRunCopy.questionsCaption
-                == "Seven questions. Your starting stats come from your answers. From tomorrow, from what you do.")
+                == "Seven questions. Your starting stats come from your answers. After that, from what you do.")
         #expect(FirstRunCopy.suggested == "Suggested from your answers.")
         #expect(FirstRunCopy.drawingTitle == "Drawing your starting shape.")
     }

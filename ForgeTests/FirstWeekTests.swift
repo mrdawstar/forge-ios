@@ -336,18 +336,25 @@ struct ProofCardTests {
         #expect(sources.count > 20, "the source was not found — the check would pass vacuously")
 
         var doors: Set<String> = []
-        var sharers: Set<String> = []
+        var sharers: [String: String] = [:]
         for file in sources {
             let text = try String(contentsOf: file, encoding: .utf8)
             let name = file.lastPathComponent
             if name != "PracticeArtifact.swift", text.contains("ProofCardButton(") { doors.insert(name) }
-            if text.contains("ShareLink(") || text.contains("UIActivityViewController") { sharers.insert(name) }
+            if text.contains("ShareLink(") || text.contains("UIActivityViewController") { sharers[name] = text }
         }
         // The third, since 1.1: the running Arc's card (DIRECTION_1_1 §5). The
         // fourth: Becoming's Share your stats (§17.4).
         #expect(doors == [
             "SwordUnlockOverlay.swift", "ChapterCloseView.swift", "ArcsTabView.swift", "BecomingTabView.swift",
         ])
-        #expect(sharers == ["PracticeArtifact.swift"])
+        // The one other share sheet is Settings → Your Data's backup (§17.7):
+        // the person's own file, sent where they choose, never a picture of
+        // the practice — and it is the only `ShareLink` in Settings.
+        #expect(Set(sharers.keys) == ["PracticeArtifact.swift", "SettingsTabView.swift"])
+        let settings = sharers["SettingsTabView.swift"] ?? ""
+        #expect(settings.components(separatedBy: "ShareLink(").count == 2)
+        #expect(settings.contains("ShareLink(\n                item: ForgeBackupExport(),"))
+        #expect(!settings.contains("UIActivityViewController"))
     }
 }

@@ -105,6 +105,13 @@ extension ArcEnrollment: Codable {
         id = try c.decode(String.self, forKey: .id)
         arc = try c.decode(ArcID.self, forKey: .arc)
         startDay = try c.decode(ForgeDay.self, forKey: .startDay)
+        // A start no calendar could hold would be walked to for ever by the
+        // reading (§17.7): no start, no enrollment — the row is dropped.
+        guard startDay.isPlausible else {
+            throw DecodingError.dataCorruptedError(
+                forKey: .startDay, in: c, debugDescription: "Not a day on anybody's record."
+            )
+        }
         wakeMinute = try? c.decodeIfPresent(Int.self, forKey: .wakeMinute)
         picks = (try? c.decodeIfPresent([String].self, forKey: .picks)) ?? []
         added = (try? c.decodeIfPresent([String].self, forKey: .added)) ?? []
@@ -114,7 +121,7 @@ extension ArcEnrollment: Codable {
         phaseAnswers = Self.intKeyed((try? c.decodeIfPresent([String: Bool].self, forKey: .phaseAnswers)) ?? [:])
         tallies = Self.intKeyed((try? c.decodeIfPresent([String: Int].self, forKey: .tallies)) ?? [:])
             .filter { $0.value > 0 }
-        leftOn = try? c.decodeIfPresent(ForgeDay.self, forKey: .leftOn)
+        leftOn = (try? c.decodeIfPresent(ForgeDay.self, forKey: .leftOn)).flatMap { $0.isPlausible ? $0 : nil }
         joinedAt = (try? c.decodeIfPresent(Date.self, forKey: .joinedAt)) ?? startDay.startOfDay()
     }
 
@@ -149,7 +156,10 @@ extension ArcEnrollment: Codable {
             let value: ArcEnrollment?
             init(from decoder: Decoder) throws { value = try? ArcEnrollment(from: decoder) }
         }
-        return ((try? JSONDecoder().decode([Lossy].self, from: data)) ?? []).compactMap(\.value)
+        // `Lossy?`, not `Lossy`: JSONDecoder answers a `null` element with an
+        // error before any initialiser runs, and one `null` used to cost the
+        // whole list (§17.7).
+        return ((try? JSONDecoder().decode([Lossy?].self, from: data)) ?? []).compactMap { $0?.value }
     }
 }
 
@@ -305,7 +315,11 @@ struct ArcReading: Equatable, Sendable {
         var kept = 0
         var counted = 0
         var cursor = first
-        while cursor <= last {
+        // Never more steps than days between the two, so no day can hold the
+        // loop (§17.7) — the reading's span is an Arc's length at most.
+        var steps = max(0, last.days(since: first)) + 1
+        while cursor <= last, steps > 0 {
+            steps -= 1
             defer { cursor = cursor.adding(days: 1) }
             if rest.contains(cursor.weekday) { continue }
             let earned = byDay[cursor]?.isEarned == true

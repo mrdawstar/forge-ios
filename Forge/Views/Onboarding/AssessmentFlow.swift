@@ -14,7 +14,11 @@ enum FirstRunCopy {
 
     /// Above the first question only. It says what the answers are for and
     /// when they stop being the whole story, before anybody is asked anything.
-    static let questionsCaption = "Seven questions. Your starting stats come from your answers. From tomorrow, from what you do."
+    ///
+    /// It said "From tomorrow", which was not true: today counts as soon as
+    /// something in it is kept (§17.1), so the first activity done in the first
+    /// run already moves the six. "After that" is what happens (§17.7).
+    static let questionsCaption = "Seven questions. Your starting stats come from your answers. After that, from what you do."
 
     /// Under "What do you want to build?" while the choice is still the one the
     /// answers suggested.

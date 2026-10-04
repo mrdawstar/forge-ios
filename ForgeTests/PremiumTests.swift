@@ -666,6 +666,51 @@ struct TrialReminderTests {
         ))
         #expect(calendar.component(.hour, from: fire) == 10)
         #expect(calendar.component(.day, from: fire) == 1)
+
+        // And at the start of the person's day on that date, the clock change
+        // notwithstanding.
+        let morning = try #require(TrialReminder.fireDate(
+            access: .trial(.annual, ends: date(2026, 11, 3)), willAutoRenew: nil, isWanted: true,
+            now: date(2026, 10, 27), morning: 6 * 60 + 30, calendar: calendar
+        ))
+        #expect(calendar.dateComponents([.day, .hour, .minute], from: morning)
+            == DateComponents(day: 1, hour: 6, minute: 30))
+    }
+
+    /// Found walking the paywall at 1:16 at night (§17.7): the free week began
+    /// then, so the reminder was due at 1:16 at night five days later, with a
+    /// sound. It lands at the start of the person's day on that date instead.
+    @Test("A free week begun at night is reminded about in the morning, still more than a day ahead")
+    func remindsInTheMorning() throws {
+        let begun = date(2026, 10, 4, 1)
+        let ends = try #require(calendar.date(byAdding: .day, value: 7, to: begun))
+        let fire = try #require(TrialReminder.fireDate(
+            access: .trial(.annual, ends: ends), willAutoRenew: true, isWanted: true,
+            now: begun, morning: 6 * 60 + 30, calendar: calendar
+        ))
+        #expect(calendar.dateComponents([.month, .day, .hour, .minute], from: fire)
+            == DateComponents(month: 10, day: 9, hour: 6, minute: 30))
+
+        // Whatever the start of day — the earliest and the latest a day has —
+        // it is on the fifth day and leaves more than a whole day to cancel.
+        for morning in [0, 6 * 60 + 30, 23 * 60 + 59] {
+            for hour in [0, 1, 12, 23] {
+                let start = date(2026, 10, 4, hour)
+                let end = try #require(calendar.date(byAdding: .day, value: 7, to: start))
+                let reminder = try #require(TrialReminder.fireDate(
+                    access: .trial(.annual, ends: end), willAutoRenew: true, isWanted: true,
+                    now: start, morning: morning, calendar: calendar
+                ))
+                #expect(calendar.component(.day, from: reminder) == 9)
+                #expect(end.timeIntervalSince(reminder) > 24 * 3_600)
+            }
+        }
+
+        // That morning gone, there is no reminder rather than a second one.
+        #expect(TrialReminder.fireDate(
+            access: .trial(.annual, ends: ends), willAutoRenew: true, isWanted: true,
+            now: date(2026, 10, 9, 10), morning: 6 * 60 + 30, calendar: calendar
+        ) == nil)
     }
 
     @Test("No reminder once it is past, unwanted, cancelled, converted or not a trial")
@@ -950,5 +995,59 @@ struct ForgeStoreKitTests {
         await subscriber.refresh()
         await settle(subscriber) { subscriber.access == .pro(.monthly) }
         #expect(subscriber.access == .pro(.monthly))
+    }
+}
+
+// MARK: - A session held open for walking the paywall by hand
+
+/// Not a check: Xcode's local StoreKit server, held open while the app is
+/// driven by hand.
+///
+/// The server lives exactly as long as the `xcodebuild` run that started it.
+/// After an ordinary test run a simctl-installed build still shows
+/// `Forge.storekit`'s prices, but every purchase fails (`AMSErrorDomain` 10,
+/// FORGE_CONTEXT §17.2), so the paywall could only ever be walked as far as
+/// its prices. This test is skipped unless the run asks for it, and then it
+/// opens a session against `Forge.storekit` and waits, with the real purchase
+/// sheet, while the hosting app — Forge, launched as it always is — is used:
+///
+/// ```
+/// TEST_RUNNER_FORGE_HOLD_STOREKIT=1800 xcodebuild test -project Forge.xcodeproj \
+///   -scheme Forge -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
+///   -only-testing:'ForgeTests/StoreKitHold/hold()'
+/// ```
+///
+/// `TEST_RUNNER_FORGE_STOREKIT_RATE=minute` (or `tenSeconds`) shortens every
+/// subscription period, the free week included, so a lapse can be watched;
+/// `TEST_RUNNER_FORGE_STOREKIT_KEEP=1` keeps the transactions of the last
+/// hold instead of starting from none. FORGE_CONTEXT §14.
+@MainActor
+@Suite("QA: StoreKit held open by hand")
+struct StoreKitHold {
+
+    nonisolated static var seconds: Int? {
+        ProcessInfo.processInfo.environment["FORGE_HOLD_STOREKIT"].flatMap(Int.init)
+    }
+
+    @Test("Hold a StoreKit session open while the app is walked", .enabled(if: StoreKitHold.seconds != nil))
+    func hold() async throws {
+        let environment = ProcessInfo.processInfo.environment
+        let url = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("Forge/Forge.storekit")
+        let session = try SKTestSession(contentsOf: url)
+        if environment["FORGE_STOREKIT_KEEP"] == nil {
+            session.resetToDefaultState()
+            session.clearTransactions()
+        }
+        // The purchase sheet, as somebody sees it.
+        session.disableDialogs = false
+        switch environment["FORGE_STOREKIT_RATE"] {
+        case "minute": session.timeRate = .oneRenewalEveryMinute
+        case "tenSeconds": session.timeRate = .oneRenewalEveryTenSeconds
+        default: session.timeRate = .realTime
+        }
+        try await Task.sleep(for: .seconds(Self.seconds ?? 0))
     }
 }

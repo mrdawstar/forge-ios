@@ -47,6 +47,11 @@ struct SettingsTabView: View {
     @State private var paywallDoor: ForgeTelemetry.PaywallDoor?
     /// What Restore found, said under the section. Nil until somebody taps it.
     @State private var restoreNote: String?
+    /// Your Data: the file picker, a backup that passed every check and is
+    /// waiting for the person's yes, and why a file was refused.
+    @State private var isPickingBackup = false
+    @State private var backupToReplace: ForgeBackup.Checked?
+    @State private var backupProblem: String?
 
     #if DEBUG
     @State private var pending: [String] = []
@@ -88,6 +93,8 @@ struct SettingsTabView: View {
                 planningSection
 
                 privacySection
+
+                dataSection
 
                 legalSection
 
@@ -532,6 +539,83 @@ struct SettingsTabView: View {
         }
     }
 
+    // MARK: - Your data
+
+    /// The whole record as one file, and the way back from one.
+    ///
+    /// There is no account and no copy anywhere else (§2n), so this is the
+    /// person's own copy, sent wherever they choose through the share sheet,
+    /// written at the moment it is shared. Importing reads the file, checks
+    /// every value before anything is touched (`ForgeBackup.read`), says what
+    /// the file holds and that it replaces what is here, and only then
+    /// replaces — after which the app is rebuilt from it (`ForgeApp`).
+    private var dataSection: some View {
+        Section {
+            ShareLink(
+                item: ForgeBackupExport(),
+                preview: SharePreview("Forge backup", image: Image(systemName: "doc.text"))
+            ) {
+                Label("Export Backup", systemImage: "square.and.arrow.up")
+            }
+            .accessibilityHint(Text("Saves everything Forge keeps on this iPhone as one file"))
+
+            Button {
+                backupProblem = nil
+                isPickingBackup = true
+            } label: {
+                Label("Import Backup", systemImage: "square.and.arrow.down")
+            }
+            .accessibilityHint(Text("Replaces what is on this iPhone with a backup file, after asking"))
+        } header: {
+            Text("Your Data")
+        } footer: {
+            Text(backupProblem ?? "Your record, your week, your Arcs, your words and your settings, in one file only you hold. Importing one replaces what is on this iPhone. Permissions, Forge Pro and your privacy choices stay with this iPhone.")
+        }
+        .fileImporter(isPresented: $isPickingBackup, allowedContentTypes: [.json]) { result in
+            pickedBackup(result)
+        }
+        .alert(
+            "Replace what is on this iPhone?",
+            isPresented: Binding(
+                get: { backupToReplace != nil },
+                set: { if !$0 { backupToReplace = nil } }
+            ),
+            presenting: backupToReplace
+        ) { checked in
+            Button("Replace", role: .destructive) { replace(with: checked) }
+            Button("Cancel", role: .cancel) { backupToReplace = nil }
+        } message: { checked in
+            Text(ForgeBackup.describe(checked.summary))
+        }
+    }
+
+    /// A file was picked: read inside its security scope, checked whole, and
+    /// either refused with the reason or held for the person's yes.
+    private func pickedBackup(_ result: Result<URL, Error>) {
+        guard case .success(let url) = result else { return }
+        let scoped = url.startAccessingSecurityScopedResource()
+        defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+        do {
+            let attributes = try? FileManager.default.attributesOfItem(atPath: url.path)
+            if let size = attributes?[.size] as? Int, size > ForgeBackup.maximumSize {
+                throw ForgeBackup.Problem.tooLarge
+            }
+            backupToReplace = try ForgeBackup.read(Data(contentsOf: url))
+        } catch let problem as ForgeBackup.Problem {
+            backupProblem = problem.message
+        } catch {
+            backupProblem = ForgeBackup.Problem.notABackup.message
+        }
+    }
+
+    /// The yes. Written, then the app is rebuilt from what was written.
+    private func replace(with checked: ForgeBackup.Checked) {
+        backupToReplace = nil
+        ForgeBackup.apply(checked.file, to: ForgeShared.defaults)
+        ForgeHaptics.shared.ritualVerified()
+        NotificationCenter.default.post(name: ForgeBackup.didReplace, object: nil)
+    }
+
     /// The documents, and nothing else.
     ///
     /// Restore Purchases and Manage Subscription left this section in 1.0,
@@ -669,8 +753,9 @@ struct SettingsTabView: View {
             }
             Button("Clear Arcs", role: .destructive) { arcs.debugClear() }
 
-            // The consent can be walked, but nothing can be sent: the model is
-            // switched off in this build (§2r) whatever this says.
+            // The consent, so its first-send disclosure can be walked again.
+            // The model is on since 1.1 (§17.6); `-ForgeAIScript` answers from
+            // a script instead of the server (`ScriptedForgeAI`).
             LabeledContent("AI consent") {
                 Text(AIDisclosureView.label(for: aiConsent.state))
             }

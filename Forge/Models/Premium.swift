@@ -569,18 +569,39 @@ enum TrialReminder {
     ///
     /// `willAutoRenew` nil means StoreKit has not said yet, and the reminder is
     /// kept: only a known cancellation removes it.
+    ///
+    /// **On the day two days before the end, at the start of the person's
+    /// day** — `morning`, in minutes after midnight, the time Settings calls
+    /// "Start of day". It used to be the exact moment two days before the end,
+    /// which carried the minute the free week began: started at 1:16 at night,
+    /// the reminder was due at 1:16 at night, with a sound (FORGE_CONTEXT
+    /// §17.7). Whatever the hour, the reminder still comes more than a whole
+    /// day before the charge, and it says "in two days" of a day that is two
+    /// days away. Without a `morning` it is the exact moment, as before.
+    ///
+    /// Once that morning has passed there is no reminder rather than a later
+    /// one: by then it has gone off, and syncing again on the same day must not
+    /// schedule it twice.
     static func fireDate(
         access: ProAccess,
         willAutoRenew: Bool?,
         isWanted: Bool,
         now: Date,
+        morning: Int? = nil,
         calendar: Calendar = .current
     ) -> Date? {
         guard isWanted, willAutoRenew != false, case .trial(_, let ends) = access else { return nil }
-        guard let fire = calendar.date(byAdding: .day, value: -daysBefore, to: ends), fire > now else {
-            return nil
+        guard var fire = calendar.date(byAdding: .day, value: -daysBefore, to: ends) else { return nil }
+        if let morning {
+            let minute = ((morning % 1440) + 1440) % 1440
+            // A start of day that does not exist on that date — the hour the
+            // clocks skip — keeps the exact moment rather than losing the
+            // reminder.
+            fire = calendar.date(
+                bySettingHour: minute / 60, minute: minute % 60, second: 0, of: fire
+            ) ?? fire
         }
-        return fire
+        return fire > now ? fire : nil
     }
 
     /// What the reminder is re-synced on (`ContentView`): its date, whether iOS

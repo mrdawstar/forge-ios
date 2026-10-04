@@ -267,6 +267,28 @@ struct TipsTests {
         #expect(body.contains("ForgeTips.pullRetiresTip(hasCompletedFirstRun: forgeVM.hasCompletedFirstRun)"))
     }
 
+    /// Walked in the 1.1 release pass: a 1.0.1 install with fifty days kept
+    /// updated and opened to "Tap when it's done." An install that ran 1.0 or
+    /// 1.0.1 is spared the two that teach the day, and still sees the three
+    /// about what 1.1 added, in order; a new install sees all five.
+    @Test("An install that ran 1.0 starts at the six, not at how to tap a row")
+    func foundersSkipTheBasics() throws {
+        #expect(ForgeTips.knownAtLaunch(founderRecorded: false).isEmpty)
+        let known = ForgeTips.knownAtLaunch(founderRecorded: true)
+        #expect(known == Array(ForgeTips.order.prefix(2)))
+        #expect(ForgeTips.order.filter { !known.contains($0) }
+            == ["forge.tip.becoming", "forge.tip.arcs", "forge.tip.add"])
+        // Retired at launch, after TipKit is configured, from the founder record.
+        let app = try source("ForgeApp.swift")
+        let configured = try #require(app.range(of: "ForgeTips.configure()"))
+        let retired = try #require(app.range(
+            of: "ForgeTips.retireKnown(founderRecorded: Founder.isRecorded(in: ForgeShared.defaults))"
+        ))
+        #expect(configured.upperBound <= retired.lowerBound)
+        let founders = try #require(app.range(of: "Founder.recordOnFirstLaunch(in: ForgeShared.defaults)"))
+        #expect(founders.upperBound <= retired.lowerBound)
+    }
+
     private func source(_ path: String) throws -> String {
         let root = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()

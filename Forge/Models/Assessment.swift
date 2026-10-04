@@ -265,6 +265,10 @@ extension Assessment: Codable {
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let day = try container.decode(ForgeDay.self, forKey: .day)
+        // A day no calendar holds cannot be placed in time either (§17.7).
+        guard day.isPlausible else {
+            throw DecodingError.dataCorruptedError(forKey: .day, in: container, debugDescription: "Not a day.")
+        }
 
         var answers: [Question: Int] = [:]
         if let stored = try? container.nestedContainer(keyedBy: AnswerKey.self, forKey: .answers) {

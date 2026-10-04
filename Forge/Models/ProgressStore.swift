@@ -95,9 +95,14 @@ final class ProgressStore {
     private func load() {
         defer { isLoaded = true }
 
+        // One day at a time (§17.7). It was all or nothing: one record that
+        // did not read emptied the whole history, and the next write saved the
+        // empty one over it. A day that does not read, or is no day anybody
+        // could have had, is dropped; every other day is kept.
         if let data = defaults.data(forKey: Key.history),
-           let decoded = try? JSONDecoder().decode([DayRecord].self, from: data) {
-            byDay = Dictionary(decoded.map { ($0.day, $0) }, uniquingKeysWith: { _, latest in latest })
+           let decoded = try? JSONDecoder().decode(LossyList<DayRecord>.self, from: data) {
+            let days = decoded.elements.filter(\.day.isPlausible)
+            byDay = Dictionary(days.map { ($0.day, $0) }, uniquingKeysWith: { _, latest in latest })
         }
         if defaults.object(forKey: Key.dayStartHour) != nil {
             dayStartHour = defaults.integer(forKey: Key.dayStartHour)

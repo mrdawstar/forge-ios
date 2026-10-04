@@ -328,9 +328,13 @@ final class ForgeViewModel {
         }
         if hasCompletedFirstRun { firstRunStage = .finished }
 
+        // One activity at a time: an activity that does not read is dropped,
+        // never every activity somebody made (§17.7). Before, one unreadable
+        // entry emptied the list, the week dropped every custom id in it, and
+        // the next save wrote the empty list back.
         if let data = defaults.data(forKey: Key.custom),
-           let decoded = try? JSONDecoder().decode([Ritual].self, from: data) {
-            customRituals = decoded
+           let decoded = try? JSONDecoder().decode(LossyList<Ritual>.self, from: data) {
+            customRituals = decoded.elements
         }
         if let data = defaults.data(forKey: Key.memory),
            let decoded = try? JSONDecoder().decode(VerificationMemory.self, from: data) {

@@ -964,18 +964,30 @@ extension ForgeShape {
     /// could disagree in the last bit — 21.75 against 21.750000000000004 — and
     /// a score sitting on a half would then round both ways. The same record
     /// must always read the same number (§5.2).
+    ///
+    /// **And only the days in the window are looked at** (§17.7). It used to
+    /// filter and sort every day on the record for each of its thirty-six
+    /// calls a reading makes, which on two years of history put Becoming's
+    /// grid at a whole 120 Hz frame in the Simulator. Stepping from the first
+    /// day to the last visits the same records in the same order, so the sum
+    /// is the same to the last bit; a day with no record adds nothing.
     static func creditedDays(
         _ byDay: [ForgeDay: DayRecord],
         _ weights: Weights, from first: ForgeDay, to last: ForgeDay, planned: Bool
     ) -> Double {
         guard !weights.isEmpty, first <= last else { return 0 }
-        return byDay.values
-            .filter { $0.day >= first && $0.day <= last }
-            .sorted { $0.day < $1.day }
-            .reduce(into: 0.0) { total, record in
+        var total = 0.0
+        var day = first
+        // Bounded by the span itself, so a day the calendar cannot step on
+        // from (`ForgeDay.isPlausible`) ends the walk rather than holding it.
+        for _ in 0...max(0, last.days(since: first)) {
+            if let record = byDay[day] {
                 let ids = planned ? Set(record.plannedIDs) : record.completedIDs
                 total += ids.compactMap { weights[$0] }.max() ?? 0
             }
+            day = day.next
+        }
+        return total
     }
 
     /// The first day on or before `last` that planned anything feeding this
