@@ -531,8 +531,12 @@ struct AskForgeGateTests {
             let entry = try #require(byName[type], Comment(rawValue: type))
             #expect(entry["NSPrivacyCollectedDataTypeLinked"] as? Bool == true, Comment(rawValue: type))
             #expect(entry["NSPrivacyCollectedDataTypeTracking"] as? Bool == false, Comment(rawValue: type))
-            #expect(entry["NSPrivacyCollectedDataTypePurposes"] as? [String]
-                    == ["NSPrivacyCollectedDataTypePurposeAppFunctionality"], Comment(rawValue: type))
+            // Purchase History also serves Analytics since 1.1's release
+            // pass: the paywall's anonymous events name the plan (§17.7).
+            let purposes = type == "NSPrivacyCollectedDataTypePurchaseHistory"
+                ? ["NSPrivacyCollectedDataTypePurposeAppFunctionality", "NSPrivacyCollectedDataTypePurposeAnalytics"]
+                : ["NSPrivacyCollectedDataTypePurposeAppFunctionality"]
+            #expect(entry["NSPrivacyCollectedDataTypePurposes"] as? [String] == purposes, Comment(rawValue: type))
         }
         for type in ["NSPrivacyCollectedDataTypeProductInteraction", "NSPrivacyCollectedDataTypeOtherDiagnosticData"] {
             #expect(byName[type]?["NSPrivacyCollectedDataTypeLinked"] as? Bool == false, Comment(rawValue: type))
