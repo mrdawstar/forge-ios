@@ -940,7 +940,7 @@ struct DimensionChoice: Identifiable, Equatable {
 /// **Fixed in height.** The BUILDING line is always laid out and only shown on
 /// the chosen ones, and the change sits in the glyph's row, so nothing about a
 /// tile grows when the focus changes or a week's change appears (§2j.4).
-private struct StatTileView: View {
+struct StatTileView: View {
     let tile: GlanceTile
     let action: () -> Void
 

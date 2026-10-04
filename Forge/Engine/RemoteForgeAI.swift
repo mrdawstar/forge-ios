@@ -612,7 +612,7 @@ struct AIWireReading: Decodable, Sendable {
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
-        observation = try c.decodeIfPresent(String.self, forKey: .observation) ?? ""
+        observation = (try? c.decodeIfPresent(String.self, forKey: .observation)) ?? ""
     }
 
     private enum CodingKeys: String, CodingKey { case observation }
@@ -627,7 +627,7 @@ struct AIWireCoachAnswer: Decodable, Sendable {
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
-        reply = try c.decodeIfPresent(String.self, forKey: .reply) ?? ""
+        reply = (try? c.decodeIfPresent(String.self, forKey: .reply)) ?? ""
         proposal = try? c.decodeIfPresent(CoachProposal.self, forKey: .proposal)
     }
 
@@ -638,13 +638,16 @@ struct AIWirePlan: Decodable, Sendable {
     var summary: String = ""
     var changes: [Change] = []
 
+    /// A change that does not read is dropped like one that does not resolve
+    /// (`resolved(against:)`), rather than costing the whole plan — the rest is
+    /// still checked one by one before anything is offered (§17.7).
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         summary = String(
-            (try c.decodeIfPresent(String.self, forKey: .summary) ?? "")
+            ((try? c.decodeIfPresent(String.self, forKey: .summary)) ?? "")
                 .trimmingCharacters(in: .whitespacesAndNewlines).prefix(160)
         )
-        changes = try c.decodeIfPresent([Change].self, forKey: .changes) ?? []
+        changes = (try? c.decodeIfPresent(LossyList<Change>.self, forKey: .changes))?.elements ?? []
     }
 
     private enum CodingKeys: String, CodingKey { case summary, changes }

@@ -36,6 +36,9 @@ struct HealthPrimerView: View {
                 Text("Apple Health can tick these off.")
                     .font(.title2.weight(.semibold))
                     .multilineTextAlignment(.center)
+                    // The screen's heading, found by VoiceOver's rotor like
+                    // every other screen's (§17.7).
+                    .accessibilityAddTraits(.isHeader)
                     .padding(.top, 18)
                     .padding(.horizontal, 24)
 

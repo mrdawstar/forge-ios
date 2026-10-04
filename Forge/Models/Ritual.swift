@@ -544,7 +544,9 @@ struct RitualEdit: Codable, Equatable {
         category = (try c.decodeIfPresent(String.self, forKey: .category))
             .flatMap(RitualCategory.init(migrating:))
         identityID = try c.decodeIfPresent(String?.self, forKey: .identityID)
-        target = try c.decodeIfPresent(Int.self, forKey: .target)
+        // 1.1's measure (§17.5). A target that does not read is no target —
+        // the default for the measure — rather than the loss of every edit.
+        target = try? c.decodeIfPresent(Int.self, forKey: .target)
     }
 
     init() {}
@@ -962,7 +964,9 @@ struct Ritual: Identifiable, Equatable, Codable {
         categoryOverride = (try c.decodeIfPresent(String.self, forKey: .categoryOverride))
             .flatMap(RitualCategory.init(migrating:))
         identityID = try c.decodeIfPresent(String.self, forKey: .identityID)
-        target = try c.decodeIfPresent(Int.self, forKey: .target)
+        // 1.1's measure (§17.5). A target that does not read is no target —
+        // the measure's default — rather than the loss of the activity.
+        target = try? c.decodeIfPresent(Int.self, forKey: .target)
     }
 
     /// Spelled out because `init(from:)` is, and a synthesised `CodingKeys`

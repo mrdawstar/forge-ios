@@ -35,6 +35,8 @@
 	<string>sb_publishable_Go9fLji8ndvLoeD2jfB1yg_ZTHecWEo</string>
 	<key>ForgeSupabaseURL</key>
 	<string>https://eslaeueyeuaejdnqfasv.supabase.co</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>NSHealthShareUsageDescription</key>
 	<string>Forge reads your steps, workout minutes, sleep and mindful minutes so the activities they measure tick themselves off. The readings stay on your iPhone.</string>
 	<key>NSHealthUpdateUsageDescription</key>

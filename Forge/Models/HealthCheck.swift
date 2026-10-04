@@ -181,7 +181,7 @@ struct HealthLedger: Codable, Equatable, Sendable {
         awaitingOffer = (try? c.decodeIfPresent(Set<String>.self, forKey: .awaitingOffer)) ?? []
         offered = (try? c.decodeIfPresent(Set<String>.self, forKey: .offered)) ?? []
         hasMigrated = (try? c.decodeIfPresent(Bool.self, forKey: .hasMigrated)) ?? false
-        tickedDay = try? c.decodeIfPresent(ForgeDay.self, forKey: .tickedDay)
+        tickedDay = (try? c.decodeIfPresent(ForgeDay.self, forKey: .tickedDay)).flatMap { $0.isPlausible ? $0 : nil }
         ticked = (try? c.decodeIfPresent(Set<String>.self, forKey: .ticked)) ?? []
     }
 

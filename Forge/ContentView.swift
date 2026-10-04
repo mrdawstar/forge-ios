@@ -446,7 +446,7 @@ struct ContentView: View {
         .modifier(
             ForgeProModifier(
                 store: store, consent: aiConsent, notifications: notifications
-            ) { publishSnapshot() }
+            ) { syncAmbient() }
         )
     }
 
@@ -629,7 +629,10 @@ struct ContentView: View {
                 // across so the widgets are the same app. See `ForgeSnapshot`.
                 accent: ForgeAppearance.shared.accent.rawValue,
                 history: trail.marks,
-                historyStart: trail.start
+                historyStart: trail.start,
+                // The Forge tab shows "New days need Forge Pro." instead of the
+                // list; the widgets and the Live Activity agree with it.
+                isLocked: isPracticeLocked
             )
         )
     }
@@ -952,6 +955,11 @@ struct ContentView: View {
     @MainActor
     private func finishFirstRun() {
         chapters.openFirst(identityIDs: identities.active.map(\.id))
+        // Before the view model's own finish, while this is still the first
+        // run: its Arc begins today, not on the day the plan was committed.
+        if !forgeVM.hasCompletedFirstRun {
+            arcs.settleFirstRunStart(on: progress.currentDay)
+        }
         forgeVM.finishFirstRun()
     }
 
@@ -1167,17 +1175,23 @@ private struct ForgeProModifier: ViewModifier {
     let store: ForgeStore
     let consent: AIConsentStore
     let notifications: ForgeNotifications
-    /// The accent was put back; the widgets have to hear about it.
-    let onAccentReset: () -> Void
+    /// What somebody has changed — StoreKit answering at launch, a free week
+    /// ending, a purchase. The day's notifications and the widgets both depend
+    /// on whether new days are locked, and the accent may have been put back,
+    /// so the root syncs them again.
+    let onAccessChange: () -> Void
 
     /// When the trial reminder should go off, or nil — re-derived from
     /// StoreKit every time, so a cancellation or a conversion takes it away.
+    /// It lands at the start of the person's day, Settings' "Start of day",
+    /// so it moves with that setting too.
     private var trialReminder: Date? {
         TrialReminder.fireDate(
             access: store.access,
             willAutoRenew: store.willAutoRenew,
             isWanted: TrialReminder.isWanted(),
-            now: .now
+            now: .now,
+            morning: notifications.wakeMinutes
         )
     }
 
@@ -1204,9 +1218,13 @@ private struct ForgeProModifier: ViewModifier {
                 guard store.hasReadEntitlement else { return }
                 let appearance = ForgeAppearance.shared
                 let wearable = PremiumGate.wearable(appearance.accent, for: store.access)
-                guard wearable != appearance.accent else { return }
-                appearance.accent = wearable
-                onAccentReset()
+                if wearable != appearance.accent { appearance.accent = wearable }
+                // Found in the 1.1 release pass: a free week that ended while
+                // the app was away was read on coming back, after the day's
+                // notifications had already been planned for an unlocked day,
+                // and nothing planned them again — nor told the widgets, which
+                // kept a list nobody could keep (§17.7).
+                onAccessChange()
             }
             // "Day 5: we remind you." Only once StoreKit has answered: until
             // then the trial is not known, and a reminder already pending must

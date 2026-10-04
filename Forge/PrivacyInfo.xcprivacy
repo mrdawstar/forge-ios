@@ -74,6 +74,15 @@
 				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
 			</array>
 		</dict>
+		<!-- Purchase History has two purposes since 1.1's release pass
+		     (FORGE_CONTEXT.md §17.7): App Functionality, the StoreKit proof the
+		     AI request carries; and Analytics, because the anonymous usage
+		     events include the paywall's — trial_started and
+		     purchase_completed with the plan, paywall_view with its door —
+		     which are purchase tendencies in Apple's sense. A label is one row
+		     per type, so it stays LINKED: the AI's conservative reading
+		     governs, and the telemetry half is over-stated rather than
+		     under-stated. -->
 		<dict>
 			<key>NSPrivacyCollectedDataType</key>
 			<string>NSPrivacyCollectedDataTypePurchaseHistory</string>
@@ -84,6 +93,7 @@
 			<key>NSPrivacyCollectedDataTypePurposes</key>
 			<array>
 				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+				<string>NSPrivacyCollectedDataTypePurposeAnalytics</string>
 			</array>
 		</dict>
 		<dict>

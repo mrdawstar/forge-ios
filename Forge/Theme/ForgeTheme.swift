@@ -319,4 +319,11 @@ final class ForgeAppearance {
         let stored = ForgeShared.defaults.string(forKey: Key.accent)
         accent = stored.flatMap(ForgeThemeAccent.init(rawValue:)) ?? .forge
     }
+
+    /// Read again after a backup replaced the App Group (Settings → Your
+    /// Data), which carries the accent; this instance outlives the rebuild.
+    func reloadAfterReplace() {
+        let stored = ForgeShared.defaults.string(forKey: Key.accent)
+        accent = stored.flatMap(ForgeThemeAccent.init(rawValue:)) ?? .forge
+    }
 }

@@ -371,6 +371,10 @@ struct AskForgeView: View {
             TextField("Ask about your record", text: $draft, axis: .vertical)
                 .lineLimit(1...5)
                 .font(.body)
+                // A field that grows reads its placeholder as its value and
+                // has no name once something is typed; VoiceOver is told what
+                // it is (§17.7).
+                .accessibilityLabel(Text("Message to Ask Forge"))
                 .focused($isTyping)
                 .submitLabel(.send)
                 .onSubmit { if canSend { send(draft) } }

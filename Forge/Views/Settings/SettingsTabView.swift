@@ -89,6 +89,8 @@ struct SettingsTabView: View {
 
                 privacySection
 
+                YourDataSection()
+
                 legalSection
 
                 #if DEBUG
@@ -669,8 +671,9 @@ struct SettingsTabView: View {
             }
             Button("Clear Arcs", role: .destructive) { arcs.debugClear() }
 
-            // The consent can be walked, but nothing can be sent: the model is
-            // switched off in this build (§2r) whatever this says.
+            // The consent, so its first-send disclosure can be walked again.
+            // The model is on since 1.1 (§17.6); `-ForgeAIScript` answers from
+            // a script instead of the server (`ScriptedForgeAI`).
             LabeledContent("AI consent") {
                 Text(AIDisclosureView.label(for: aiConsent.state))
             }
@@ -754,5 +757,96 @@ struct SettingsTabView: View {
                     .foregroundStyle(.secondary)
             }
         }
+    }
+}
+
+// MARK: - Your data
+
+/// The whole record as one file, and the way back from one (§17.7).
+///
+/// There is no account and no copy anywhere else (§2n), so this is the
+/// person's own copy, sent wherever they choose through the share sheet and
+/// written at the moment it is shared. Importing reads the file, checks every
+/// value before anything is touched (`ForgeBackup.read`), says what the file
+/// holds and that it replaces what is here, and only then replaces — after
+/// which the app is rebuilt from it (`ForgeApp`).
+///
+/// The file picker and the confirmation hang off the Import row rather than
+/// the section: a `Section` is a list's grouping, not a view that can present
+/// anything, and a presentation attached to one silently never opens.
+struct YourDataSection: View {
+    @State private var isPickingBackup = false
+    /// A file that passed every check, waiting for the person's yes.
+    @State private var backupToReplace: ForgeBackup.Checked?
+    /// Why a file was refused, said under the section.
+    @State private var backupProblem: String?
+
+    static let footer = "Your record, your week, your Arcs, your words and your settings, in one file only you hold. Importing one replaces what is on this iPhone. Permissions, Forge Pro and your privacy choices stay with this iPhone."
+
+    var body: some View {
+        Section {
+            ShareLink(
+                item: ForgeBackupExport(),
+                preview: SharePreview("Forge backup", image: Image(systemName: "doc.text"))
+            ) {
+                Label("Export Backup", systemImage: "square.and.arrow.up")
+            }
+            .accessibilityHint(Text("Saves everything Forge keeps on this iPhone as one file"))
+
+            Button {
+                backupProblem = nil
+                isPickingBackup = true
+            } label: {
+                Label("Import Backup", systemImage: "square.and.arrow.down")
+            }
+            .accessibilityHint(Text("Replaces what is on this iPhone with a backup file, after asking"))
+            .fileImporter(isPresented: $isPickingBackup, allowedContentTypes: [.json]) { result in
+                picked(result)
+            }
+            .alert(
+                "Replace what is on this iPhone?",
+                isPresented: Binding(
+                    get: { backupToReplace != nil },
+                    set: { if !$0 { backupToReplace = nil } }
+                ),
+                presenting: backupToReplace
+            ) { checked in
+                Button("Replace", role: .destructive) { replace(with: checked) }
+                Button("Cancel", role: .cancel) { backupToReplace = nil }
+            } message: { checked in
+                Text(ForgeBackup.describe(checked.summary))
+            }
+        } header: {
+            Text("Your Data")
+        } footer: {
+            Text(backupProblem ?? Self.footer)
+        }
+    }
+
+    /// A file was picked: read inside its security scope, checked whole, and
+    /// either refused with the reason or held for the person's yes.
+    private func picked(_ result: Result<URL, Error>) {
+        guard case .success(let url) = result else { return }
+        let scoped = url.startAccessingSecurityScopedResource()
+        defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+        do {
+            let attributes = try? FileManager.default.attributesOfItem(atPath: url.path)
+            if let size = attributes?[.size] as? Int, size > ForgeBackup.maximumSize {
+                throw ForgeBackup.Problem.tooLarge
+            }
+            backupToReplace = try ForgeBackup.read(Data(contentsOf: url))
+        } catch let problem as ForgeBackup.Problem {
+            backupProblem = problem.message
+        } catch {
+            backupProblem = ForgeBackup.Problem.notABackup.message
+        }
+    }
+
+    /// The yes. Written, then the app is rebuilt from what was written.
+    private func replace(with checked: ForgeBackup.Checked) {
+        backupToReplace = nil
+        ForgeBackup.apply(checked.file, to: ForgeShared.defaults)
+        ForgeHaptics.shared.ritualVerified()
+        NotificationCenter.default.post(name: ForgeBackup.didReplace, object: nil)
     }
 }

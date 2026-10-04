@@ -77,6 +77,26 @@ struct ForgeSnapshot: Codable, Equatable, Sendable {
     /// not opened Forge in a week.
     var historyStart: ForgeDay?
 
+    // MARK: - New days, locked
+
+    /// New days need Forge Pro on this phone: lapsed, or never subscribed,
+    /// after the first run (DIRECTION_1_1 §1).
+    ///
+    /// The Forge tab then shows "New days need Forge Pro." in place of the
+    /// day's list, and the widgets say the same thing rather than a list of
+    /// things nobody can keep: before 1.1's release pass they still read "3
+    /// left · Breathe" on a phone that would not let Breathe be kept (§17.7).
+    /// The record — days kept, the weeks, the grid — is drawn exactly as
+    /// before; it is readable forever. No Live Activity is started or kept.
+    var isLocked: Bool = false
+
+    /// What every family says in place of the day while new days are locked:
+    /// the app's own `PremiumCopy.lockedTitle`, without its full stop, as the
+    /// widgets' other headlines are written ("The day is yours"). Spelled here
+    /// because the extension cannot see `Premium.swift`; a test holds the two
+    /// together.
+    static let lockedHeadline = "New days need Forge Pro"
+
     /// What the record says about one day, or nil where it says nothing —
     /// before the trail begins, after it ends, or past today.
     ///
@@ -147,6 +167,9 @@ struct ForgeSnapshot: Codable, Equatable, Sendable {
             ?? ForgeAccentPalette.fallback
         history = try c.decodeIfPresent([Int].self, forKey: .history) ?? []
         historyStart = try c.decodeIfPresent(ForgeDay.self, forKey: .historyStart)
+        // Absent in every snapshot written before 1.1's release pass: a day
+        // that was not locked, which is what it was.
+        isLocked = try c.decodeIfPresent(Bool.self, forKey: .isLocked) ?? false
     }
 
     init(
@@ -157,7 +180,8 @@ struct ForgeSnapshot: Codable, Equatable, Sendable {
         activities: [Activity],
         accent: String = ForgeAccentPalette.fallback,
         history: [Int] = [],
-        historyStart: ForgeDay? = nil
+        historyStart: ForgeDay? = nil,
+        isLocked: Bool = false
     ) {
         self.day = day
         self.dayStartHour = dayStartHour
@@ -167,11 +191,12 @@ struct ForgeSnapshot: Codable, Equatable, Sendable {
         self.accent = accent
         self.history = history
         self.historyStart = historyStart
+        self.isLocked = isLocked
     }
 
     private enum CodingKeys: String, CodingKey {
         case day, dayStartHour, daysKept, isEarned, activities, accent
-        case history, historyStart
+        case history, historyStart, isLocked
     }
 
     /// Whether this reading still describes the day the clock is in.
@@ -192,7 +217,8 @@ struct ForgeSnapshot: Codable, Equatable, Sendable {
         dayStartHour: Int = 4,
         accent: String = ForgeAccentPalette.fallback,
         history: [Int] = [],
-        historyStart: ForgeDay? = nil
+        historyStart: ForgeDay? = nil,
+        isLocked: Bool = false
     ) -> ForgeSnapshot {
         ForgeSnapshot(
             day: ForgeDay.containing(now, dayStartHour: dayStartHour),
@@ -204,7 +230,8 @@ struct ForgeSnapshot: Codable, Equatable, Sendable {
             },
             accent: accent,
             history: history,
-            historyStart: historyStart
+            historyStart: historyStart,
+            isLocked: isLocked
         )
     }
 
@@ -235,6 +262,9 @@ struct ForgeSnapshot: Codable, Equatable, Sendable {
             // a true picture of yesterday, and dropping it would empty the large
             // widget every night at four in the morning until the app was next
             // opened — the one time of day nobody opens it.
+            // Locked yesterday is locked this morning: what somebody owns does
+            // not change at four o'clock, and a fresh day would otherwise show
+            // a locked phone a day to be kept until the app was next opened.
             return .fresh(
                 daysKept: stored.daysKept,
                 total: stored.total,
@@ -242,7 +272,8 @@ struct ForgeSnapshot: Codable, Equatable, Sendable {
                 dayStartHour: stored.dayStartHour,
                 accent: stored.accent,
                 history: stored.history,
-                historyStart: stored.historyStart
+                historyStart: stored.historyStart,
+                isLocked: stored.isLocked
             )
         }
         return stored

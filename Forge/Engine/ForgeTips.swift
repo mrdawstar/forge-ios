@@ -116,6 +116,27 @@ enum ForgeTips {
         try? Tips.configure([.displayFrequency(.immediate)])
     }
 
+    /// The tips an install already knows the answer to, put away at launch.
+    ///
+    /// The first two teach the day itself — tap a row, pull the blade — and an
+    /// install that ran 1.0 or 1.0.1 (`Founder`) has done both on every day it
+    /// kept: walked in the 1.1 release pass, an upgrade with fifty days on the
+    /// record opened to "Tap when it's done." (FORGE_CONTEXT §17.7). The other
+    /// three are about what 1.1 added — the six, the Arcs, the `+` — and are
+    /// still theirs. Invalidated rather than hidden, so the ordered group
+    /// moves straight on to Becoming's.
+    static func knownAtLaunch(founderRecorded: Bool) -> [String] {
+        founderRecorded ? [RowTip().id, PullTip().id] : []
+    }
+
+    /// Once, at launch, after `configure`. Invalidating an invalidated tip
+    /// does nothing, so running it on every launch costs nothing.
+    @MainActor static func retireKnown(founderRecorded: Bool) {
+        let known = knownAtLaunch(founderRecorded: founderRecorded)
+        if known.contains(RowTip().id) { RowTip().invalidate(reason: .actionPerformed) }
+        if known.contains(PullTip().id) { PullTip().invalidate(reason: .actionPerformed) }
+    }
+
     #if DEBUG
     private static let resetKey = "forge.debug.resetTips.v1"
 

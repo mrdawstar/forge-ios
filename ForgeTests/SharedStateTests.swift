@@ -405,6 +405,65 @@ struct SharedStateTests {
         #expect(read.historyStart == yesterday.historyStart)
     }
 
+    // MARK: - New days, locked (1.1 release pass)
+
+    /// Walked after a free week ended (§17.7): the Forge tab said "New days
+    /// need Forge Pro." and the widgets still listed the day's activities.
+    /// The snapshot carries the lock, older snapshots read as unlocked, and it
+    /// survives the night.
+    @Test("A locked phone's snapshot says so, old snapshots read unlocked, and the lock outlives the rollover")
+    func lockedSnapshot() throws {
+        let old = """
+        {"day":{"year":2026,"month":9,"day":3},"dayStartHour":4,"daysKept":7,
+         "isEarned":false,"activities":[],"accent":"moss"}
+        """
+        #expect(try JSONDecoder().decode(ForgeSnapshot.self, from: Data(old.utf8)).isLocked == false)
+
+        var locked = snapshot(done: 1, total: 3, daysKept: 61)
+        locked.isLocked = true
+        let trip = try JSONDecoder().decode(ForgeSnapshot.self, from: JSONEncoder().encode(locked))
+        #expect(trip.isLocked)
+        #expect(trip == locked)
+
+        let defaults = UserDefaults(suiteName: "forge.test.locked")!
+        defaults.removePersistentDomain(forName: "forge.test.locked")
+        locked.day = ForgeDay.containing(Date.now.addingTimeInterval(-2 * 86_400), dayStartHour: 4)
+        locked.write(to: defaults)
+        let morning = ForgeSnapshot.read(from: defaults)
+        #expect(morning.day != locked.day)
+        #expect(morning.isLocked)
+        #expect(morning.daysKept == 61)
+
+        // One sentence, said by the app and by every widget family.
+        #expect(PremiumCopy.lockedTitle == ForgeSnapshot.lockedHeadline + ".")
+    }
+
+    @Test("No Live Activity for a locked day, an earned one, or one not begun")
+    func liveActivityRule() {
+        #expect(ForgePresence.wantsActivity(snapshot(done: 1, total: 3)))
+        #expect(!ForgePresence.wantsActivity(snapshot(done: 0, total: 3)))
+        #expect(!ForgePresence.wantsActivity(snapshot(done: 3, total: 3, isEarned: true)))
+        var locked = snapshot(done: 1, total: 3)
+        locked.isLocked = true
+        #expect(!ForgePresence.wantsActivity(locked))
+    }
+
+    /// The flag is only as good as what the root hands it, and when: the same
+    /// lock the notifications read, re-synced whenever access changes.
+    @Test("The root publishes the lock the notifications read, and re-syncs on every change of access")
+    func rootPublishesTheLock() throws {
+        let root = try String(
+            contentsOf: URL(fileURLWithPath: #filePath)
+                .deletingLastPathComponent().deletingLastPathComponent()
+                .appendingPathComponent("Forge/ContentView.swift"),
+            encoding: .utf8
+        )
+        #expect(root.contains("isLocked: isPracticeLocked"))
+        #expect(root.contains("store: store, consent: aiConsent, notifications: notifications\n            ) { syncAmbient() }"))
+        let task = try #require(root.range(of: ".task(id: store.access) {"))
+        #expect(root[task.upperBound...].prefix(900).contains("onAccessChange()"))
+    }
+
     // MARK: - Live Activity content
 
     @Test("The Live Activity says the same thing the snapshot does")

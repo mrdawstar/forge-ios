@@ -67,6 +67,43 @@ struct FirstRunTests {
         return (vm, identities)
     }
 
+    /// A hard paywall since 1.1: somebody can stop at it and come back days
+    /// later, and the app writes each day's plan the moment it opens. Walked
+    /// across four in the morning in the 1.1 release pass, the first real day
+    /// opened behind a "missed" one (§17.7). When the first run finishes,
+    /// every earlier day with nothing done in it goes; days with anything in
+    /// them, and today, stay — and a finish that is not the first changes
+    /// nothing.
+    @Test("Finishing the first run forgets the days nobody could keep, and only those")
+    func unstartedDaysAreForgotten() {
+        let (vm, _) = makeViewModel()
+        let progress = vm.progress
+        let today = progress.currentDay
+        func day(_ back: Int, done: Bool = false, earned: Bool = false) -> DayRecord {
+            let date = today.adding(days: -back)
+            let at = date.startOfDay().addingTimeInterval(9 * 3_600)
+            return DayRecord(
+                day: date,
+                completions: done ? [DayRecord.Completion(ritualID: "read", method: .honor, at: at)] : [],
+                plannedIDs: ["read", "walk"],
+                extractedAt: earned ? at : nil
+            )
+        }
+        progress.record(day(3))
+        progress.record(day(2, done: true))
+        progress.record(day(1))
+        progress.setPlanned(["read", "walk"])
+        #expect(progress.records.count == 4)
+
+        vm.finishFirstRun()
+        #expect(progress.records.map(\.day) == [today.adding(days: -2), today])
+
+        // Not the first finish: nothing is touched.
+        progress.record(day(5))
+        vm.finishFirstRun()
+        #expect(progress.records.count == 3)
+    }
+
     @Test("Naming nobody offers exactly what the app always offered")
     func skippingCostsNothing() {
         let offered = IdentityActivities.offered(for: [])
@@ -236,7 +273,7 @@ struct FirstDayCopyTests {
         #expect(FirstRunCopy.coldOpenLine == "You pull it free.")
         #expect(FirstRunCopy.coldOpenButton == "Begin")
         #expect(FirstRunCopy.questionsCaption
-                == "Seven questions. Your starting stats come from your answers. From tomorrow, from what you do.")
+                == "Seven questions. Your starting stats come from your answers. After that, from what you do.")
         #expect(FirstRunCopy.suggested == "Suggested from your answers.")
         #expect(FirstRunCopy.drawingTitle == "Drawing your starting shape.")
     }

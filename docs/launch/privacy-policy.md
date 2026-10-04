@@ -3,165 +3,188 @@ EDITOR'S NOTES — do not publish this comment.
 
 Published at: https://forgebetter.app/privacy
 
-Two things must be filled in before publishing:
-  1. [EFFECTIVE DATE]    — the date you publish this version.
-  2. [CONTACT EMAIL]     — a monitored address for privacy questions.
-  (Optional) [DEVELOPER NAME] — the legal name shown on the App Store listing.
+This file is the 1.1 version of the policy, written on 2026-10-04 (session S7,
+FORGE_CONTEXT §17.7) against the live page, which reads "LAST UPDATED 27
+SEPTEMBER 2026" and describes 1.0.1. The live page is the owner's own text and
+has its own structure (eleven sections, the developer's name, the website,
+Vercel, UODO), so this file does not replace it wholesale: it says, section by
+section, what changes, and gives the exact text to paste.
 
-Section 7 has two versions:
-  - 7A "Current version" — what the live site says while the App Store still
-    sells a build without remote AI (1.0.1).
-  - 7B "When AI features are active" — **the 1.1 build is the activation build**
-    (RemoteForgeAI.isModelEnabled = true since FORGE_CONTEXT §17.6). Publish 7B
-    in place of 7A ON THE DAY 1.1 goes live, update the effective date, and
-    switch the App Store privacy labels (docs/APP_STORE.md §1) at the same time.
-    7B describes Ask Forge, the Weekly Reading and Plan in your own words
-    exactly as the 1.1 build sends them.
-Section 8's table has rows marked "(when AI is active)" — drop the marker when
-7B is published.
+WHEN: on the day 1.1 goes live, and not before. The live 1.0.1 makes no AI
+request and sells nothing; a policy describing either would be as wrong as one
+omitting them. Switch the App Store privacy labels at the same time
+(docs/APP_STORE.md §1, docs/launch/appstore-1.1.md §7).
+
+WHAT TO DO, in the order the live page has its sections:
+
+  Date line .......................... "LAST UPDATED <the day 1.1 goes live>"
+  The short version .................. REPLACE with section 1 below
+  Who is responsible ................. unchanged
+  Your practice stays on your device . REPLACE with section 2 below
+  Anonymous Usage Analytics .......... REPLACE its first three paragraphs with
+                                       section 3 below; "Information attached
+                                       to analytics" and "Your choice" unchanged
+  Apple Health ....................... REPLACE with section 4 below
+  The App Store and purchases ........ REPLACE, heading included, with
+                                       section 5 below ("Forge Pro and the App
+                                       Store")
+  Planning and personal content ...... REPLACE with section 6 below
+  (new) .............................. INSERT section 7 below, "AI features
+                                       (Forge Pro)", straight after section 6
+  Deleting data and retention ........ REPLACE with section 8 below
+  This website and support ........... unchanged
+  Your rights ........................ unchanged
+  Children and changes ............... unchanged
+
+Three facts a sentence below depends on, and how to keep them true:
+  - The anonymous AI counts are kept "to enforce the daily limits" and
+    nothing more is promised: public.prune_ai_usage() deletes counts older
+    than 14 days, but nothing schedules it yet (supabase/migrations/0007). If a
+    daily cron job is added, the sentence can say "Counts older than 14 days
+    are deleted."
+  - The Supabase region of the AI project is not named, because this session
+    could not see it. Supabase → Project Settings → General → Region; if it is
+    the EU project the website section already names, say so in section 7.
+  - OpenAI's API terms are described as they stood on 2026-10-04 (no training
+    on API data by default; retention for abuse monitoring). Re-read
+    openai.com/policies before publishing.
 -->
 
-# Forge Privacy Policy
+# Forge Privacy Policy — the 1.1 changes
 
-**Effective date:** [EFFECTIVE DATE]
+## 1. The short version
 
-This policy explains what the Forge iOS app ("Forge", "we", "us") does with
-information about you. Forge is made by [DEVELOPER NAME]. If anything here is
-unclear, contact us at [CONTACT EMAIL].
+Forge has no accounts or cloud sync. Your activities, notes and personal
+record stay on your device. The app uses TelemetryDeck for anonymous usage
+analytics to help improve Forge; analytics are on by default and can be turned
+off at any time. Forge Pro is sold through the App Store, and Apple handles
+every payment. Forge's optional AI features send what they need to our server
+and to OpenAI only after you allow them, and only when you ask. Apple Health
+readings never leave your iPhone. There are no ads or cross-app tracking.
 
-## The short version
+## 2. Your practice stays on your device
 
-- Your Forge record — your activities, the days you kept, and what you write —
-  is stored on your iPhone. We do not have a copy.
-- There is no account and no sign-in.
-- If you leave it on, Forge sends **anonymous** usage counts to TelemetryDeck,
-  so we can see which features are used. It never includes your activities or
-  anything you write. You can turn it off in Settings.
-- Purchases are handled by Apple. We never see your payment details.
-- Forge has no advertising, does not track you across apps or websites, and
-  does not sell your information.
-- Forge's AI features (Ask Forge, the Weekly Reading, Plan in your own words)
-  are optional, need Forge Pro and your explicit permission, and are described
-  in section 7.
+No account is required, and no account can be created. Your activities,
+schedules, completion history, your answers to the seven starting questions,
+Arcs, blades, milestones, chapters, review answers, your Ask Forge conversation
+and your settings are stored locally on your iPhone. Forge's widgets and Live
+Activity share that local storage to show your day, and reminders, including
+the reminder before a free trial ends, are scheduled on the device.
 
-## 1. Your Forge record
+Forge does not sync this content between devices or keep a copy of it on a
+server. The only content that leaves your iPhone is what an AI feature sends
+after you allow it (see "AI features"), and a backup file you choose to export.
 
-Everything you put into Forge — the activities you keep and their schedules,
-the days you completed and earned, rest days, your answers to Forge's seven
-starting questions, chapters and their names and intentions,
-weekly review answers, the statements you wrote about who you are becoming,
-milestones you set, and your settings — is stored **on your device**,
-in storage shared only between the Forge app and its own widgets.
+**Backup files.** Settings → Your Data → Export Backup creates one file with
+your record, your week, your Arcs, your words (including review answers and the
+Ask Forge conversation) and your settings. It is made on your iPhone and goes
+only where you save or send it; Forge does not receive a copy. Anyone who has
+the file can read it, so keep it somewhere private. Import Backup replaces what
+is on your iPhone with a backup file, after asking you. Permissions, Forge Pro
+and your privacy choices are never in the file and are never changed by one.
 
-We do not operate a server that stores your record, and there is no way to
-upload it to one. Your record is included in your device's own backups (for
-example iCloud Backup, if you use it) under your Apple Account's settings, as
-with any app's data. Deleting Forge deletes the record on that device.
+If you use iCloud or computer backups, your device backup may include Forge's
+local data under your Apple backup settings. Forge cannot access those
+backups.
 
-Your record leaves the device only in the specific cases this policy describes:
-an image you choose to save or share (section 5), and — only if you allow it,
-when available — the content an AI feature needs (section 7).
+## 3. Anonymous Usage Analytics — the first three paragraphs
 
-## 2. Accounts
+Forge uses TelemetryDeck to collect anonymous usage analytics so we can
+understand how the app is used and improve its features.
 
-Forge has **no user account and no login**. There is no sign-up, no email or
-password, and no profile.
+This includes events such as the first app opening, each onboarding step,
+answering the starting questions, adding or completing an activity, earning a
+day, completing or abandoning a sword pull, accepting or completing a
+challenge, opening a notification, completing a weekly review, returning to
+the app's practice after a break, closing a chapter, seeing the Forge Pro
+screen, starting a free trial or a purchase, tapping Restore Purchases, being
+recognised as an earlier user, and a Weekly Reading being replaced by the
+phone's own sentence.
 
-The only exception is technical and invisible: to authorise requests to Forge's
-AI features (section 7), Forge may create an **anonymous session** with our
-backend. It has no name, email or password attached to it, you never see it,
-and it is created only when you use an AI feature after allowing it. It is not
-created when you open the app, open Settings, or use any other feature.
+Events contain a limited set of predefined values or counts, such as which
+onboarding step or feature was used, the way an activity was marked complete,
+the number of focus areas selected, which screen opened Forge Pro, which plan
+was chosen (annual, annual offer, monthly or lifetime), and days since
+installation as estimated from the local activity record.
 
-## 3. Apple Health
+We do not send activity names, notes, identity statements, chapter names,
+review answers, your answers to the starting questions, other user-generated
+text, chosen schedule times, Apple Health readings, prices, receipts,
+transaction IDs, or anything you ask Forge's AI or it answers to TelemetryDeck.
 
-If you allow it, Forge **reads** steps, workout minutes, sleep and mindful
-minutes from Apple Health to mark activities your phone can measure as done.
-Forge never writes to Apple Health, does not store the readings, and does not send health data anywhere —
-not to analytics, not to our backend, and not to any AI provider. (If you use
-Ask Forge, it is told which of today's activities are done, never a reading.)
-Health access is optional; every feature works without it.
+## 4. Apple Health
 
-## 4. Notifications, widgets and the Live Activity
+Apple Health is optional. With your permission, Forge reads steps, workouts
+(their minutes), sleep (time asleep) and mindful minutes to complete
+activities your phone can measure. Access is read-only: Forge does not write
+to Health. Forge asks the first time an activity Health can check enters your
+day, and never when the app opens.
 
-Reminders are scheduled on your device. Widgets and the Live Activity read the
-same on-device record. None of these involve a server; the Live Activity is not
-updated by push.
+Health readings are processed on your iPhone the moment they arrive and are
+not stored by Forge: Forge records that an activity was completed, not the
+reading behind it. Readings are never sent to TelemetryDeck, to our server or
+to an AI service; if you use Ask Forge, it is told which of today's activities
+are done, never a reading. With your permission, iOS can wake Forge in the
+background when new Health data arrives, so an activity can complete itself.
+You can withdraw Health access in iOS Settings or in the Health app.
 
-## 5. Images you save or share
+## 5. Forge Pro and the App Store
 
-When a blade is earned or a chapter closes, you can choose to create an image
-(the "Proof Card") showing the sword, the number of days you kept, the date and
-our web address. It is created on your device and goes only where you send it
-using Apple's share sheet. Forge does not upload it and does not prompt you to
-share at any other time.
+Forge Pro is sold through the App Store: an annual subscription with a free
+trial for eligible accounts, a monthly subscription, and a one-time Lifetime
+purchase. Apple processes every payment; Forge does not receive your card
+details, billing address or Apple Account password. The app learns whether you
+have Forge Pro from Apple's StoreKit on your iPhone. Apple's StoreKit may
+communicate with Apple to load product information or check purchases; Apple
+handles that exchange under Apple's privacy policy.
 
-## 6. Anonymous usage analytics (TelemetryDeck)
+**Free trial reminder.** If you start a free trial and leave "Remind me before
+the trial ends" on, Forge schedules a notification on your iPhone for two days
+before the trial ends, at the start of your day. It is created on the device,
+needs your permission for notifications, and sends nothing anywhere.
 
-Forge uses **TelemetryDeck**, a privacy-focused analytics service, to count how
-the app is used — for example that a day was earned, that a weekly review was
-completed, that an activity was added and from which screen, or that the Forge
-Pro screen was opened and from where.
+**Earlier users.** To recognise an install that used Forge 1.0 or 1.0.1,
+Forge checks on your iPhone whether a record from an earlier version is there,
+or reads Apple's record of the version you first downloaded. This happens on
+the device.
 
-**What is sent:** the name of the event, a small set of fixed values chosen by
-the app (for example which screen, which plan, or how many days since install),
-and technical information the TelemetryDeck software adds to every event, such
-as device model, operating-system and app version, language, region, time zone
-and display and accessibility settings. Events are associated with an
-**anonymised identifier** that is hashed on your device and again by
-TelemetryDeck, and cannot be used by us to identify you.
+**Analytics.** If anonymous usage sharing is on, Forge sends anonymous events
+when the Forge Pro screen is shown (and which screen opened it), when the
+one-time offer is shown or accepted, when a free trial or a purchase starts
+(with the plan), when Restore Purchases is tapped, and when an earlier user is
+recognised. They never include a price, receipt, transaction ID or Apple
+Account details.
 
-**What is never sent:** activity names, your answers to the starting
-questions, anything you type (review answers, chapter names, identity
-statements, requests to Plan), health data, your location, your contacts, or
-your Apple Account details.
+**AI requests.** When you use an AI feature, Forge sends Apple's signed record
+of your Forge Pro purchase to our server, which checks it to confirm access
+(see "AI features").
 
-**What it is used for:** understanding which parts of Forge are used and where
-people get stuck — product analytics only. It is not used for advertising and
-is not used to track you across apps or websites.
+## 6. Planning and personal content
 
-**Your choice:** anonymous usage sharing is on by default and can be turned off
-at any time in **Settings → Privacy → Share anonymous usage**. When it is off,
-Forge sends no analytics events.
+Planning suggestions, challenges and weekly review observations are worked
+out on your device. Your practice is not published in a feed or shared with
+other users. Forge's AI features, below, are the only exception, and only
+after you allow them.
 
-## 7. AI features
+## 7. AI features (Forge Pro)
 
-Forge Pro includes optional AI features: **Ask Forge**, a coach that reads your
-record and answers questions about it; the **Weekly Reading**; and **Plan in
-your own words**.
+Forge Pro includes three optional AI features: **Ask Forge**, a coach that
+reads your record and answers questions about it; the **Weekly Reading**; and
+**Plan in your own words**. They need Forge Pro, including for earlier users.
 
-### 7A. Current version
-
-<!-- Publish this subsection now. Replace it with 7B on the day AI is activated. -->
-
-In the current version of Forge, these features do **not** use any remote AI
-service. Plan in your own words and all of Forge's suggestions are worked out on
-your device from your own record, and nothing is sent to our backend or to any
-AI provider for them.
-
-Forge already contains the permission screen and the protections described in
-7B, so that when remote AI is switched on in a future version you will be asked
-first, before anything is sent. We will update this policy before that happens.
-
-### 7B. When AI features are active
-
-<!-- Publish this subsection, in place of 7A, on the day the activation build goes live. -->
-
-**How it works.** When you use an AI feature, the request goes from the Forge
-app to **Forge's own backend** (hosted on Supabase), which asks **OpenAI** to
-write the answer and returns it to the app. The Forge app never contacts OpenAI
-directly and does **not** contain an OpenAI API key; the key exists only on our
-backend.
+**How it works.** When you use one, the request goes from the Forge app to
+Forge's own server, hosted by Supabase, which asks OpenAI to write the answer
+and returns it to the app. The app never contacts OpenAI directly and contains
+no OpenAI key.
 
 **Your permission comes first.** Before the first AI request, Forge shows you
 exactly what would be sent, where it goes and who processes it, with two
-choices: **Allow** and **Not now**. If you choose *Not now*, nothing is sent and
-Forge keeps working on your device as before. You can withdraw permission at
-any time in **Settings → Planning**; from then on, no further requests are made.
-AI features are available only with Forge Pro, and a request is only made when
-you press a button that asks for one.
+choices: **Allow** and **Not now**. With *Not now*, nothing is sent and every
+feature keeps working on your device. You can withdraw permission at any time
+in **Settings → Planning**; no request is made after that. A request is only
+ever made when you press a button that asks for one.
 
-**What is sent — only what the feature needs:**
+**What is sent, and only what the feature needs:**
 
 - your activities' names, times, lengths and days;
 - counts of the days you kept;
@@ -172,136 +195,67 @@ you press a button that asks for one.
 - for **Plan in your own words**: the request you typed;
 - for **Ask Forge**: what you write, with the conversation before it (at most
   the last eight messages, yours and its replies); your six stats and overall
-  score as shown in Forge; where you are in an Arc you are running (which Arc,
-  which day, which phase); and today's list of activities, with which are done.
+  score as Forge shows them; which Arc you are running, its day and its phase;
+  and today's activities, with which are done.
 
-Weekly review answers, dates, the record of any past day, health readings, your
-name, email, location and contacts are **not** sent.
+Weekly review answers, dates, the record of any past day, Health readings,
+your name, email, location and contacts are **not** sent.
 
-**Your Ask Forge conversation stays on your device.** Forge keeps the last 40
-messages on your iPhone so you can read them back, and you can clear them at any
-time in Ask Forge. Our backend does not keep them.
+**Your Ask Forge conversation stays on your iPhone.** Forge keeps the last 40
+messages so you can read them back; **Clear** in Ask Forge deletes them. Our
+server does not keep them.
 
 **What Ask Forge will not do.** It does not give medical, psychiatric or
 nutritional diagnosis or treatment, advice about drugs, performance-enhancing
 substances or supplement doses, extreme diets or fasting protocols, sexual
 content, or help with harassing anyone. A message that suggests you may be in
-crisis is answered on your device with the 988 Suicide & Crisis Lifeline, and
+crisis is answered on your iPhone with the 988 Suicide & Crisis Lifeline, and
 that message is not sent. Ask Forge is not medical advice.
 
 **Reporting a reply.** A long press on an Ask Forge reply offers *Report*,
 which opens an email to our support address with that reply in it. Nothing is
 sent unless you send the email yourself.
 
-**How the request is authorised.** Each request carries the anonymous session
-described in section 2 and Apple's signed proof of your Forge Pro purchase (the
-StoreKit transaction), which our backend verifies. It does not include your
-name, email or payment details.
+**How a request is authorised.** Each request carries an anonymous identifier,
+created the first time you use an AI feature after allowing it, and Apple's
+signed record of your Forge Pro purchase, which our server verifies. The
+identifier has no name, email or password; you never see it. It is not created
+when you open the app or use any other feature.
 
-**What we keep.** Our backend does not store the content you send or the answer
-it returns. It keeps a count of AI requests per day for each anonymous session
-and each purchase, to limit use, and minimal technical logs (for example which
-feature was requested and whether it succeeded). Our hosting provider may keep
-standard request logs, such as IP addresses and timestamps, under its own terms.
+**What we keep.** Our server does not store what you send or the answer it
+returns. It keeps a count of AI requests per day for each anonymous identifier
+and each purchase, to enforce the daily limits, and minimal technical logs,
+such as which feature was asked for and whether it succeeded. Our hosting
+provider may keep standard request logs, such as IP addresses and times, under
+its own terms.
 
-**OpenAI.** OpenAI processes the request to produce the answer. We ask OpenAI
-not to store the response for later retrieval. Under OpenAI's API data policies
-at the time of writing, data sent through its API is not used to train its
-models by default; OpenAI may retain API data for a limited period for abuse
-and misuse monitoring. See openai.com/policies for OpenAI's current terms.
+**OpenAI.** OpenAI, in the United States, processes each request to write the
+answer. We ask OpenAI not to store the response. Under OpenAI's API terms,
+data sent through its API is not used to train its models by default, and
+OpenAI may keep it for a limited period to monitor abuse. See
+openai.com/policies.
 
-**What it is used for.** Only to provide the feature you asked for (App
-Functionality). AI data is **not** used for advertising, is **not** used to
-track you, is **not** sold, and is **not** combined with data from other
-companies. Every reply, reading and plan an AI model writes is labelled on
-screen as written by AI; a Weekly Reading is checked against your own record
-before it is shown, and a proposed change to your week is only ever applied
-after you review it and confirm it.
+**What it is used for.** Only to provide the feature you asked for. AI data is
+not used for advertising, is not used to track you, is not sold, and is not
+combined with data from other companies. Every reply, reading and plan written
+by AI is labelled as written by AI; a Weekly Reading is checked against your
+own record before it is shown, and a proposed change to your week is applied
+only after you review it and confirm it.
 
-## 8. Service providers
+## 8. Deleting data and retention
 
-We use the following providers to run Forge. Each processes information only as
-described in this policy and under its own terms.
+Deleting Forge removes its locally stored app data, including the Ask Forge
+conversation. There is no Forge account or cloud copy of your record to
+delete. Device backups are managed through your Apple settings, and a backup
+file you exported is yours to keep or delete.
 
-| Provider | What for | What it receives |
-|---|---|---|
-| **Apple** | App Store, purchases and subscriptions, Apple Health, notifications | As described by Apple's own privacy policy |
-| **TelemetryDeck** | Anonymous usage analytics (section 6) | Anonymous events, only if usage sharing is on |
-| **Supabase** (when AI is active) | Hosting Forge's backend for AI features (section 7) | The anonymous session, proof of purchase, and the content of an AI request you allowed |
-| **OpenAI** (when AI is active) | Writing the answer to an AI request (section 7) | The content of an AI request you allowed, sent by our backend |
+If you used an AI feature, its anonymous identifier exists in our server's
+sign-in system and in your iPhone's keychain, which iOS may keep after the app
+is deleted. It carries no name, email or Apple Account, so it cannot be linked
+to you. The daily request counts hold no content and are kept only to enforce
+the limits.
 
-We do not use any advertising, attribution or data-broker services.
-
-## 9. Purchases (Forge Pro)
-
-Forge Pro is sold through the App Store as a monthly or annual subscription
-(the annual plan includes a free trial for eligible accounts) or a one-time
-lifetime purchase. **Apple processes all payments.** We never receive your card
-number, billing address or Apple Account password.
-
-To know whether you have Forge Pro, the app reads your entitlement from Apple's
-StoreKit on your device. When AI features are active, Forge sends Apple's signed
-transaction record for your purchase to our backend so it can verify Forge Pro
-access (section 7). You can manage or cancel subscriptions in your Apple Account
-settings, and restore purchases in **Settings → Forge Pro**.
-
-## 10. No advertising, no tracking, no selling
-
-Forge shows no ads. Forge does not track you across other companies' apps or
-websites, does not use the advertising identifier, and does not sell or share
-your personal information for advertising.
-
-## 11. How long information is kept
-
-- **Your Forge record:** on your device until you delete it or delete the app.
-- **Anonymous analytics:** kept by TelemetryDeck under its retention settings;
-  it cannot be linked back to you by us.
-- **When AI is active:** the anonymous session is kept on your device and in our
-  backend's authentication system; usage counts are kept per day to enforce
-  limits. The content of AI requests is not
-  stored by our backend. The Ask Forge conversation is kept on your device
-  only (the last 40 messages) until you clear it or delete the app.
-
-## 12. Your choices and rights
-
-- Turn off anonymous usage sharing in **Settings → Privacy**.
-- Decline or withdraw permission for AI features in **Settings → Planning**.
-- Clear the Ask Forge conversation with **Clear** in Ask Forge.
-- Turn off Apple Health access in the iOS Settings app.
-- Delete your Forge record by deleting the app.
-
-Depending on where you live, you may have rights to access, correct or delete
-personal information, or to object to its processing. Because Forge keeps your
-record on your device and uses no account, most of it is already under your
-direct control. For anything else, contact us at [CONTACT EMAIL] and we will
-respond as required by applicable law.
-
-## 13. Children
-
-Forge is not directed at children under 13, and we do not knowingly collect
-personal information from children.
-
-## 14. Security
-
-We design Forge to keep information on your device wherever possible and to
-send as little as a feature needs. Connections to our service providers are
-encrypted. No method of storage or transmission is completely secure, and we
-cannot guarantee absolute security.
-
-## 15. International processing
-
-Our service providers may process information in countries other than yours,
-including the United States, under their own safeguards.
-
-## 16. Changes to this policy
-
-If we change this policy — for example when AI features become active — we will
-update the effective date above and publish the new version at
-forgebetter.app/privacy before the change takes effect in the app.
-
-## 17. Contact
-
-Questions about this policy or your information:
-
-- Email: [CONTACT EMAIL]
-- Support: https://forgebetter.app/support
+Anonymous analytics already received are separate from your local record and
+are not removed by uninstalling the app. Forge does not hold an account or
+identity mapping that would let us reliably find an individual's anonymous
+events. Contact us with questions about analytics retention or a data request.

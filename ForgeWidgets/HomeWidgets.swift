@@ -102,7 +102,10 @@ struct SmallView: View {
             HStack(alignment: .firstTextBaseline) {
                 WidgetKicker(text: widgetDayLabel(snapshot.day))
                 Spacer(minLength: 4)
-                if snapshot.isEarned {
+                if snapshot.isLocked {
+                    // No count: new days are not being kept on this phone.
+                    EmptyView()
+                } else if snapshot.isEarned {
                     // The one state that earns a colour on this card. It
                     // replaces the count rather than joining it: an earned day
                     // has nothing outstanding to report.
@@ -129,7 +132,7 @@ struct SmallView: View {
 
             Spacer(minLength: 6)
 
-            DayRail(fraction: snapshot.fraction, tint: snapshot.tint)
+            DayRail(fraction: snapshot.isLocked ? 0 : snapshot.fraction, tint: snapshot.tint)
                 .padding(.bottom, 7)
 
             Text(footer)
@@ -149,6 +152,7 @@ struct SmallView: View {
     /// one. Never a number — the count is on the line above and the rail below,
     /// and this line is the only one on the card with a verb in it.
     private var headline: String {
+        if snapshot.isLocked { return ForgeSnapshot.lockedHeadline }
         if snapshot.isEarned { return "The day is yours" }
         if snapshot.total == 0 { return "Today is open" }
         if let next = snapshot.activities.first(where: { !$0.isDone })?.name, !next.isEmpty {
@@ -158,6 +162,7 @@ struct SmallView: View {
     }
 
     private var footer: String {
+        if snapshot.isLocked { return keptLabel(snapshot.daysKept) }
         if snapshot.isEarned { return keptLabel(snapshot.daysKept) }
         if snapshot.total == 0 { return keptLabel(snapshot.daysKept) }
         let left = snapshot.remaining
@@ -221,7 +226,13 @@ struct MediumView: View {
             WidgetKicker(text: widgetDayLabel(snapshot.day))
                 .padding(.bottom, 8)
 
-            if snapshot.isEarned {
+            if snapshot.isLocked {
+                Text(ForgeSnapshot.lockedHeadline)
+                    .font(.system(.headline, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.7)
+            } else if snapshot.isEarned {
                 Text("The day is yours")
                     .font(.system(.headline, weight: .semibold))
                     .foregroundStyle(snapshot.tint)
@@ -249,7 +260,7 @@ struct MediumView: View {
 
             Spacer(minLength: 8)
 
-            DayRail(fraction: snapshot.fraction, tint: snapshot.tint, height: 2.5)
+            DayRail(fraction: snapshot.isLocked ? 0 : snapshot.fraction, tint: snapshot.tint, height: 2.5)
                 .padding(.bottom, 6)
 
             Text(progressLine)
@@ -319,6 +330,7 @@ struct MediumView: View {
     }
 
     private var progressLine: String {
+        if snapshot.isLocked { return keptLabel(snapshot.daysKept) }
         if snapshot.isEarned { return keptLabel(snapshot.daysKept) }
         if snapshot.total == 0 { return keptLabel(snapshot.daysKept) }
         return "\(snapshot.done) of \(snapshot.total) done"
@@ -328,7 +340,11 @@ struct MediumView: View {
 
     private var spoken: String {
         var parts = [progressLine, keptLine + " this week"]
-        if let next = pending.first?.name, !next.isEmpty { parts.insert("Next: \(next)", at: 0) }
+        if snapshot.isLocked {
+            parts.insert(ForgeSnapshot.lockedHeadline, at: 0)
+        } else if let next = pending.first?.name, !next.isEmpty {
+            parts.insert("Next: \(next)", at: 0)
+        }
         return parts.joined(separator: ". ")
     }
 }
@@ -476,7 +492,11 @@ struct LargeView: View {
             Spacer(minLength: 8)
             stat("\(snapshot.daysKept(inLast: 30))/30", "THIS MONTH")
             Spacer(minLength: 8)
-            stat("\(snapshot.done)/\(max(snapshot.total, snapshot.done))", "TODAY")
+            // Today is not being kept while new days are locked; the count
+            // of what is open would be a count of what cannot be done.
+            if !snapshot.isLocked {
+                stat("\(snapshot.done)/\(max(snapshot.total, snapshot.done))", "TODAY")
+            }
         }
     }
 
@@ -496,6 +516,7 @@ struct LargeView: View {
     }
 
     private var headline: String {
+        if snapshot.isLocked { return ForgeSnapshot.lockedHeadline }
         if snapshot.isEarned { return "The day is yours" }
         if snapshot.total == 0 { return "Today is open" }
         if let next = snapshot.activities.first(where: { !$0.isDone })?.name, !next.isEmpty {

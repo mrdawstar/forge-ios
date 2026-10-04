@@ -95,9 +95,14 @@ final class ProgressStore {
     private func load() {
         defer { isLoaded = true }
 
+        // One day at a time (§17.7). It was all or nothing: one record that
+        // did not read emptied the whole history, and the next write saved the
+        // empty one over it. A day that does not read, or is no day anybody
+        // could have had, is dropped; every other day is kept.
         if let data = defaults.data(forKey: Key.history),
-           let decoded = try? JSONDecoder().decode([DayRecord].self, from: data) {
-            byDay = Dictionary(decoded.map { ($0.day, $0) }, uniquingKeysWith: { _, latest in latest })
+           let decoded = try? JSONDecoder().decode(LossyList<DayRecord>.self, from: data) {
+            let days = decoded.elements.filter(\.day.isPlausible)
+            byDay = Dictionary(days.map { ($0.day, $0) }, uniquingKeysWith: { _, latest in latest })
         }
         if defaults.object(forKey: Key.dayStartHour) != nil {
             dayStartHour = defaults.integer(forKey: Key.dayStartHour)
@@ -785,6 +790,27 @@ final class ProgressStore {
         guard record.completedIDs.contains(ritualID) else { return }
         record.completions.removeAll { $0.ritualID == ritualID }
         write(record)
+    }
+
+    /// Days before the first run finished on which nothing was done.
+    ///
+    /// A new install writes today's plan the moment it opens (`setPlanned`),
+    /// before anybody can keep anything: the first run is still on screen, and
+    /// since 1.1 a hard paywall stands between it and the day. Somebody who
+    /// stops at the paywall and finishes three days later — or whose first run
+    /// crosses four in the morning — would begin with a day that was never
+    /// theirs to keep: a miss in the heatmap, a day asked and not kept in the
+    /// six, the start of every rate (1.1 release pass, FORGE_CONTEXT §17.7).
+    /// When the first run finishes, those go: every day before `day` that
+    /// planned something and had nothing done in it. Nothing done is nothing
+    /// lost.
+    func forgetUnstartedDays(before day: ForgeDay) {
+        let unstarted = byDay.values.filter {
+            $0.day < day && $0.completions.isEmpty && $0.extractedAt == nil
+        }
+        guard !unstarted.isEmpty else { return }
+        for record in unstarted { byDay[record.day] = nil }
+        persistHistory()
     }
 
     /// The blade came free. This is what makes a day count.

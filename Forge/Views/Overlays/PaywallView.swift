@@ -129,11 +129,18 @@ struct PaywallView: View {
 
     // MARK: - The plans
 
+    /// Everything above the plans is held to what leaves Annual whole and
+    /// Monthly showing above the pinned button on an iPhone 17e and 17 Pro at
+    /// the default size — the plan and its price are the thing a first screen
+    /// owes somebody (§17.2). It was true with three feature rows and stopped
+    /// being true at five (Apple Health, Ask Forge): measured at 1.1's release
+    /// pass, the first plan had dropped wholly below the fold on both phones,
+    /// so the hero, the headline's gap and the rows were tightened (§17.7).
     private var plansPage: some View {
         VStack(spacing: 0) {
             ScrollView {
                 VStack(spacing: 0) {
-                    hero(height: typeSize.isAccessibilitySize ? 100 : 136)
+                    hero(height: typeSize.isAccessibilitySize ? 80 : 88)
                     headline
                     features
                     if showsTimeline { timeline }
@@ -198,31 +205,35 @@ struct PaywallView: View {
                 .accessibilityAddTraits(.isHeader)
         }
         .padding(.top, ForgeTheme.Space.hair)
-        .padding(.bottom, ForgeTheme.Space.gutter)
+        .padding(.bottom, ForgeTheme.Space.inner)
     }
 
     /// What you get: one row per feature this build has.
+    ///
+    /// `subheadline` rather than `body`, with the rows a line apart: five rows
+    /// at `body` took ten lines of a 17e's first screen, which is where the
+    /// plans should be (see `plansPage`).
     private var features: some View {
-        VStack(alignment: .leading, spacing: ForgeTheme.Space.inner) {
+        VStack(alignment: .leading, spacing: ForgeTheme.Space.tight) {
             ForEach(PaywallRow.rows(), id: \.self) { row in
                 HStack(alignment: .firstTextBaseline, spacing: ForgeTheme.Space.inner) {
                     // Capped, so at the accessibility sizes the glyph stays in
                     // its column instead of growing into the words beside it.
                     Image(systemName: row.symbol)
-                        .font(.body.weight(.medium))
+                        .font(.subheadline.weight(.medium))
                         .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
                         .foregroundStyle(ForgeTheme.cream)
                         .frame(width: 26)
                         .accessibilityHidden(true)
                     Text(row.line)
-                        .font(.body)
+                        .font(.subheadline)
                         .foregroundStyle(.white.opacity(0.9))
                         .fixedSize(horizontal: false, vertical: true)
                     Spacer(minLength: 0)
                 }
             }
         }
-        .padding(.bottom, ForgeTheme.Space.gutter)
+        .padding(.bottom, ForgeTheme.Space.row)
     }
 
     // MARK: The free week
@@ -267,7 +278,7 @@ struct PaywallView: View {
                 RoundedRectangle(cornerRadius: ForgeTheme.Radius.control, style: .continuous)
                     .fill(.white.opacity(0.04))
             )
-            .padding(.bottom, ForgeTheme.Space.gutter)
+            .padding(.bottom, ForgeTheme.Space.inner)
         }
     }
 
@@ -286,6 +297,8 @@ struct PaywallView: View {
             ProgressView()
                 .tint(.white)
                 .frame(maxWidth: .infinity, minHeight: 120)
+                // Unnamed, VoiceOver read the spinner as "1" (§17.7).
+                .accessibilityLabel(Text("Asking the App Store for the plans"))
         case .unavailable where availablePlans.isEmpty:
             VStack(spacing: ForgeTheme.Space.tight) {
                 Text("The App Store can't be reached right now.")
@@ -375,8 +388,14 @@ struct PaywallView: View {
         }
         .buttonStyle(.plain)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(Text([plan.planName, badge, price, perWeek].compactMap { $0 }.joined(separator: ", ")))
+        .accessibilityLabel(Text(Self.spokenPlan(name: plan.planName, badge: badge, price: price, perWeek: perWeek)))
         .accessibilityAddTraits(isChosen ? [.isButton, .isSelected] : .isButton)
+    }
+
+    /// One plan as VoiceOver reads it: "Annual, 7 days free, $49.99 a year,
+    /// $0.96 a week". The price is StoreKit's; nothing here knows it.
+    nonisolated static func spokenPlan(name: String, badge: String?, price: String, perWeek: String?) -> String {
+        [name, badge, price, perWeek].compactMap { $0 }.joined(separator: ", ")
     }
 
     private func planName(_ plan: PremiumProduct) -> some View {

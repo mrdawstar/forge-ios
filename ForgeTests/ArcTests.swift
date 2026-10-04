@@ -728,6 +728,46 @@ struct ArcStorageTests {
     }
 }
 
+// MARK: - The first run's Arc (1.1 release pass)
+
+@MainActor
+@Suite("Arcs: the first run's Arc begins when the first run is finished")
+struct FirstRunArcTests {
+
+    /// Walked on the 17e: the plan committed at 3:58, the first pull at 4:02,
+    /// and the Arc opened on "Day 2 of 7" with a miss it never had (§17.7).
+    @Test("An Arc the first run started yesterday is re-dated to today; one that starts today is left")
+    func redated() throws {
+        let (arcs, _, progress) = world()
+        let started = try #require(arcs.startFromFirstRun(.lockIn, wake: nil, picks: [], added: []))
+        arcs.settleFirstRunStart(on: progress.currentDay)
+        #expect(arcs.current?.startDay == started.startDay, "the same day: nothing to do")
+
+        progress.debugDayOffset = 1
+        let tomorrow = progress.currentDay
+        arcs.settleFirstRunStart(on: tomorrow)
+        let current = try #require(arcs.current)
+        #expect(current.startDay == tomorrow)
+        #expect(current.id == started.id)
+        #expect(current.arc == .lockIn)
+        #expect(current.joinedAt == started.joinedAt)
+        #expect(arcs.reading(current).day == 1)
+        progress.debugDayOffset = 0
+    }
+
+    @Test("A left Arc is never re-dated")
+    func leftIsLeft() throws {
+        let (arcs, _, progress) = world()
+        try #require(arcs.startFromFirstRun(.lockIn, wake: nil, picks: [], added: []) != nil)
+        arcs.leave(takingOff: false)
+        let left = arcs.enrollments
+        progress.debugDayOffset = 2
+        arcs.settleFirstRunStart(on: progress.currentDay)
+        #expect(arcs.enrollments == left)
+        progress.debugDayOffset = 0
+    }
+}
+
 // MARK: - The tabs
 
 @Suite("The tabs")

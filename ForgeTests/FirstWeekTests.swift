@@ -336,18 +336,81 @@ struct ProofCardTests {
         #expect(sources.count > 20, "the source was not found — the check would pass vacuously")
 
         var doors: Set<String> = []
-        var sharers: Set<String> = []
+        var sharers: [String: String] = [:]
         for file in sources {
             let text = try String(contentsOf: file, encoding: .utf8)
             let name = file.lastPathComponent
             if name != "PracticeArtifact.swift", text.contains("ProofCardButton(") { doors.insert(name) }
-            if text.contains("ShareLink(") || text.contains("UIActivityViewController") { sharers.insert(name) }
+            if text.contains("ShareLink(") || text.contains("UIActivityViewController") { sharers[name] = text }
         }
         // The third, since 1.1: the running Arc's card (DIRECTION_1_1 §5). The
         // fourth: Becoming's Share your stats (§17.4).
         #expect(doors == [
             "SwordUnlockOverlay.swift", "ChapterCloseView.swift", "ArcsTabView.swift", "BecomingTabView.swift",
         ])
-        #expect(sharers == ["PracticeArtifact.swift"])
+        // The one other share sheet is Settings → Your Data's backup (§17.7):
+        // the person's own file, sent where they choose, never a picture of
+        // the practice — and it is the only `ShareLink` in Settings.
+        #expect(Set(sharers.keys) == ["PracticeArtifact.swift", "SettingsTabView.swift"])
+        let settings = sharers["SettingsTabView.swift"] ?? ""
+        #expect(settings.components(separatedBy: "ShareLink(").count == 2)
+        #expect(settings.contains("ShareLink(\n                item: ForgeBackupExport(),"))
+        #expect(!settings.contains("UIActivityViewController"))
+    }
+}
+
+// MARK: - Every share card renders (1.1 release pass)
+
+/// Every card the app can hand the share sheet — a blade, a chapter, an Arc,
+/// the stats — in both formats, rendered the way the share sheet renders
+/// them (`ProofCardFile.png`), and read back: the size the format promises,
+/// and a picture rather than a flat fill (§17.7).
+@MainActor
+@Suite("Proof Card: every card renders")
+struct ShareCardRenderTests {
+
+    private static let scores: [Int?] = [71, 30, 95, nil, 22, 81]
+
+    static let occasions: [(String, PracticeArtifact.Occasion)] = [
+        ("blade", .blade(name: "Edged")),
+        ("chapter", .chapter),
+        ("arc", .arc(ArcProof(
+            title: "Winter Arc · Day 43 of 90", scores: scores, overall: 50,
+            blade: "sword9", winters: 1, temperMarks: 3
+        ))),
+        ("stats", .stats(StatsProof(
+            title: "Enduring · 450 days", arcLine: "Winter Arc · Day 43 of 90", scores: scores,
+            overall: 50, state: "Steady", blade: "sword9", winters: 1, temperMarks: 3
+        ))),
+    ]
+
+    @Test("Each card, in both formats, is a full-size picture")
+    func everyCardRenders() throws {
+        for (name, occasion) in Self.occasions {
+            for format in PracticeArtifact.Format.allCases {
+                let label = Comment(rawValue: "\(name) \(format.rawValue)")
+                let data = try ProofCardFile(
+                    occasion: occasion, daysKept: 450, date: Date(timeIntervalSince1970: 1_790_000_000), format: format
+                ).png()
+                let image = try #require(UIImage(data: data), label)
+                #expect(image.size.width * image.scale == format.size.width, label)
+                #expect(image.size.height * image.scale == format.size.height, label)
+                #expect(Self.distinctLevels(in: image) > 8, label)
+            }
+        }
+    }
+
+    /// How many different grey levels a coarse sample of the picture holds —
+    /// one for a blank card, dozens for the blade, the type and the hexagon.
+    private static func distinctLevels(in image: UIImage) -> Int {
+        guard let cg = image.cgImage else { return 0 }
+        let width = 48, height = 48
+        var pixels = [UInt8](repeating: 0, count: width * height)
+        guard let context = CGContext(
+            data: &pixels, width: width, height: height, bitsPerComponent: 8, bytesPerRow: width,
+            space: CGColorSpaceCreateDeviceGray(), bitmapInfo: CGImageAlphaInfo.none.rawValue
+        ) else { return 0 }
+        context.draw(cg, in: CGRect(x: 0, y: 0, width: width, height: height))
+        return Set(pixels).count
     }
 }

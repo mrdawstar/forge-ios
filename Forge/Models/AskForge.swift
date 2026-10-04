@@ -121,6 +121,75 @@ struct CoachMessage: Codable, Identifiable, Equatable, Sendable {
         case .forge: kind == .message
         }
     }
+
+    init(
+        id: UUID = UUID(), role: Role, kind: Kind = .message, text: String, at: Date = .now,
+        proposal: CoachProposal? = nil, isWithheld: Bool = false
+    ) {
+        self.id = id
+        self.role = role
+        self.kind = kind
+        self.text = text
+        self.at = at
+        self.proposal = proposal
+        self.isWithheld = isWithheld
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, role, kind, text, at, proposal, isWithheld
+    }
+
+    /// Hand-written and tolerant, like every stored type here (§16). It was
+    /// synthesised until 1.1's release pass, where that meant one line written
+    /// by a later build — a kind this one does not know — or one damaged field
+    /// emptied the whole conversation, and the next line saved overwrote it
+    /// (FORGE_CONTEXT §17.7). `CoachHistory` now drops a line that does not
+    /// read and keeps the rest.
+    ///
+    /// The role and the words are required: without them there is no line. A
+    /// kind that is not this build's drops the line rather than mislabelling it
+    /// — a reply cannot be called the model's, or the phone's, on a guess
+    /// (§5 #10). A missing kind is the person's own message, or no line at all
+    /// on Forge's side. **A person's line whose withholding cannot be read is
+    /// withheld**: the only cost is a turn of context, and the alternative is
+    /// sending a message a safety reply answered.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        role = try c.decode(Role.self, forKey: .role)
+        text = try c.decode(String.self, forKey: .text)
+        if c.contains(.kind) {
+            kind = try c.decode(Kind.self, forKey: .kind)
+        } else if role == .user {
+            kind = .message
+        } else {
+            throw DecodingError.keyNotFound(
+                CodingKeys.kind, .init(codingPath: c.codingPath, debugDescription: "A reply says what wrote it.")
+            )
+        }
+        id = (try? c.decodeIfPresent(UUID.self, forKey: .id)) ?? UUID()
+        at = (try? c.decodeIfPresent(Date.self, forKey: .at)) ?? .distantPast
+        proposal = try? c.decodeIfPresent(CoachProposal.self, forKey: .proposal)
+        isWithheld = (try? c.decodeIfPresent(Bool.self, forKey: .isWithheld)) ?? (role == .user)
+    }
+}
+
+/// A list read one element at a time: an element that does not read is
+/// dropped and the rest are kept — the shape of every tolerant list here
+/// (`ArcEnrollment.decodeAll`, `KeptChallenge.decodeAll`).
+struct LossyList<Element: Decodable>: Decodable {
+    let elements: [Element]
+
+    init(from decoder: Decoder) throws {
+        // `Slot?`, not `Slot`: JSONDecoder answers a `null` element with an
+        // error before any initialiser runs, which would cost the whole list.
+        elements = try [Slot?].init(from: decoder).compactMap { $0?.value }
+    }
+
+    /// Always decodes, so the list moves past an element that does not.
+    private struct Slot: Decodable {
+        let value: Element?
+        init(from decoder: Decoder) throws { value = try? Element(from: decoder) }
+    }
 }
 
 /// A proposal as it came over the wire — the plan's shape — and as it is
@@ -175,10 +244,13 @@ struct CoachProposal: Codable, Equatable, Sendable {
         self.changes = changes
     }
 
+    /// One change that does not read costs that change, not the proposal:
+    /// `plan(against:)` keeps whatever still resolves, and an unreadable
+    /// change resolves to nothing (§17.7).
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
-        summary = try c.decodeIfPresent(String.self, forKey: .summary) ?? ""
-        changes = (try? c.decodeIfPresent([Change].self, forKey: .changes)) ?? []
+        summary = (try? c.decodeIfPresent(String.self, forKey: .summary)) ?? ""
+        changes = (try? c.decodeIfPresent(LossyList<Change>.self, forKey: .changes))?.elements ?? []
     }
 
     private enum CodingKeys: String, CodingKey { case summary, changes }
@@ -258,12 +330,14 @@ final class CoachHistory {
         defaults.set(data, forKey: Self.key)
     }
 
-    /// Tolerant: anything unreadable is an empty history, never a crash.
-    nonisolated private static func read(_ defaults: UserDefaults) -> [CoachMessage] {
+    /// Tolerant, line by line: a line that does not read is dropped and the
+    /// rest of the conversation kept. Anything that is not a list at all is an
+    /// empty history, never a crash.
+    nonisolated static func read(_ defaults: UserDefaults) -> [CoachMessage] {
         guard let data = defaults.data(forKey: key),
-              let messages = try? JSONDecoder().decode([CoachMessage].self, from: data)
+              let messages = try? JSONDecoder().decode(LossyList<CoachMessage>.self, from: data)
         else { return [] }
-        return Array(messages.suffix(limit))
+        return Array(messages.elements.suffix(limit))
     }
 }
 
