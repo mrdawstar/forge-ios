@@ -235,6 +235,30 @@ final class ArcStore {
         return enrollment
     }
 
+    /// The first run's Arc begins on the day the first run is finished.
+    ///
+    /// `startFromFirstRun` dates it when the plan is committed. A first run
+    /// that crosses four in the morning — walked on the 17e in the 1.1
+    /// release pass, which opened on "Day 2 of 7" — or one left at the
+    /// paywall and finished days later would otherwise begin its Arc on a day
+    /// nobody could keep, counted as its first miss (§17.7). Re-dated, nothing
+    /// else about it changes. Only the running Arc, only while it starts
+    /// before `day`, and only the one the first run made: nothing else can
+    /// exist before the first run is finished.
+    func settleFirstRunStart(on day: ForgeDay) {
+        guard let index = enrollments.lastIndex(where: { $0.leftOn == nil }),
+              enrollments[index].startDay < day
+        else { return }
+        let started = enrollments[index]
+        enrollments[index] = ArcEnrollment(
+            id: started.id, arc: started.arc, startDay: day,
+            wakeMinute: started.wakeMinute, picks: started.picks, added: started.added,
+            isApplied: started.isApplied, phaseAnswers: started.phaseAnswers,
+            tallies: started.tallies, leftOn: nil, joinedAt: started.joinedAt
+        )
+        persist()
+    }
+
     // MARK: - The phases
 
     /// What the running Arc's current phase would change in the week, if it

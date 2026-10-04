@@ -85,6 +85,19 @@ struct BudgetTests {
         }
     }
 
+    /// The scene is laid out at zero size for a frame when the first run
+    /// hands over to the day; a soft pool of zero by zero divided by its own
+    /// zero side and handed CoreGraphics a NaN scale (§17.7).
+    @Test("A soft pool of no size has a finite squash")
+    func softPoolAtZero() {
+        let zero = SoftPool.squash(width: 0, height: 0)
+        #expect(zero.x.isFinite && zero.y.isFinite)
+        let oval = SoftPool.squash(width: 200, height: 50)
+        #expect(oval.x == 1 && oval.y == 0.25)
+        let infinite = SoftPool.squash(width: .infinity, height: 1)
+        #expect(infinite.x.isFinite && infinite.y.isFinite)
+    }
+
     @Test("The onboarding projection, all six in the plan, fits in one frame")
     func projection() {
         let assessment = assessment

@@ -1304,7 +1304,12 @@ final class ForgeViewModel {
         hasCompletedFirstRun = true
         firstRunStage = .finished
         ForgeShared.defaults.set(true, forKey: Key.firstRun)
-        if wasRunning { ForgeTelemetry.send(.onboardingCompleted) }
+        if wasRunning {
+            // A day the first run planned and nobody could keep is not the
+            // record's first miss (§17.7).
+            progress.forgetUnstartedDays(before: progress.currentDay)
+            ForgeTelemetry.send(.onboardingCompleted)
+        }
     }
 
     #if DEBUG

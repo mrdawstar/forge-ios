@@ -732,11 +732,26 @@ struct SoftPool: View {
 
     var body: some View {
         let side = max(width, height)
+        let squash = Self.squash(width: width, height: height)
         RadialGradient(colors: colors, center: .center, startRadius: 0, endRadius: side / 2)
             .frame(width: side, height: side)
-            .scaleEffect(x: width / side, y: height / side)
+            .scaleEffect(x: squash.x, y: squash.y)
             .frame(width: width, height: height)
             .allowsHitTesting(false)
+    }
+
+    /// How the square is squashed into the oval: each side over the longer.
+    ///
+    /// **Never nought over nought.** The scene is laid out at zero size for a
+    /// frame when the first run hands over to the day, and a pool of zero by
+    /// zero divided its sides by a zero side: a NaN scale, which CoreGraphics
+    /// reported a dozen times on that frame on the 17 Pro and the 17e (1.1
+    /// release pass, §17.7). A pool with no size is drawn unsquashed, at no
+    /// size.
+    static func squash(width: CGFloat, height: CGFloat) -> (x: CGFloat, y: CGFloat) {
+        let side = max(width, height)
+        guard side > 0, side.isFinite else { return (1, 1) }
+        return (width / side, height / side)
     }
 }
 

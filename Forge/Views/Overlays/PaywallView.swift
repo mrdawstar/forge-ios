@@ -140,7 +140,7 @@ struct PaywallView: View {
         VStack(spacing: 0) {
             ScrollView {
                 VStack(spacing: 0) {
-                    hero(height: typeSize.isAccessibilitySize ? 80 : 96)
+                    hero(height: typeSize.isAccessibilitySize ? 80 : 88)
                     headline
                     features
                     if showsTimeline { timeline }
@@ -205,7 +205,7 @@ struct PaywallView: View {
                 .accessibilityAddTraits(.isHeader)
         }
         .padding(.top, ForgeTheme.Space.hair)
-        .padding(.bottom, ForgeTheme.Space.row)
+        .padding(.bottom, ForgeTheme.Space.inner)
     }
 
     /// What you get: one row per feature this build has.

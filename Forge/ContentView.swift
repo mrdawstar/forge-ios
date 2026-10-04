@@ -955,6 +955,11 @@ struct ContentView: View {
     @MainActor
     private func finishFirstRun() {
         chapters.openFirst(identityIDs: identities.active.map(\.id))
+        // Before the view model's own finish, while this is still the first
+        // run: its Arc begins today, not on the day the plan was committed.
+        if !forgeVM.hasCompletedFirstRun {
+            arcs.settleFirstRunStart(on: progress.currentDay)
+        }
         forgeVM.finishFirstRun()
     }
 
