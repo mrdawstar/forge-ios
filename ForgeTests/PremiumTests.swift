@@ -139,6 +139,21 @@ struct PremiumProductTests {
         #expect(Founder.lastFounderBuild == 2)
     }
 
+    /// What an upload checks before anybody reads the app (§17.7): the widget
+    /// extension carries the app's own version and build — a mismatch is
+    /// refused at upload — and the app says it uses only exempt encryption
+    /// (HTTPS through the system; the one hash is SHA-256 in the dormant
+    /// account code), so a build is not held at "Missing Compliance".
+    @Test("The widget extension's version and build are the app's, and the encryption answer is in the build")
+    func uploadable() throws {
+        let app = try #require(Bundle.main.infoDictionary)
+        let widgets = try #require(Bundle(url: Bundle.main.bundleURL
+            .appendingPathComponent("PlugIns/ForgeWidgets.appex"))?.infoDictionary)
+        #expect(app["CFBundleShortVersionString"] as? String == widgets["CFBundleShortVersionString"] as? String)
+        #expect(app["CFBundleVersion"] as? String == widgets["CFBundleVersion"] as? String)
+        #expect(app["ITSAppUsesNonExemptEncryption"] as? Bool == false)
+    }
+
     @Test("Lifetime outranks a subscription; the plan named is the longest")
     func entitlement() {
         #expect(PremiumEntitlement.resolve([]) == .free)
