@@ -297,6 +297,8 @@ struct PaywallView: View {
             ProgressView()
                 .tint(.white)
                 .frame(maxWidth: .infinity, minHeight: 120)
+                // Unnamed, VoiceOver read the spinner as "1" (§17.7).
+                .accessibilityLabel(Text("Asking the App Store for the plans"))
         case .unavailable where availablePlans.isEmpty:
             VStack(spacing: ForgeTheme.Space.tight) {
                 Text("The App Store can't be reached right now.")
@@ -386,8 +388,14 @@ struct PaywallView: View {
         }
         .buttonStyle(.plain)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(Text([plan.planName, badge, price, perWeek].compactMap { $0 }.joined(separator: ", ")))
+        .accessibilityLabel(Text(Self.spokenPlan(name: plan.planName, badge: badge, price: price, perWeek: perWeek)))
         .accessibilityAddTraits(isChosen ? [.isButton, .isSelected] : .isButton)
+    }
+
+    /// One plan as VoiceOver reads it: "Annual, 7 days free, $49.99 a year,
+    /// $0.96 a week". The price is StoreKit's; nothing here knows it.
+    nonisolated static func spokenPlan(name: String, badge: String?, price: String, perWeek: String?) -> String {
+        [name, badge, price, perWeek].compactMap { $0 }.joined(separator: ", ")
     }
 
     private func planName(_ plan: PremiumProduct) -> some View {
