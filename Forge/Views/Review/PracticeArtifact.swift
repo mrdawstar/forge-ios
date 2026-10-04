@@ -11,7 +11,13 @@ import UniformTypeIdentifiers
 /// **one artifact, at two moments that actually mean something, that the user
 /// has to go and get.**
 ///
-/// # Exactly four doors
+/// # No doors in 1.1
+///
+/// The release took every door out (§17, release polish): nothing in 1.1
+/// offers to save or share a card, and `FirstWeekTests.proofCardDoors` fails
+/// if one comes back unannounced. The card, its formats and the button stay,
+/// rendered by the tests, so a door can return without rebuilding them. Until
+/// then, what the doors were:
 ///
 /// **A blade earned** (`SwordUnlockOverlay`, once its celebration has staged
 /// its actions), **a chapter closed** (`ChapterCloseView`, once "Close this
@@ -20,8 +26,7 @@ import UniformTypeIdentifiers
 /// tab. Each carries one quiet action, and nothing else in the app offers to
 /// share anything: no prompt at launch, no reminder, no notification, nothing
 /// in the daily loop, and the share sheet only ever opens because somebody
-/// pressed the button. `FirstWeekTests.proofCardDoors` reads the source and
-/// fails if a fifth door appears.
+/// pressed the button.
 ///
 /// # What is on it
 ///

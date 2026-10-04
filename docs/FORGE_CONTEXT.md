@@ -4536,3 +4536,59 @@ Forge target: `Models/ForgeBackup.swift`. ForgeTests: `BackupTests.swift`,
   every later review (each is a Sandbox purchase).
 - Optional: schedule `prune_ai_usage()` daily if the policy should promise a
   retention period for the AI counts.
+
+### 17.8 Release polish (2026-10-04)
+
+Branch `fix/release-polish`, from main at `cf1cf25` (S7, PR #18). UI only: no
+migration, no function, no entitlement, no product ID, no StoreKit or
+production config change.
+
+- **The Challenge sheet opens tall enough for its buttons.** At `.medium` the
+  primary ("Accept", "Take this one") sat under the sheet's edge on every
+  iPhone. The opening detent is now `.height(…)`, measured: the navigation
+  bar, the mark, the card, the rail and the two buttons, plus `.section` (28 pt)
+  under them; the system adds the home indicator's inset. `.large` is still a
+  drag away, and a sheet dragged there stays there. The browse card's line
+  ("Taking it replaces today's…") moved into the rail's reserved caption
+  line, so every card has the same two buttons and the sheet never resizes
+  under a swipe.
+- **QuickAdd: "Create your own activity"**, one quiet row right under
+  Suggested for you whenever the search is empty. It opens the same
+  `ActivityComposer` on the same day as the search's "Create “…”" (both go
+  through `QuickAddView.create(named:)`), with the name blank. The composer's
+  Add/Save now commits once: two taps while it was leaving made two
+  identical activities (seen while verifying this).
+- **Tabs: Forge · Blade · Becoming · Arcs.** Settings has one home, the gear
+  in the Arcs bar (`AppTab.settingsHosts == [.arcs]`); the gears on Becoming
+  and Blade are gone.
+- **The paywall, rebuilt around Annual.** The features sit in one card. Annual
+  is the larger card and leads with what it comes to per month
+  (`PremiumCopy.monthlyEquivalent`, StoreKit's price ÷ 12, rounded **up** to
+  the cent: $4.17), then "Billed annually at $49.99", the free-week badge and
+  a solid "Save 67%" (`PremiumCopy.savingPercent`: Annual against twelve
+  months of Monthly, both StoreKit's, rounded **down**; no badge without
+  Monthly or without a saving). Monthly is one line under it. The timeline
+  moved under the plans; the hero is 64 pt. One line under the button says
+  what pressing it starts ("7 days free, then $49.99 a year." /
+  "$12.99 a month. Cancel anytime."). Purchase, restore, eligibility, the exit
+  offer and the founder path are untouched.
+- **No Proof Card doors in 1.1.** "Save the proof" (blade unlock, chapter
+  close, the running Arc) and Becoming's "Share your stats" are removed.
+  `PracticeArtifact`, `ProofCardFile` and `ProofCardButton` stay, rendered by
+  `ShareCardRenderTests`; `ProofCardTests.proofCardDoors` now holds the count
+  at zero and Settings' backup as the only other share sheet. Settings →
+  Export Backup / Import Backup is unchanged. The review notes and the TikTok
+  plan's #27 are updated.
+
+**Verified.** One clean build and the focused suites on the 17 Pro: 128 tests
+in 19 suites passed (QuickAdd, the challenge suites, the Proof Card and share
+cards, accessibility, the tabs, every Forge Pro suite including
+`ForgeStoreKitTests`). By hand on the 17e and 17 Pro: the Challenge sheet,
+today's card and a browsed one; QuickAdd on a Thursday → Create your own
+activity → saved with `repeats.weekdays == [5]`; the tab order; Settings from
+the Arcs gear; the paywall with Forge.storekit prices, Annual and Monthly.
+Captures in `docs/verification/1.1-polish/`.
+
+**Not verified**: on hardware; the paywall at accessibility sizes; the
+Challenge sheet's completed and skipped states by hand (they resize the sheet
+to their own height).

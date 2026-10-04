@@ -258,9 +258,10 @@ struct AccessibilityTests {
             #expect(node(label, in: nodes)?.isButton == true, Comment(rawValue: label))
         }
         #expect(node("Not now", in: nodes)?.hint == "Closes Forge Pro. Nothing changes.")
-        #expect(PaywallView.spokenPlan(name: "Annual", badge: "7 days free", price: "$49.99 a year", perWeek: "$0.96 a week")
-            == "Annual, 7 days free, $49.99 a year, $0.96 a week")
-        #expect(PaywallView.spokenPlan(name: "Monthly", badge: nil, price: "$12.99 a month", perWeek: nil)
+        #expect(PaywallView.spokenPlan(
+            name: "Annual", perMonth: "$4.17", price: "Billed annually at $49.99", badges: ["7 days free", "Save 67%"]
+        ) == "Annual, $4.17 a month, Billed annually at $49.99, 7 days free, Save 67%")
+        #expect(PaywallView.spokenPlan(name: "Monthly", perMonth: nil, price: "$12.99 a month", badges: [])
             == "Monthly, $12.99 a month")
     }
 

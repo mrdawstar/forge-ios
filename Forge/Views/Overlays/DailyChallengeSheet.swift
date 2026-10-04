@@ -56,6 +56,21 @@ struct DailyChallengeSheet: View {
     /// The pager's height. See `pager` — it is fixed on purpose.
     @ScaledMetric(relativeTo: .title2) private var pagerHeight: CGFloat = 244
 
+    /// The height the sheet opens at: the mark, the card, the rail and the two
+    /// buttons under it, whole, above the home indicator. Measured rather than
+    /// a fixed half screen — at `.medium` the buttons sat below the sheet's
+    /// edge on every iPhone (release polish, §17). Nil until the first layout.
+    @State private var openHeight: CGFloat?
+    @State private var detent: PresentationDetent = .medium
+    /// What sits above the content and below it — the navigation bar, and the
+    /// home indicator — read off the scroll view.
+    @State private var chromeTop: CGFloat = 0
+    /// Where the buttons end, in the scroll's content.
+    @State private var contentBottom: CGFloat = 0
+
+    /// Room left under the buttons, so the primary is never against the edge.
+    private static let belowButtons: CGFloat = ForgeTheme.Space.section
+
     /// How many rounds of the six have been drawn.
     ///
     /// One is what the sheet opens with; another is appended as the finger
@@ -130,6 +145,12 @@ struct DailyChallengeSheet: View {
                     if isLocked {
                         ProLockedState { paywallDoor = .locked }
                             .padding(.horizontal, ForgeTheme.Space.gutter)
+                            .onGeometryChange(for: CGFloat.self) {
+                                $0.frame(in: .named(Self.content)).maxY
+                            } action: {
+                                contentBottom = $0
+                                refit()
+                            }
                     } else {
                         pager
                         rail
@@ -138,8 +159,13 @@ struct DailyChallengeSheet: View {
                     }
                 }
                 .padding(.bottom, 36)
+                .coordinateSpace(.named(Self.content))
             }
             .scrollIndicators(.hidden)
+            .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.top } action: {
+                chromeTop = $0
+                refit()
+            }
             .navigationTitle("Challenge")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -158,13 +184,30 @@ struct DailyChallengeSheet: View {
                 if index >= cards.count - 6 { pages += 1 }
             }
         }
-        // Opens at half height: one card and its two buttons, with the
-        // screen behind still visible. The pager scrolls, and a drag takes it
-        // to full height for anybody browsing deeper into the shelf.
-        .presentationDetents([.medium, .large])
+        // Opens at the height of one card and its two buttons, with the screen
+        // behind still visible above it (`openHeight`). The pager scrolls, and
+        // a drag takes it to full height for anybody browsing deeper into the
+        // shelf. A text size too large for that opens it at full height.
+        .presentationDetents(openHeight.map { [.height($0), .large] } ?? [.medium, .large], selection: $detent)
         .presentationCornerRadius(ForgeTheme.Radius.sheet)
         .presentationDragIndicator(.visible)
         .paywall($paywallDoor)
+    }
+
+    /// The scroll's content, for measuring where the buttons end.
+    private static let content = "challenge.content"
+
+    /// Sizes the opening detent to end `belowButtons` under `contentBottom`,
+    /// the bottom of the buttons. The system adds the home indicator's inset
+    /// to a `.height` detent itself. Whole points only, so a fraction of a
+    /// point never resizes the sheet; a sheet somebody dragged to full height
+    /// stays there.
+    private func refit() {
+        guard contentBottom > 0 else { return }
+        let height = (chromeTop + contentBottom + Self.belowButtons).rounded(.up)
+        guard height != openHeight else { return }
+        openHeight = height
+        if detent != .large { detent = .height(height) }
     }
 
     // MARK: - The challenge
@@ -275,11 +318,24 @@ struct DailyChallengeSheet: View {
             // Hidden rather than removed: taking the line out of the layout
             // moved the buttons under it up by its height, so the primary
             // action jumped every time somebody swiped.
-            Text("Swipe. There is one for every part of you.")
-                .font(.caption)
-                .foregroundStyle(.tertiary)
-                .opacity(isShowingToday ? 1 : 0)
-                .accessibilityHidden(!isShowingToday)
+            //
+            // The line is shared: on another card it says what taking that one
+            // does, so the buttons under it are the same two on every card and
+            // the sheet's measured height (`openHeight`) never changes under a
+            // swipe.
+            ZStack {
+                Text("Swipe. There is one for every part of you.")
+                    .opacity(isShowingToday ? 1 : 0)
+                    .accessibilityHidden(!isShowingToday)
+                Text("Taking it replaces today's. You still get one a day.")
+                    .opacity(isShowingToday ? 0 : 1)
+                    .accessibilityHidden(isShowingToday)
+            }
+            .font(.caption)
+            .foregroundStyle(.tertiary)
+            .multilineTextAlignment(.center)
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.horizontal, ForgeTheme.Space.gutter)
         }
         .frame(maxWidth: .infinity)
         .padding(.top, 20)
@@ -316,19 +372,18 @@ struct DailyChallengeSheet: View {
                     ForgeHaptics.shared.tap()
                     withAnimation(.forgeRow) { visible = todayCardID }
                 }
-
-                Text("Taking it replaces today's. You still get one a day.")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-                    .multilineTextAlignment(.center)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .frame(maxWidth: .infinity)
-                    .padding(.top, 4)
             }
         }
         .animation(.forgeRow, value: today.state)
         .animation(.forgeRow, value: isShowingToday)
         .padding(.horizontal, ForgeTheme.Space.gutter)
+        // Where the sheet opens to: just under these, whatever the phone.
+        .onGeometryChange(for: CGFloat.self) {
+            $0.frame(in: .named(Self.content)).maxY
+        } action: {
+            contentBottom = $0
+            refit()
+        }
         .padding(.bottom, 8)
     }
 

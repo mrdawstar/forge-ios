@@ -318,11 +318,12 @@ struct ProofCardTests {
         #expect(PracticeArtifact.Occasion.arc(proof).line == "WINTER ARC \u{00B7} DAY 30 OF 90")
     }
 
-    /// Exactly three doors. Reads the app's source: the Proof Card button is
-    /// placed in the blade celebration, the chapter close and the running
-    /// Arc's card and nowhere else, and nothing else in the app can open a
-    /// share sheet.
-    @Test("The Proof Card is offered at a blade unlock, a chapter close and an Arc, and nowhere else")
+    /// No doors in 1.1. Reads the app's source: the Proof Card's save and
+    /// share actions (Save the proof, Share your stats) were taken out of every
+    /// screen for the release (§17), and nothing else in the app can open a
+    /// share sheet but Settings' backup. The card itself still renders (below),
+    /// for when a door comes back.
+    @Test("The Proof Card is offered nowhere in 1.1, and the backup is the only other share sheet")
     func proofCardDoors() throws {
         let app = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()
@@ -343,11 +344,7 @@ struct ProofCardTests {
             if name != "PracticeArtifact.swift", text.contains("ProofCardButton(") { doors.insert(name) }
             if text.contains("ShareLink(") || text.contains("UIActivityViewController") { sharers[name] = text }
         }
-        // The third, since 1.1: the running Arc's card (DIRECTION_1_1 §5). The
-        // fourth: Becoming's Share your stats (§17.4).
-        #expect(doors == [
-            "SwordUnlockOverlay.swift", "ChapterCloseView.swift", "ArcsTabView.swift", "BecomingTabView.swift",
-        ])
+        #expect(doors.isEmpty)
         // The one other share sheet is Settings → Your Data's backup (§17.7):
         // the person's own file, sent where they choose, never a picture of
         // the practice — and it is the only `ShareLink` in Settings.

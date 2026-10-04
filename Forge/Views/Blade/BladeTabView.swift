@@ -47,8 +47,6 @@ struct BladeTabView: View {
     /// The Arcs: a finished one is on the record, a Winter Arc is cut into
     /// the blade, and a running one suspends the chapter. See `chapter`.
     var arcs: ArcStore
-    /// The gear: Settings is a sheet since Arcs took its tab.
-    var onSettings: () -> Void = {}
 
     /// The milestone composer, open on a new one or on one being changed.
     @State private var composing: MilestoneComposer.Mode?
@@ -83,11 +81,6 @@ struct BladeTabView: View {
             }
             .scrollIndicators(.hidden)
             .navigationTitle("Blade")
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    SettingsButton(action: onSettings)
-                }
-            }
         }
         .sheet(isPresented: $vm.showAnalytics) {
             AnalyticsSheet(vm: vm)

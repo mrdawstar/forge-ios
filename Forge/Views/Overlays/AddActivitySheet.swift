@@ -81,6 +81,8 @@ struct ActivityComposer: View {
     /// talking. Nothing is more irritating than a field that argues back.
     @State private var userPickedVerification: Bool
     @State private var confirmingDelete = false
+    /// Set by the first Add or Save. See `commit`.
+    @State private var hasCommitted = false
     /// Whether the duration wheel is showing under the chips. Closed by default,
     /// because the chips answer it nine times in ten.
     @State private var showingDurationWheel = false
@@ -635,7 +637,10 @@ struct ActivityComposer: View {
     }
 
     private func commit() {
-        guard canSave else { return }
+        // Once. A second tap on Add while the screen is still leaving made a
+        // second, identical activity (seen in the release polish, §17).
+        guard canSave, !hasCommitted else { return }
+        hasCommitted = true
         onCommit(draft.cleaned)
         dismiss()
     }

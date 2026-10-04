@@ -580,6 +580,42 @@ struct PaywallCopyTests {
         #expect(PremiumCopy.price("€5", value: 3, unit: .month) == "€5 every 3 months")
     }
 
+    /// The annual card leads with what it comes to per month and what it
+    /// saves against Monthly (release polish, §17). Both from StoreKit's
+    /// prices: the figure rounded up and the saving rounded down, so neither
+    /// says the plan is cheaper than it is.
+    @Test("Annual's per-month figure and saving are computed, and never flatter it")
+    func annualComparison() {
+        #expect(PremiumCopy.monthlyEquivalent(price: Decimal(string: "49.99")!, value: 1, unit: .year, format: usd) == "$4.17")
+        // 59.95 / 12 = 4.9958…, and 4.995 / month would be less than the price.
+        #expect(PremiumCopy.monthlyEquivalent(price: Decimal(string: "59.95")!, value: 1, unit: .year, format: usd) == "$5.00")
+        #expect(PremiumCopy.monthlyEquivalent(price: Decimal(string: "48")!, value: 1, unit: .year, format: usd) == "$4.00")
+        #expect(PremiumCopy.monthlyEquivalent(price: Decimal(string: "1")!, value: 1, unit: .week, format: usd) == nil)
+
+        // 1 − 49.99 / (12 × 12.99) = 67.93…%: said as 67, never 68.
+        #expect(PremiumCopy.savingPercent(
+            annual: Decimal(string: "49.99")!, annualValue: 1, annualUnit: .year,
+            monthly: Decimal(string: "12.99")!, monthlyValue: 1, monthlyUnit: .month
+        ) == 67)
+        #expect(PremiumCopy.savingBadge(percent: 67) == "Save 67%")
+        // No saving, no badge.
+        #expect(PremiumCopy.savingPercent(
+            annual: Decimal(string: "155.88")!, annualValue: 1, annualUnit: .year,
+            monthly: Decimal(string: "12.99")!, monthlyValue: 1, monthlyUnit: .month
+        ) == nil)
+        #expect(PremiumCopy.savingPercent(
+            annual: Decimal(string: "49.99")!, annualValue: 1, annualUnit: .year,
+            monthly: Decimal(string: "1")!, monthlyValue: 1, monthlyUnit: .week
+        ) == nil)
+
+        #expect(PremiumCopy.billed("$49.99", value: 1, unit: .year) == "Billed annually at $49.99")
+        #expect(PremiumCopy.buttonLine(trialDays: 7, price: "$49.99", value: 1, unit: .year)
+            == "7 days free, then $49.99 a year.")
+        let noTrial = PremiumCopy.buttonLine(trialDays: nil, price: "$12.99", value: 1, unit: .month)
+        #expect(noTrial == "$12.99 a month. Cancel anytime.")
+        for trial in ["free", "trial", "week"] { #expect(!noTrial.contains(trial)) }
+    }
+
     @Test("The exit offer: one lower price, offered once, with or without the free week")
     func exitOffer() {
         #expect(PremiumCopy.offerTitle == "One lower price, offered once.")

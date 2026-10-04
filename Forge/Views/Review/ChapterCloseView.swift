@@ -343,13 +343,6 @@ struct ChapterCloseView: View {
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
 
-            // The Proof Card, once "Close this chapter" has been pressed — the
-            // chapter's reading is complete. A quiet third action beside the two
-            // that were already here; it changes nothing about closing, and the
-            // share sheet opens only if somebody picks a format.
-            if isOpening {
-                ProofCardButton(occasion: .chapter, daysKept: daysKept)
-            }
         }
         .padding(.horizontal, ForgeTheme.Space.gutter)
         .padding(.top, ForgeTheme.Space.inner)

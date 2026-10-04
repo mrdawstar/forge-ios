@@ -18,25 +18,32 @@ import SwiftUI
 ///
 /// # What is on it, top to bottom
 ///
-/// The sword in the stone, on black. The headline. One row per feature that is
-/// in this build (`PaywallRow`, `ForgeFeatures`). The free week as a timeline —
-/// today, the reminder, the charge. Annual, chosen, with its price per week;
-/// Monthly. What cancelling costs (nothing) and what stopping costs (nothing:
-/// the record stays readable). The reminder toggle. The button, pinned.
-/// Restore, the Terms of Use and the Privacy Policy, and the renewal terms.
+/// The sword in the stone, on black. The headline. One card holding a row per
+/// feature that is in this build (`PaywallRow`, `ForgeFeatures`). Annual,
+/// chosen and the larger card: it leads with what it comes to per month, says
+/// it is billed annually at its real price, and carries the free week and what
+/// it saves against twelve months of Monthly. Monthly, one quiet line under
+/// it. The free week as a timeline — today, the reminder, the charge. What
+/// cancelling costs (nothing) and what stopping costs (nothing: the record
+/// stays readable). The reminder toggle. The button, pinned, with one line
+/// under it saying what pressing it starts. Restore, the Terms of Use and the
+/// Privacy Policy, and the renewal terms. (Release polish, §17.)
 ///
 /// # What it will not do
 ///
 /// - **Print a price it was not given.** Every price is `Product.displayPrice`;
-///   per-week and per-month figures are `Product.price` in the product's own
-///   `priceFormatStyle`. The words around them are `PremiumCopy`.
+///   the per-month figure and the saving are `Product.price` in the product's
+///   own `priceFormatStyle` — the figure rounded up, the saving rounded down,
+///   so neither flatters the plan. The words around them are `PremiumCopy`.
 /// - **Offer a free week somebody cannot take.** Eligibility is StoreKit's
 ///   (`ForgeStore.freeTrial(for:)`); without it every trial word goes — the
 ///   headline, the timeline, the badge, "Nothing is charged today", the
 ///   reminder and the button's wording.
 /// - **Sell lifetime.** It is sold in Settings → Forge Pro, and only there.
-/// - **Hurry anybody.** No timer, no scarcity, no invented saving, nothing that
-///   blinks; the only price struck through is the storefront's real annual one.
+/// - **Hurry anybody.** No timer, no scarcity, no invented saving (the badge is
+///   computed, and gone when Monthly is not there to compare with), nothing
+///   that blinks; the only price struck through is the storefront's real annual
+///   one.
 struct PaywallView: View {
     let door: ForgeTelemetry.PaywallDoor
     @Bindable var store: ForgeStore
@@ -136,15 +143,17 @@ struct PaywallView: View {
     /// being true at five (Apple Health, Ask Forge): measured at 1.1's release
     /// pass, the first plan had dropped wholly below the fold on both phones,
     /// so the hero, the headline's gap and the rows were tightened (§17.7).
+    /// The release polish moved the timeline under the plans and shrank the
+    /// hero again, for the larger Annual card and the line under the button.
     private var plansPage: some View {
         VStack(spacing: 0) {
             ScrollView {
                 VStack(spacing: 0) {
-                    hero(height: typeSize.isAccessibilitySize ? 80 : 88)
+                    hero(height: typeSize.isAccessibilitySize ? 60 : 64)
                     headline
                     features
-                    if showsTimeline { timeline }
                     plans
+                    if showsTimeline { timeline }
                     notes
                     if showsTimeline { reminder }
                     documents
@@ -163,6 +172,7 @@ struct PaywallView: View {
 
             pinned(
                 title: PremiumCopy.buttonTitle(startsFreeWeek: startsFreeWeek),
+                line: buttonLine(for: selected),
                 isEnabled: store.product(for: selected) != nil,
                 action: { purchase(selected) }
             ) {
@@ -198,7 +208,7 @@ struct PaywallView: View {
                 .foregroundStyle(ForgeTheme.cream.opacity(0.75))
 
             Text(PremiumCopy.headline(trialDays: trialDays(for: .annual)))
-                .font(.title.weight(.semibold))
+                .font(.title.weight(.bold))
                 .foregroundStyle(.white)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
@@ -208,22 +218,27 @@ struct PaywallView: View {
         .padding(.bottom, ForgeTheme.Space.inner)
     }
 
-    /// What you get: one row per feature this build has.
+    /// What you get: one row per feature this build has, in one card.
     ///
-    /// `subheadline` rather than `body`, with the rows a line apart: five rows
-    /// at `body` took ten lines of a 17e's first screen, which is where the
-    /// plans should be (see `plansPage`).
+    /// `subheadline` rather than `body`: five rows at `body` took ten lines of
+    /// a 17e's first screen, which is where the plans should be (see
+    /// `plansPage`).
     private var features: some View {
-        VStack(alignment: .leading, spacing: ForgeTheme.Space.tight) {
-            ForEach(PaywallRow.rows(), id: \.self) { row in
-                HStack(alignment: .firstTextBaseline, spacing: ForgeTheme.Space.inner) {
+        let rows = PaywallRow.rows()
+        return VStack(alignment: .leading, spacing: 0) {
+            ForEach(Array(rows.enumerated()), id: \.element) { index, row in
+                HStack(spacing: ForgeTheme.Space.inner) {
                     // Capped, so at the accessibility sizes the glyph stays in
-                    // its column instead of growing into the words beside it.
+                    // its tile instead of growing into the words beside it.
                     Image(systemName: row.symbol)
-                        .font(.subheadline.weight(.medium))
+                        .font(.footnote.weight(.semibold))
                         .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
                         .foregroundStyle(ForgeTheme.cream)
-                        .frame(width: 26)
+                        .frame(width: 28, height: 28)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                .fill(ForgeTheme.cream.opacity(0.12))
+                        )
                         .accessibilityHidden(true)
                     Text(row.line)
                         .font(.subheadline)
@@ -231,8 +246,21 @@ struct PaywallView: View {
                         .fixedSize(horizontal: false, vertical: true)
                     Spacer(minLength: 0)
                 }
+                .padding(.vertical, 5)
+                if index < rows.count - 1 {
+                    Rectangle()
+                        .fill(.white.opacity(0.08))
+                        .frame(height: 0.5)
+                        .padding(.leading, 28 + ForgeTheme.Space.inner)
+                }
             }
         }
+        .padding(.horizontal, ForgeTheme.Space.inner)
+        .padding(.vertical, 5)
+        .background(
+            RoundedRectangle(cornerRadius: ForgeTheme.Radius.control, style: .continuous)
+                .fill(.white.opacity(0.05))
+        )
         .padding(.bottom, ForgeTheme.Space.row)
     }
 
@@ -278,7 +306,7 @@ struct PaywallView: View {
                 RoundedRectangle(cornerRadius: ForgeTheme.Radius.control, style: .continuous)
                     .fill(.white.opacity(0.04))
             )
-            .padding(.bottom, ForgeTheme.Space.inner)
+            .padding(.top, ForgeTheme.Space.inner)
         }
     }
 
@@ -322,56 +350,71 @@ struct PaywallView: View {
         }
     }
 
-    /// One plan. Chosen is unmistakable: a filled mark, a cream border and a
-    /// lighter card, all three at once.
-    private func planRow(_ plan: PremiumProduct, product: Product) -> some View {
-        let isChosen = selected == plan
+    /// What a plan says about its price, read off StoreKit.
+    private struct Pricing {
+        /// "$49.99 a year".
+        let price: String
+        /// "$4.17" — Annual only: what it comes to per month.
+        let perMonth: String?
+        /// "Billed annually at $49.99" — said under `perMonth`.
+        let billed: String?
+        /// "7 days free", while the free week is on offer.
+        let trial: String?
+        /// "Save 67%" — Annual only, and only when Monthly is there to compare.
+        let saving: String?
+    }
+
+    private func pricing(_ plan: PremiumProduct, product: Product) -> Pricing {
         let period = product.subscription?.subscriptionPeriod
         let price = period.map {
             PremiumCopy.price(product.displayPrice, value: $0.value, unit: $0.unit)
         } ?? product.displayPrice
-        // The weekly figure is the annual plan's: a month is already small.
-        let perWeek = plan == .annual ? period.flatMap {
-            PremiumCopy.perWeek(price: product.price, value: $0.value, unit: $0.unit, format: product.priceFormatStyle)
-        } : nil
-        let badge = trialDays(for: plan).map(PremiumCopy.trialBadge(days:))
+        let trial = trialDays(for: plan).map(PremiumCopy.trialBadge(days:))
+        guard plan == .annual, let period else {
+            return Pricing(price: price, perMonth: nil, billed: nil, trial: trial, saving: nil)
+        }
+        let perMonth = PremiumCopy.monthlyEquivalent(
+            price: product.price, value: period.value, unit: period.unit, format: product.priceFormatStyle
+        )
+        var saving: String?
+        if let monthly = store.product(for: .monthly), let monthlyPeriod = monthly.subscription?.subscriptionPeriod {
+            saving = PremiumCopy.savingPercent(
+                annual: product.price, annualValue: period.value, annualUnit: period.unit,
+                monthly: monthly.price, monthlyValue: monthlyPeriod.value, monthlyUnit: monthlyPeriod.unit
+            ).map(PremiumCopy.savingBadge(percent:))
+        }
+        return Pricing(
+            price: price,
+            perMonth: perMonth,
+            billed: perMonth == nil ? nil : PremiumCopy.billed(product.displayPrice, value: period.value, unit: period.unit),
+            trial: trial,
+            saving: saving
+        )
+    }
+
+    /// One plan. Chosen is unmistakable: a filled mark, a cream border and a
+    /// lighter card, all three at once.
+    ///
+    /// **Annual leads** and is the larger card: the per-month figure large,
+    /// "billed annually at" its real price under it, and its free week and
+    /// saving as badges. **Monthly is one line**, there for whoever wants it
+    /// and never louder than the plan most people should take.
+    private func planRow(_ plan: PremiumProduct, product: Product) -> some View {
+        let isChosen = selected == plan
+        let info = pricing(plan, product: product)
 
         return Button {
             guard !isChosen else { return }
             ForgeHaptics.shared.detent()
             withAnimation(.forgeSelection) { selected = plan }
         } label: {
-            HStack(alignment: .top, spacing: ForgeTheme.Space.inner) {
-                Image(systemName: isChosen ? "checkmark.circle.fill" : "circle")
-                    .font(.title3)
-                    .foregroundStyle(isChosen ? ForgeTheme.cream : .white.opacity(0.35))
-                    .padding(.top, 1)
-                    .accessibilityHidden(true)
-
-                VStack(alignment: .leading, spacing: 3) {
-                    ViewThatFits(in: .horizontal) {
-                        HStack(spacing: ForgeTheme.Space.tight) {
-                            planName(plan)
-                            if let badge { trialBadge(badge) }
-                        }
-                        VStack(alignment: .leading, spacing: 4) {
-                            planName(plan)
-                            if let badge { trialBadge(badge) }
-                        }
-                    }
-                    Text(price)
-                        .font(.subheadline)
-                        .foregroundStyle(.white.opacity(0.8))
-                        .fixedSize(horizontal: false, vertical: true)
-                    if let perWeek {
-                        Text(perWeek)
-                            .font(.footnote)
-                            .foregroundStyle(.white.opacity(0.55))
-                    }
+            Group {
+                if plan == .annual {
+                    leadPlan(plan, info: info, isChosen: isChosen)
+                } else {
+                    quietPlan(plan, info: info, isChosen: isChosen)
                 }
-                Spacer(minLength: 0)
             }
-            .padding(ForgeTheme.Space.row)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
                 RoundedRectangle(cornerRadius: ForgeTheme.Radius.control, style: .continuous)
@@ -388,14 +431,87 @@ struct PaywallView: View {
         }
         .buttonStyle(.plain)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(Text(Self.spokenPlan(name: plan.planName, badge: badge, price: price, perWeek: perWeek)))
+        .accessibilityLabel(Text(Self.spokenPlan(
+            name: plan.planName,
+            perMonth: info.perMonth,
+            price: info.billed ?? info.price,
+            badges: [info.trial, info.saving].compactMap { $0 }
+        )))
         .accessibilityAddTraits(isChosen ? [.isButton, .isSelected] : .isButton)
     }
 
-    /// One plan as VoiceOver reads it: "Annual, 7 days free, $49.99 a year,
-    /// $0.96 a week". The price is StoreKit's; nothing here knows it.
-    nonisolated static func spokenPlan(name: String, badge: String?, price: String, perWeek: String?) -> String {
-        [name, badge, price, perWeek].compactMap { $0 }.joined(separator: ", ")
+    /// Annual: the name and its badges, the per-month figure, the real price.
+    private func leadPlan(_ plan: PremiumProduct, info: Pricing, isChosen: Bool) -> some View {
+        VStack(alignment: .leading, spacing: ForgeTheme.Space.tight) {
+            HStack(alignment: .center, spacing: ForgeTheme.Space.tight) {
+                planName(plan)
+                if let saving = info.saving { savingBadge(saving) }
+                Spacer(minLength: 0)
+                selectionMark(isChosen)
+            }
+            if let perMonth = info.perMonth {
+                HStack(alignment: .firstTextBaseline, spacing: ForgeTheme.Space.hair) {
+                    Text(perMonth)
+                        .font(.system(.title, design: .default).weight(.bold))
+                        .monospacedDigit()
+                        .foregroundStyle(.white)
+                    Text("/ month")
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(.white.opacity(0.7))
+                }
+                .fixedSize(horizontal: false, vertical: true)
+            } else {
+                Text(info.price)
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(.white)
+            }
+            HStack(alignment: .firstTextBaseline, spacing: ForgeTheme.Space.tight) {
+                if let billed = info.billed {
+                    Text(billed)
+                        .font(.footnote)
+                        .foregroundStyle(.white.opacity(0.7))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                if let trial = info.trial {
+                    if info.billed != nil { Spacer(minLength: 0) }
+                    trialBadge(trial)
+                }
+            }
+        }
+        .padding(ForgeTheme.Space.row)
+    }
+
+    /// Monthly: one line — the name, the price, the mark.
+    private func quietPlan(_ plan: PremiumProduct, info: Pricing, isChosen: Bool) -> some View {
+        HStack(alignment: .center, spacing: ForgeTheme.Space.tight) {
+            Text(plan.planName)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.white)
+            if let trial = info.trial { trialBadge(trial) }
+            Spacer(minLength: 0)
+            Text(info.price)
+                .font(.subheadline)
+                .foregroundStyle(.white.opacity(0.8))
+                .multilineTextAlignment(.trailing)
+                .fixedSize(horizontal: false, vertical: true)
+            selectionMark(isChosen)
+        }
+        .padding(.horizontal, ForgeTheme.Space.row)
+        .padding(.vertical, ForgeTheme.Space.inner)
+    }
+
+    private func selectionMark(_ isChosen: Bool) -> some View {
+        Image(systemName: isChosen ? "checkmark.circle.fill" : "circle")
+            .font(.title3)
+            .foregroundStyle(isChosen ? ForgeTheme.cream : .white.opacity(0.35))
+            .accessibilityHidden(true)
+    }
+
+    /// One plan as VoiceOver reads it: "Annual, $4.17 a month, Billed annually
+    /// at $49.99, 7 days free, Save 67%". Every figure is StoreKit's; nothing
+    /// here knows one.
+    nonisolated static func spokenPlan(name: String, perMonth: String?, price: String, badges: [String]) -> String {
+        ([name, perMonth.map { "\($0) a month" }, price] + badges).compactMap { $0 }.joined(separator: ", ")
     }
 
     private func planName(_ plan: PremiumProduct) -> some View {
@@ -411,6 +527,20 @@ struct PaywallView: View {
             .padding(.horizontal, 8)
             .padding(.vertical, 3)
             .background(Capsule().fill(ForgeTheme.cream.opacity(0.14)))
+            .fixedSize()
+    }
+
+    /// The saving, solid: the one filled mark on the screen, on the plan it
+    /// belongs to.
+    private func savingBadge(_ text: String) -> some View {
+        Text(text)
+            .font(.caption.weight(.bold))
+            .monospacedDigit()
+            .foregroundStyle(.black)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 3)
+            .background(Capsule().fill(ForgeTheme.cream))
+            .fixedSize()
     }
 
     private var notes: some View {
@@ -569,7 +699,7 @@ struct PaywallView: View {
     /// so at the largest text sizes everything above scrolls and this stays
     /// where a thumb expects it.
     private func pinned<Below: View>(
-        title: String, isEnabled: Bool, action: @escaping () -> Void,
+        title: String, line: String? = nil, isEnabled: Bool, action: @escaping () -> Void,
         @ViewBuilder below: () -> Below
     ) -> some View {
         VStack(spacing: ForgeTheme.Space.tight) {
@@ -581,6 +711,14 @@ struct PaywallView: View {
 
             ForgePrimaryButton(title: title, isBusy: store.pending != nil || store.isRestoring, action: action)
                 .disabled(!isEnabled)
+
+            if let line {
+                Text(line)
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.6))
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
 
             below()
         }
@@ -621,6 +759,17 @@ struct PaywallView: View {
     }
 
     private var startsFreeWeek: Bool { trialDays(for: selected) != nil }
+
+    /// "7 days free, then $49.99 a year." under the button — nil until
+    /// StoreKit has the plan.
+    private func buttonLine(for plan: PremiumProduct) -> String? {
+        guard let product = store.product(for: plan), let period = product.subscription?.subscriptionPeriod else {
+            return nil
+        }
+        return PremiumCopy.buttonLine(
+            trialDays: trialDays(for: plan), price: product.displayPrice, value: period.value, unit: period.unit
+        )
+    }
 
     private func renewalTerms(for plan: PremiumProduct) -> String {
         guard let product = store.product(for: plan), let period = product.subscription?.subscriptionPeriod else {

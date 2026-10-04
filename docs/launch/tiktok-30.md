@@ -259,6 +259,9 @@ if a number isn't impressive, say it anyway or don't show it.
 - **Hashtags:** #buildinpublic #indiedev #iosapp
 
 ### 27. The Proof Card
+> **Not in 1.1.** Save the proof was taken out before release (FORGE_CONTEXT
+> §17.8). Hold this one until a door comes back.
+
 - **Hook:** Sword pull → blade unlock.
 - **Shots:** *Save the proof* → portrait/square menu → the saved image in Photos.
 - **On-screen text:** "It only offers this twice." / "A blade. A chapter."

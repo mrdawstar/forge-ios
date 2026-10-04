@@ -773,11 +773,11 @@ struct FirstRunArcTests {
 @Suite("The tabs")
 struct TabOrderTests {
 
-    @Test("Forge, Arcs, Becoming, Blade")
+    @Test("Forge, Blade, Becoming, Arcs")
     func order() {
-        #expect(AppTab.allCases == [.forge, .arcs, .becoming, .blade])
-        #expect(AppTab.allCases.map(\.label) == ["Forge", "Arcs", "Becoming", "Blade"])
-        #expect(AppTab.settingsHosts == [.becoming, .blade])
+        #expect(AppTab.allCases == [.forge, .blade, .becoming, .arcs])
+        #expect(AppTab.allCases.map(\.label) == ["Forge", "Blade", "Becoming", "Arcs"])
+        #expect(AppTab.settingsHosts == [.arcs])
     }
 
     private func source(_ path: String) throws -> String {
@@ -788,12 +788,14 @@ struct TabOrderTests {
         return try String(contentsOf: root.appendingPathComponent(path), encoding: .utf8)
     }
 
-    /// Settings stopped being a tab; it has to still be one tap from two of
-    /// them, and a notification landing on Forge has to put it away.
-    @Test("Settings is reachable from Becoming and Blade, and closes on a landing")
+    /// Settings stopped being a tab; it has one home, the Arcs bar, and a
+    /// notification landing on Forge has to put it away.
+    @Test("Settings is reachable from Arcs only, and closes on a landing")
     func settingsReachable() throws {
-        #expect(try source("Views/Becoming/BecomingTabView.swift").contains("SettingsButton(action: onSettings)"))
-        #expect(try source("Views/Blade/BladeTabView.swift").contains("SettingsButton(action: onSettings)"))
+        #expect(try source("Views/Arcs/ArcsTabView.swift").contains("SettingsButton(action: onSettings)"))
+        #expect(!(try source("Views/Becoming/BecomingTabView.swift").contains("SettingsButton(")))
+        #expect(!(try source("Views/Blade/BladeTabView.swift").contains("SettingsButton(")))
+        #expect(!(try source("Views/Forge/ForgeTabView.swift").contains("SettingsButton(")))
         let root = try source("ContentView.swift")
         #expect(root.contains(".sheet(isPresented: $showSettings) { settingsTab }"))
         #expect(root.contains("onSettings: { showSettings = true }"))

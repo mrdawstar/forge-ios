@@ -44,6 +44,13 @@ import TipKit
 /// Somebody who searched for a thing that is not here has already named it, so
 /// the list offers "Create “name”" inline, which opens the composer with the
 /// name in it, on this day, one tap from saved — and comes back here.
+///
+/// # Making one without searching first
+///
+/// "Create your own activity" sits right under Suggested for you whenever the
+/// search is empty, so nobody has to find the no-results trick to learn that
+/// they can. It is one quiet row, smaller than the activities around it, and it
+/// opens the same composer on the same day, with the name left blank.
 struct QuickAddSheet: View {
     @Bindable var vm: ForgeViewModel
     /// For the running Arc's gaps under "Suggested for you". Optional, so a
@@ -188,13 +195,17 @@ struct QuickAddView: View {
                             }
                         }
                     }
+                    // After the fast picks, before the rest: found without a
+                    // search, and quieter than the rows it sits between.
+                    if section == .suggested, trimmedQuery.isEmpty {
+                        createOwn
+                    }
                 }
 
                 if !trimmedQuery.isEmpty, catalog.isEmpty(matching: query, category: category) {
                     Section {
                         Button {
-                            ForgeHaptics.shared.tap()
-                            creatingNamed = trimmedQuery
+                            create(named: trimmedQuery)
                         } label: {
                             Label("Create \u{201C}\(trimmedQuery)\u{201D}", systemImage: "plus.circle.fill")
                                 .font(.body.weight(.medium))
@@ -213,6 +224,23 @@ struct QuickAddView: View {
                     }
                 }
             }
+        }
+    }
+
+    /// The way in to the composer that does not need a search first.
+    private var createOwn: some View {
+        Section {
+            Button {
+                create(named: "")
+            } label: {
+                Label("Create your own activity", systemImage: "plus")
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(ForgeTheme.accent)
+                    .frame(maxWidth: .infinity, minHeight: 32, alignment: .leading)
+                    .contentShape(.rect)
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint(Text("Opens a new activity for \(dayName)"))
         }
     }
 
@@ -354,6 +382,13 @@ struct QuickAddView: View {
     }
 
     // MARK: - Making one
+
+    /// Both ways in — the row and a search that found nothing — open the one
+    /// composer below, on this day.
+    private func create(named name: String) {
+        ForgeHaptics.shared.tap()
+        creatingNamed = name
+    }
 
     private func composer(_ name: String) -> some View {
         ActivityComposer(

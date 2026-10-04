@@ -716,6 +716,70 @@ enum PremiumCopy {
         return "\((price / months).formatted(format)) a month"
     }
 
+    /// How many months a period is, for the plans that come in months. Nil for
+    /// weeks and days, which a monthly comparison has nothing honest to say
+    /// about.
+    static func months(value: Int, unit: Product.SubscriptionPeriod.Unit) -> Int? {
+        switch unit {
+        case .year: 12 * value
+        case .month: value
+        default: nil
+        }
+    }
+
+    /// "$4.17" — what a plan comes to per month, the figure the annual card
+    /// leads with. Computed from StoreKit's own price in its own format, and
+    /// rounded **up** to the currency's smallest unit, so twelve of it is never
+    /// less than the price it stands for.
+    static func monthlyEquivalent(
+        price: Decimal, value: Int, unit: Product.SubscriptionPeriod.Unit,
+        format: Decimal.FormatStyle.Currency
+    ) -> String? {
+        guard let months = months(value: value, unit: unit), months > 0 else { return nil }
+        return (price / Decimal(months)).formatted(format.rounded(rule: .up))
+    }
+
+    /// What the annual plan saves against paying monthly for the same months,
+    /// as a whole percentage — rounded **down**, so it never claims more than
+    /// it saves. Both prices are StoreKit's. Nil when there is no saving, or
+    /// when either period is not counted in months.
+    static func savingPercent(
+        annual: Decimal, annualValue: Int, annualUnit: Product.SubscriptionPeriod.Unit,
+        monthly: Decimal, monthlyValue: Int, monthlyUnit: Product.SubscriptionPeriod.Unit
+    ) -> Int? {
+        guard let annualMonths = months(value: annualValue, unit: annualUnit),
+              let monthlyMonths = months(value: monthlyValue, unit: monthlyUnit),
+              annualMonths > 0, monthlyMonths > 0, monthly > 0
+        else { return nil }
+        let paidMonthly = monthly / Decimal(monthlyMonths) * Decimal(annualMonths)
+        var share = (1 - annual / paidMonthly) * 100
+        var floored = Decimal()
+        NSDecimalRound(&floored, &share, 0, .down)
+        let percent = NSDecimalNumber(decimal: floored).intValue
+        return percent >= 1 ? percent : nil
+    }
+
+    /// "Save 67%" — the annual card's badge, from `savingPercent`.
+    static func savingBadge(percent: Int) -> String { "Save \(percent)%" }
+
+    /// "Billed annually at $49.99" — the real price, under the monthly figure.
+    static func billed(_ displayPrice: String, value: Int, unit: Product.SubscriptionPeriod.Unit) -> String {
+        switch (value, unit) {
+        case (1, .year): "Billed annually at \(displayPrice)"
+        case (1, .month): "Billed monthly at \(displayPrice)"
+        default: "Billed \(displayPrice) \(per(value: value, unit: unit))"
+        }
+    }
+
+    /// The line under the button: what happens when it is pressed, in one
+    /// sentence. "7 days free, then $49.99 a year." or "$12.99 a month. Cancel
+    /// anytime."
+    static func buttonLine(trialDays: Int?, price: String, value: Int, unit: Product.SubscriptionPeriod.Unit) -> String {
+        let renews = self.price(price, value: value, unit: unit)
+        guard let trialDays else { return "\(renews). Cancel anytime." }
+        return "\(trialBadge(days: trialDays)), then \(renews)."
+    }
+
     /// The three steps under the headline.
     struct Step: Equatable, Sendable {
         let when: String

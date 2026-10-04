@@ -23,11 +23,11 @@ import TipKit
 ///
 /// Next move (`DayPlanner`'s first, opened into Plan's review — nothing writes
 /// unread, §5 #9) → **Build your weakest**, three one-tap adds for the weakest
-/// chosen dimension → the running Arc → **Share your stats**, the fourth door
-/// into the Proof Card → the weeks somebody wrote about → the identities, only
-/// for somebody who has them → the focus row. The order is what somebody does
-/// after reading the numbers: change something, add something, look at the
-/// stretch they are in, show it, read back, and only last revisit the choice.
+/// chosen dimension → the running Arc → the weeks somebody wrote about → the
+/// identities, only for somebody who has them → the focus row. The order is
+/// what somebody does after reading the numbers: change something, add
+/// something, look at the stretch they are in, read back, and only last
+/// revisit the choice. (Share your stats was taken out for 1.1, §17.)
 ///
 /// # It does not move under a finger (§2j.4)
 ///
@@ -46,16 +46,14 @@ struct BecomingTabView: View {
     /// Every week somebody has written about. Read only — nothing on this tab
     /// answers a review, it only keeps them where they can be found.
     var reviews: ReviewStore
-    /// The blade carried, for the line under the hexagon and the stats card.
+    /// The blade carried, for the line under the hexagon.
     var swords: SwordStore
-    /// The running Arc, for its card and the stats card's Arc day.
+    /// The running Arc, for its card.
     var arcs: ArcStore
     /// What Plan is given when Next move opens it — the same brief the week's
     /// own Plan reads.
     var brief: AIBrief
     var ai: ForgeAI
-    /// The gear: Settings is a sheet since Arcs took its tab.
-    var onSettings: () -> Void = {}
     /// The Arc's card goes to the Arcs tab.
     var onArcs: () -> Void = {}
     /// Ask Forge, from the bar. Nil in a build with no model to reach, and
@@ -106,7 +104,6 @@ struct BecomingTabView: View {
                     nextMove
                     buildWeakest
                     arcCard
-                    shareStats(six)
                     weeks
                     who
                     focusRow
@@ -122,9 +119,6 @@ struct BecomingTabView: View {
                     ToolbarItem(placement: .topBarTrailing) {
                         Button("Ask Forge", systemImage: "text.bubble", action: onAskForge)
                     }
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    SettingsButton(action: onSettings)
                 }
             }
             .sheet(isPresented: $isChoosing) { FocusEditor(forge: forge) }
@@ -397,39 +391,6 @@ struct BecomingTabView: View {
         let format = DateFormatter()
         format.setLocalizedDateFormatFromTemplate("EEEE d MMMM")
         return "Starts \(format.string(from: day.startOfDay()))"
-    }
-
-    // MARK: - 5. Share your stats
-
-    /// The fourth door into the Proof Card (`PracticeArtifact`): the six, OVR,
-    /// the blade and — while an Arc runs — its day, at 9:16 and 1:1. One quiet
-    /// row; the share sheet opens only once a format is picked.
-    private func shareStats(_ six: BlendedShape) -> some View {
-        ProofCardButton(
-            occasion: .stats(statsProof(six)),
-            daysKept: forge.daysKept,
-            title: "Share your stats"
-        )
-        .forgeInteractiveCard(radius: ForgeTheme.Radius.card)
-    }
-
-    /// The numbers on screen, taken when the button is drawn — the card is the
-    /// tab, as it was when somebody pressed it.
-    private func statsProof(_ six: BlendedShape) -> StatsProof {
-        let running = arcs.current.flatMap { current -> String? in
-            let reading = arcs.reading(current)
-            return reading.isRunning ? "\(current.program.name) \u{00B7} \(reading.counter)" : nil
-        }
-        return StatsProof(
-            title: Self.bladeLine(blade: swords.equipped.name, daysKept: forge.daysKept),
-            arcLine: running,
-            scores: six.dimensions.map { $0.hasScore ? $0.score : nil },
-            overall: six.overall,
-            state: six.state.label,
-            blade: swords.equipped.asset,
-            winters: arcs.winterMarks.count,
-            temperMarks: Ladder.temperMarks(daysKept: forge.daysKept)
-        )
     }
 
     // MARK: - 8. What you are building
