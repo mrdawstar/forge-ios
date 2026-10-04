@@ -23,21 +23,21 @@ enum AppTab: String, CaseIterable, Hashable {
     /// shelf is a section of that rather than a peer of it. See
     /// `BecomingTabView`.
     ///
-    /// # Forge · Arcs · Becoming · Blade (1.1)
+    /// # Forge · Blade · Becoming · Arcs (1.1)
     ///
     /// **Arcs took Settings' place in the bar** (DIRECTION_1_1 §5): a program
     /// somebody is ninety days into is worth a tab, and the screen where rest
-    /// days and the wake time are set is visited a few times a year. Arcs sit
-    /// next to the day because they are made of days; Becoming and Blade keep
-    /// their order after it. Settings is a gear in the Becoming and Blade
-    /// navigation bars (`settingsHosts`), and every screen in it is where it
+    /// days and the wake time are set is visited a few times a year. Blade sits
+    /// directly beside the day it is made of, Becoming after it, and Arcs last,
+    /// where Settings used to be. Settings has one home: a gear in the Arcs
+    /// navigation bar (`settingsHosts`), and every screen in it is where it
     /// was. Deep links, notifications and widgets still land on Forge.
-    case forge, arcs, becoming, blade
+    case forge, blade, becoming, arcs
 
     var label: String { rawValue.capitalized }
 
     /// The tabs whose navigation bar carries the gear that opens Settings.
-    static let settingsHosts: [AppTab] = [.becoming, .blade]
+    static let settingsHosts: [AppTab] = [.arcs]
 
     var iconKey: String {
         switch self {

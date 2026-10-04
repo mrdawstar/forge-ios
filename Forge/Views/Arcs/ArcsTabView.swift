@@ -20,6 +20,8 @@ struct ArcsTabView: View {
     var swords: SwordStore
     /// Ask Forge about the running Arc. Nil in a build with no model to reach.
     var onAskForge: (() -> Void)? = nil
+    /// The gear: Settings is a sheet, and this bar is its one home.
+    var onSettings: () -> Void = {}
 
     @Environment(ForgeStore.self) private var store: ForgeStore?
     @State private var paywallDoor: ForgeTelemetry.PaywallDoor?
@@ -74,6 +76,11 @@ struct ArcsTabView: View {
             }
             .scrollIndicators(.hidden)
             .navigationTitle("Arcs")
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    SettingsButton(action: onSettings)
+                }
+            }
             .navigationDestination(for: ArcID.self) { id in
                 ArcDetailView(
                     program: ArcCatalog.program(id),
@@ -211,7 +218,6 @@ private struct ArcRunningCard: View {
                     .buttonStyle(.glass)
                     .buttonBorderShape(.roundedRectangle(radius: ForgeTheme.Radius.control))
                 }
-                share
             }
 
             Button("Leave \(program.name)", action: onLeave)
@@ -378,24 +384,6 @@ private struct ArcRunningCard: View {
             }
         }
     }
-
-    // MARK: The card to share
-
-    private var share: some View {
-        let six = forge.blended
-        return ProofCardButton(
-            occasion: .arc(
-                ArcProof(
-                    title: "\(program.name) \u{00B7} \(reading.counter)",
-                    scores: six.dimensions.map { $0.hasScore ? $0.score : nil },
-                    overall: six.overall,
-                    blade: swords.equipped.asset,
-                    winters: arcs.winterMarks.count
-                )
-            ),
-            daysKept: forge.daysKept
-        )
-    }
 }
 
 // MARK: - The list
@@ -472,9 +460,9 @@ private struct FinishedArcRow: View {
 
 // MARK: - Settings, from the navigation bar
 
-/// The gear that opens Settings, in the navigation bars of the Becoming and
-/// Blade tabs. Settings stopped being a tab when Arcs took its place; every
-/// screen in it is where it was, one tap from here.
+/// The gear that opens Settings, in the Arcs navigation bar — its one home.
+/// Settings stopped being a tab when Arcs took its place; every screen in it
+/// is where it was, one tap from here.
 struct SettingsButton: View {
     let action: () -> Void
 

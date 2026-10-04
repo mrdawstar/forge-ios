@@ -199,7 +199,7 @@ HOW TO REVIEW (Sandbox account)
 1. Launch. The first run: seven one-tap questions, what to build, starting stats with Now / 7 days / 30 days / Full (a labelled projection), the research, a plan with an Arc, one rehearsal pull of the blade.
 2. The Forge Pro paywall follows. Tap "Start my free week" and confirm in Sandbox: the 7-day trial costs nothing.
 3. Do the one activity it names, tap "I kept my promise", then drag the blade up on the Forge tab to earn the first day.
-4. Tabs: Forge (the day), Arcs, Becoming (six stats, Ask Forge), Blade (the record). Settings is the gear on Becoming and Blade.
+4. Tabs: Forge (the day), Blade (the record), Becoming (six stats, Ask Forge), Arcs. Settings is the gear on Arcs.
 
 FORGE PRO: HARD PAYWALL, FREE WEEK
 A new install meets the paywall at the end of the first run. Keeping new days needs Forge Pro: Annual $49.99/year with a 7-day free trial (preselected), or Monthly $12.99/month, no trial. The screen shows the trial as a timeline (today unlocked, reminder day 5, charge day 7 unless cancelled), "Nothing is charged today", an optional local reminder two days before the trial ends, Restore Purchases, Terms of Use (Apple's standard EULA) and Privacy Policy. Prices come from StoreKit.
@@ -317,7 +317,7 @@ quoted from Apple's
 | Parental Controls | No | None in the app. |
 | Age Assurance | No | Forge does not check age. |
 | Unrestricted Web Access | No | No web view; Support, Privacy and Terms open in Safari. |
-| User-Generated Content | No | Apple: "the broad distribution of content created by users". Nothing a person writes reaches anybody else; a Proof Card goes only where they send it. |
+| User-Generated Content | No | Apple: "the broad distribution of content created by users". Nothing a person writes reaches anybody else, and 1.1 has no share action (the Proof Card was taken out before release, FORGE_CONTEXT §17.8). |
 | Social Media | No | |
 | Messaging and Chat | No | Apple: "users can directly communicate with one another". Ask Forge is a person and a model, not people with each other. |
 | Advertising | No | |
@@ -332,7 +332,7 @@ quoted from Apple's
 | Cartoon or Fantasy Violence | None | The pull draws a sword from a stone; nothing is harmed. |
 | Realistic Violence | None | |
 | Prolonged Graphic or Sadistic Realistic Violence | None | |
-| Guns or Other Weapons | **Frequent** | Apple: "depictions of guns, weapons, or objects that may cause bodily harm. May include: guns, swords, or knives." The sword is on the Forge tab every day, on the Blade tab, the paywall and every share card. |
+| Guns or Other Weapons | **Frequent** | Apple: "depictions of guns, weapons, or objects that may cause bodily harm. May include: guns, swords, or knives." The sword is on the Forge tab every day, on the Blade tab and on the paywall. |
 | Gambling | No | |
 | Simulated Gambling | None | |
 | Contests | None | Apple: users who "compete with one another". Arcs and trials are a person against their own plan. |

@@ -214,20 +214,20 @@ struct ContentView: View {
             Tab(AppTab.forge.label, systemImage: AppTab.forge.symbol, value: .forge) {
                 forgeTab
             }
-            Tab(AppTab.arcs.label, systemImage: AppTab.arcs.symbol, value: .arcs) {
-                arcsTab
+            Tab(AppTab.blade.label, systemImage: AppTab.blade.symbol, value: .blade) {
+                bladeTab
             }
             // The one tab drawn from the catalogue rather than from SF Symbols.
             // See `AppTab.image`.
             Tab(AppTab.becoming.label, image: AppTab.becoming.image ?? AppTab.becoming.symbol, value: .becoming) {
                 becomingTab
             }
-            Tab(AppTab.blade.label, systemImage: AppTab.blade.symbol, value: .blade) {
-                bladeTab
+            Tab(AppTab.arcs.label, systemImage: AppTab.arcs.symbol, value: .arcs) {
+                arcsTab
             }
         }
         // Settings is no longer a tab; it is one sheet, opened from the gear in
-        // the Becoming and Blade bars. Inside `ForgeProModifier` below like the
+        // the Arcs bar, its one home. Inside `ForgeProModifier` below like the
         // other sheets, so the store reaches it.
         .sheet(isPresented: $showSettings) { settingsTab }
         // Ask Forge, from Becoming's bar or the running Arc's card. Inside
@@ -1112,7 +1112,8 @@ extension ContentView {
     fileprivate var arcsTab: some View {
         ArcsTabView(
             arcs: arcs, forge: forgeVM, swords: swords,
-            onAskForge: remote.isConnected ? { openAskForge(.arc) } : nil
+            onAskForge: remote.isConnected ? { openAskForge(.arc) } : nil,
+            onSettings: { showSettings = true }
         )
     }
 
@@ -1120,8 +1121,7 @@ extension ContentView {
         BladeTabView(
             vm: bladeVM, swords: swords,
             identities: identities, chapters: chapters,
-            arcs: arcs,
-            onSettings: { showSettings = true }
+            arcs: arcs
         )
     }
 
@@ -1129,7 +1129,6 @@ extension ContentView {
         BecomingTabView(
             forge: forgeVM, identities: identities, reviews: reviews,
             swords: swords, arcs: arcs, brief: aiBrief, ai: ai,
-            onSettings: { showSettings = true },
             onArcs: { selectedTab = .arcs },
             onAskForge: remote.isConnected ? { openAskForge(.general) } : nil
         )
