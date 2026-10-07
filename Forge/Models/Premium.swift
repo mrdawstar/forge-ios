@@ -638,9 +638,14 @@ enum PremiumCopy {
 
     // MARK: The paywall
 
+    /// The paywall's headline. Never a price and never the free week: since
+    /// App Review's 3.1.2(c) rejection of 1.1 (5) nothing about a trial or a
+    /// price is drawn larger than the billed amount, and this is the largest
+    /// type on the screen. The free week is said by the badge, the timeline,
+    /// the button and the line under it. `trialDays` still picks the words:
+    /// somebody past their trial is coming back, not starting.
     static func headline(trialDays: Int?) -> String {
-        guard let trialDays else { return "Keep the practice going." }
-        return "\(ForgeCount.spelled(trialDays)) days free. Then decide."
+        trialDays == nil ? "Keep the practice going." : "Build yourself, one day at a time."
     }
 
     /// "7 days free" — the badge on the annual plan. Digits, like a price.
@@ -762,22 +767,22 @@ enum PremiumCopy {
     /// "Save 67%" — the annual card's badge, from `savingPercent`.
     static func savingBadge(percent: Int) -> String { "Save \(percent)%" }
 
-    /// "Billed annually at $49.99" — the real price, under the monthly figure.
-    static func billed(_ displayPrice: String, value: Int, unit: Product.SubscriptionPeriod.Unit) -> String {
-        switch (value, unit) {
-        case (1, .year): "Billed annually at \(displayPrice)"
-        case (1, .month): "Billed monthly at \(displayPrice)"
-        default: "Billed \(displayPrice) \(per(value: value, unit: unit))"
-        }
+    /// "/ year", "/ month", "/ 3 months" — beside a billed amount.
+    static func slashPer(value: Int, unit: Product.SubscriptionPeriod.Unit) -> String {
+        let noun = periodNoun(unit)
+        return value == 1 ? "/ \(noun)" : "/ \(value) \(noun)s"
     }
 
-    /// The line under the button: what happens when it is pressed, in one
-    /// sentence. "7 days free, then $49.99 a year." or "$12.99 a month. Cancel
-    /// anytime."
+    /// "That's $4.17 a month." — small, under Annual's billed amount.
+    static func thatsPerMonth(_ amount: String) -> String { "That's \(amount) a month." }
+
+    /// The line under the button: what pressing it charges, billed amount
+    /// first. "$49.99 a year after the 7-day free trial. Cancel anytime." or
+    /// "$12.99 a month. Cancel anytime."
     static func buttonLine(trialDays: Int?, price: String, value: Int, unit: Product.SubscriptionPeriod.Unit) -> String {
         let renews = self.price(price, value: value, unit: unit)
         guard let trialDays else { return "\(renews). Cancel anytime." }
-        return "\(trialBadge(days: trialDays)), then \(renews)."
+        return "\(renews) after the \(trialDays)-day free trial. Cancel anytime."
     }
 
     /// The three steps under the headline.
@@ -827,16 +832,16 @@ enum PremiumCopy {
 
     static let offerTitle = "One lower price, offered once."
 
-    /// "$29.99 a year, $2.50 a month, still with seven days free."
-    static func offerLine(price: String, perMonth: String?, trialDays: Int?) -> String {
-        var line = "\(price) a year"
-        if let perMonth { line += ", \(perMonth)" }
-        if let trialDays {
-            line += ", still with \(ForgeCount.spelled(trialDays).lowercased()) days free."
-        } else {
-            line += "."
+    /// "That's $2.50 a month, still with seven days free." — small, under the
+    /// offer's billed amount, which is drawn large on its own.
+    static func offerDetail(perMonth: String?, trialDays: Int?) -> String? {
+        let free = trialDays.map { "still with \(ForgeCount.spelled($0).lowercased()) days free" }
+        switch (perMonth, free) {
+        case let (perMonth?, free?): return "That's \(perMonth), \(free)."
+        case let (perMonth?, nil): return "That's \(perMonth)."
+        case let (nil, free?): return free.prefix(1).uppercased() + free.dropFirst() + "."
+        case (nil, nil): return nil
         }
-        return line
     }
 
     static func offerButton(price: String, startsFreeWeek: Bool) -> String {

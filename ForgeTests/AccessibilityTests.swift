@@ -258,10 +258,11 @@ struct AccessibilityTests {
             #expect(node(label, in: nodes)?.isButton == true, Comment(rawValue: label))
         }
         #expect(node("Not now", in: nodes)?.hint == "Closes Forge Pro. Nothing changes.")
+        // The billed amount is read first (App Review 3.1.2(c)).
         #expect(PaywallView.spokenPlan(
-            name: "Annual", perMonth: "$4.17", price: "Billed annually at $49.99", badges: ["7 days free", "Save 67%"]
-        ) == "Annual, $4.17 a month, Billed annually at $49.99, 7 days free, Save 67%")
-        #expect(PaywallView.spokenPlan(name: "Monthly", perMonth: nil, price: "$12.99 a month", badges: [])
+            name: "Annual", price: "$49.99 a year", details: ["That's $4.17 a month.", "7 days free", "Save 67%"]
+        ) == "Annual, $49.99 a year, That's $4.17 a month, 7 days free, Save 67%")
+        #expect(PaywallView.spokenPlan(name: "Monthly", price: "$12.99 a month", details: [])
             == "Monthly, $12.99 a month")
     }
 
