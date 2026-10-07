@@ -4592,3 +4592,40 @@ Captures in `docs/verification/1.1-polish/`.
 **Not verified**: on hardware; the paywall at accessibility sizes; the
 Challenge sheet's completed and skipped states by hand (they resize the sheet
 to their own height).
+
+### 17.9 App Review 3.1.2(c): the billed amount leads (2026-10-07)
+
+1.1 (5) was rejected on 2026-10-06 (submission `7faeb015-…`, reviewed on an
+iPad Air 11-inch (M3)) under **Guideline 3.1.2(c)**: the annual plan showed
+its calculated price (§17.8's "$4.17 / month") more conspicuously than the
+billed amount. Apple asks that the billed amount be the most clear and
+conspicuous pricing element, with the trial, introductory and calculated
+prices subordinate in position and size.
+
+- **Annual**: "$49.99 / year" in `.largeTitle` bold, white, first under the
+  name. Under it in `.footnote` at 60 % white, "That's $4.17 a month."
+  (`PremiumCopy.thatsPerMonth`, still StoreKit's price ÷ 12 rounded up), and
+  the "7 days free" badge in `.caption`. "Save 67%" beside the name is now a
+  tinted, outlined caption badge rather than a solid one.
+- **Monthly**: "$12.99 / month", the amount in semibold.
+- **The headline names neither a price nor the trial**: "Build yourself, one
+  day at a time." (`.title2`, under the amount's `.largeTitle`); "Keep the
+  practice going." without a free week, as before.
+- **Under the button**, billed amount first, `.footnote` at 75 %: "$49.99 a year
+  after the 7-day free trial. Cancel anytime." / "$12.99 a month. Cancel
+  anytime."
+- **The exit offer**: "$29.99 / year" in `.largeTitle` first; the struck
+  annual price and "That's $2.50 a month, still with seven days free."
+  (`PremiumCopy.offerDetail`, replacing `offerLine`) smaller under it.
+- VoiceOver reads the billed amount first (`PaywallView.spokenPlan`).
+- **Build 1.1 (6)**: `CURRENT_PROJECT_VERSION` 6 in all six configurations
+  (5 was set locally at upload and never committed).
+- No product, price, eligibility, purchase, restore or founder change.
+
+**Verified**: a clean build and the whole suite on the 17 Pro, 945 tests in
+94 suites passed. By hand on the 17 Pro with Forge.storekit prices: the
+locked-door paywall (Annual, Monthly, scrolled to the terms), the onboarding
+paywall from a fresh first run, and the exit offer. Full-size captures for App
+Review in `docs/launch/review-screenshots-1.1/`. **Not verified**: the iPad
+compatibility window (xcodebuild cannot run an iPhone-only app on an iPad
+simulator; on iPad the app is the same iPhone-sized layout), hardware.

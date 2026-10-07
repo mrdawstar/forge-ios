@@ -539,7 +539,9 @@ struct PaywallCopyTests {
 
     @Test("With the free week on offer, the paywall says so — and the timeline promises the reminder")
     func eligible() {
-        #expect(PremiumCopy.headline(trialDays: 7) == "Seven days free. Then decide.")
+        // Never the free week or a price: nothing about either is larger than
+        // the billed amount (App Review 3.1.2(c), 2026-10-06).
+        #expect(PremiumCopy.headline(trialDays: 7) == "Build yourself, one day at a time.")
         #expect(PremiumCopy.trialBadge(days: 7) == "7 days free")
         #expect(PremiumCopy.buttonTitle(startsFreeWeek: true) == "Start my free week")
         #expect(PremiumCopy.cancelLine(startsFreeWeek: true) == "Cancel anytime in Settings. Nothing is charged today.")
@@ -560,7 +562,7 @@ struct PaywallCopyTests {
         #expect(PremiumCopy.buttonTitle(startsFreeWeek: false) == "Continue")
         #expect(PremiumCopy.cancelLine(startsFreeWeek: false) == "Cancel anytime in Settings.")
         let terms = PremiumCopy.renewalTerms(planName: "Annual", price: "$49.99", value: 1, unit: .year, trialDays: nil)
-        let offer = PremiumCopy.offerLine(price: "$29.99", perMonth: "$2.50 a month", trialDays: nil)
+        let offer = PremiumCopy.offerDetail(perMonth: "$2.50 a month", trialDays: nil) ?? ""
         let button = PremiumCopy.offerButton(price: "$29.99", startsFreeWeek: false)
         for words in [headline, terms, offer, button, PremiumCopy.cancelLine(startsFreeWeek: false)] {
             for trial in ["free", "trial", "Nothing is charged today", "week"] {
@@ -608,9 +610,13 @@ struct PaywallCopyTests {
             monthly: Decimal(string: "1")!, monthlyValue: 1, monthlyUnit: .week
         ) == nil)
 
-        #expect(PremiumCopy.billed("$49.99", value: 1, unit: .year) == "Billed annually at $49.99")
-        #expect(PremiumCopy.buttonLine(trialDays: 7, price: "$49.99", value: 1, unit: .year)
-            == "7 days free, then $49.99 a year.")
+        #expect(PremiumCopy.slashPer(value: 1, unit: .year) == "/ year")
+        #expect(PremiumCopy.slashPer(value: 3, unit: .month) == "/ 3 months")
+        #expect(PremiumCopy.thatsPerMonth("$4.17") == "That's $4.17 a month.")
+        // The billed amount leads the line under the button, too.
+        let line = PremiumCopy.buttonLine(trialDays: 7, price: "$49.99", value: 1, unit: .year)
+        #expect(line == "$49.99 a year after the 7-day free trial. Cancel anytime.")
+        #expect(line.hasPrefix("$49.99"))
         let noTrial = PremiumCopy.buttonLine(trialDays: nil, price: "$12.99", value: 1, unit: .month)
         #expect(noTrial == "$12.99 a month. Cancel anytime.")
         for trial in ["free", "trial", "week"] { #expect(!noTrial.contains(trial)) }
@@ -619,10 +625,10 @@ struct PaywallCopyTests {
     @Test("The exit offer: one lower price, offered once, with or without the free week")
     func exitOffer() {
         #expect(PremiumCopy.offerTitle == "One lower price, offered once.")
-        #expect(PremiumCopy.offerLine(price: "$29.99", perMonth: "$2.50 a month", trialDays: 7)
-            == "$29.99 a year, $2.50 a month, still with seven days free.")
-        #expect(PremiumCopy.offerLine(price: "$29.99", perMonth: "$2.50 a month", trialDays: nil)
-            == "$29.99 a year, $2.50 a month.")
+        #expect(PremiumCopy.offerDetail(perMonth: "$2.50 a month", trialDays: 7)
+            == "That's $2.50 a month, still with seven days free.")
+        #expect(PremiumCopy.offerDetail(perMonth: "$2.50 a month", trialDays: nil) == "That's $2.50 a month.")
+        #expect(PremiumCopy.offerDetail(perMonth: nil, trialDays: 7) == "Still with seven days free.")
         #expect(PremiumCopy.offerButton(price: "$29.99", startsFreeWeek: true) == "Start my free week at $29.99")
         #expect(PremiumCopy.offerDecline == "No thanks")
     }
